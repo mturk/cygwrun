@@ -4,7 +4,7 @@ Run windows applications under Posix environment
 
 ## Overview
 
-Cygwin and Msys2 use posix paths and environments which makes most of
+Cygwin uses posix paths and environments which makes most of
 the standard windows programs to fail because of path mismatch.
 The traditional way of handling that is using Cygwin cygpath
 utility which translates Cygwin (posix) paths to their windows

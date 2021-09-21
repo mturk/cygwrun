@@ -45,7 +45,7 @@ Microsoft (R) Program Maintenance Utility Version 9.00.30729.207
 ...
 ```
 In case there are no compile errors the cygwrun.exe is located
-inside **x64_RELEASE** subdirectory.
+inside **x64** subdirectory.
 
 ### Build using other MSC versions
 
@@ -77,7 +77,7 @@ for cygwrun development and maintenance
 ```
 
 This will remove all produced binaries and object files
-by simply deleting **x64_RELEASE** subdirectory.
+by simply deleting **x64** subdirectory.
 
 ```no-highlight
 > nmake install PREFIX=C:\some\directory
