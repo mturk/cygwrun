@@ -750,22 +750,6 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
 #endif
 
     qsort((void *)wenvp, envc, sizeof(wchar_t *), envsort);
-#if defined(_TEST_MODE)
-    if (wcscmp(wargv[0], L"arg") == 0) {
-        for (i = 1; i < argc; i++)
-            _putws(wargv[i]);
-        return 0;
-    }
-    if (wcscmp(wargv[0], L"env") == 0) {
-        for (i = 0; i < envc; i++) {
-            if (wargv[1] == 0 || strstartswith(wenvp[i], wargv[1]))
-                _putws(wenvp[i]);
-        }
-        return 0;
-    }
-    fprintf(stderr, "unknown test %S .. use arg or env\n", wargv[0]);
-    return EINVAL;
-#endif
     if (execmode == _P_NOWAIT) {
         if(_pipe(stdinpipe, BUFSIZ, O_NOINHERIT) == -1) {
             rc = errno;
