@@ -28,8 +28,8 @@
 
 #define PROJECT_NAME            "cygwrun"
 #define PROJECT_PNAME           "cygwrun"
-#define PROJECT_VERSION_STR     "1.0.1"
-#define PROJECT_VERSION_CSV      1,0,1
+#define PROJECT_VERSION_STR     "1.0.2"
+#define PROJECT_VERSION_CSV      1,0,2
 
 #define PROJECT_COPYRIGHT       "Copyright(c) 1964-2021 Mladen Turk"
 #define PROJECT_COMPANY_NAME    "Acme Corporation"

@@ -547,6 +547,8 @@ static wchar_t *convert2win(const wchar_t *str)
 
 static wchar_t *getposixroot(wchar_t *r)
 {
+    wchar_t *b;
+
     if (r == 0) {
         const wchar_t **e = posixrenv;
         while (*e != 0) {
@@ -555,12 +557,22 @@ static wchar_t *getposixroot(wchar_t *r)
             e++;
         }
     }
-    if (r != 0) {
+    if (r == 0) {
+        /**
+         * Use default location
+         */
+        r = xwcsdup(L"C:\\cygwin64");
+    }
+    else {
         rmtrailingsep(r);
         xwinpathsep(r);
         if (isalpha(*r & 0x7F))
             *r = towupper(*r);
     }
+    b = xwcsconcat(r, L"\\bin\\bash.exe");
+    if (_waccess(b, 0))
+        r = 0;
+    xfree(b);
     return r;
 }
 
@@ -747,6 +759,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
              * Simple argument parsing
              */
             if (cwd == nnp) {
+
                 cwd = xwcsdup(p);
                 continue;
             }
@@ -806,7 +819,13 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     }
     rmtrailingsep(opath);
     if ((posixroot = getposixroot(crp)) == 0) {
-        fputs("Cannot determine POSIX_ROOT\n\n", stderr);
+        if (crp) {
+            fwprintf(stderr, L"Cannot find bash.exe in: '%s'\n\n",
+                     crp);
+        }
+        else {
+            fputs("Cannot find valid POSIX_ROOT\n\n", stderr);
+        }
         return usage(1);
     }
 #if defined(_HAVE_DEBUG_OPTION)
