@@ -242,7 +242,9 @@ static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
             case L'*':
                 wexp++;
                 while (*wexp == L'*') {
-                    /* Skip multiple stars */
+                    /**
+                     * Skip multiple stars
+                     */
                     wexp++;
                 }
                 if (*wexp == L'\0')
@@ -309,7 +311,9 @@ static int isposixpath(const wchar_t *str)
     int i = 0;
 
     if (str[0] != L'/') {
-        /* Check for .[/] or ..[/] */
+        /**
+         * Check for .[/] or ..[/]
+         */
         return isdotpath(str);
     }
 
@@ -318,7 +322,9 @@ static int isposixpath(const wchar_t *str)
     if (wcscmp(str, L"/dev/null") == 0)
         return 302;
     if (wcschr(str + 1, L'/') == 0) {
-        /* No additional slashes */
+        /**
+         * No additional slashes
+         */
         const wchar_t **mp = pathfixed;
         while (mp[i] != 0) {
             if (wcscmp(str, mp[i]) == 0)
@@ -393,20 +399,28 @@ static wchar_t **splitpath(const wchar_t *s, int *tokens)
 
             p = xwalloc(n + 2);
             if (n == 0) {
-                /* Preserve leading or multiple colons */
+                /**
+                 * Preserve leading or multiple colons
+                 */
                 p[n] = L':';
             }
             else {
                 wmemcpy(p, b, n);
-                /* Is the previous token path or flag */
+                /**
+                 * Is the previous token path or flag
+                 */
                 if (isposixpath(p)) {
                     while (*(e + cn) == L':') {
-                        /* Drop multiple trailing colons */
+                        /**
+                         * Drop multiple trailing colons
+                         */
                         cn++;
                     }
                 }
                 else {
-                    /* Preserve colon for unresolved paths */
+                    /**
+                     * Preserve colon for unresolved paths
+                     */
                     p[n] = L':';
                 }
             }
@@ -438,7 +452,9 @@ static wchar_t *mergepath(const wchar_t **pp)
         if (len > 0) {
             if (sc)
                 *(p++) = L';';
-            /* do not add semicolon before next path */
+            /**
+             * Do not add semicolon before next path
+             */
             if (pp[i][len - 1] == L':')
                 sc = 0;
             else
@@ -480,19 +496,25 @@ static wchar_t *posix2win(wchar_t *pp)
      */
     m = isposixpath(pp);
     if (m == 0) {
-        /* Not a posix path */
+        /**
+         * Not a posix path
+         */
         if (iswinpath(pp))
             xwinpathsep(pp);
         return pp;
     }
     else if (m == 100) {
-        /* /cygdrive/x/... absolute path */
+        /**
+         * /cygdrive/x/... absolute path
+         */
         windrive[0] = towupper(pp[10]);
         rv = xwcsconcat(windrive, pp + 12);
         xwinpathsep(rv + 3);
     }
     else if (m == 101) {
-        /* /x/... msys2 absolute path */
+        /**
+         * /x/... msys2 absolute path
+         */
         windrive[0] = towupper(pp[1]);
         if (windrive[0] != *posixroot)
             return pp;
@@ -528,7 +550,11 @@ static wchar_t *convert2win(const wchar_t *str)
         xwinpathsep(wp);
     }
     else if (wcschr(str, L':') == 0) {
-        /* No posix path separator found */
+        /**
+         * Posix path separator not found.
+         * No need to split/merge since we have
+         * only one path element
+         */
         wchar_t *e = xwcsdup(str);
         wp = posix2win(e);
     }
@@ -613,11 +639,15 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             wprintf(L"[%2d] : %s\n", i, a);
 #endif
         if (wcschr(a, L'/') == 0) {
-            /* Argument has no forward slashes */
+            /**
+             * Argument has no forward slashes
+             */
             continue;
         }
         if ((a[0] == L'/') && (a[1] == L'\0')) {
-            /* Special case for / (root) */
+            /**
+             * Special case for / (root)
+             */
             xfree(a);
             wargv[i] = xwcsdup(posixroot);
         }
@@ -680,7 +710,9 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 continue;
             }
             if ((v[0] == L'/') && (v[1] == L'\0')) {
-                /* Special case for / (root) */
+                /**
+                 * Special case for / (root)
+                 */
                 *v = L'\0';
                 wenvp[i] = xwcsconcat(e, posixroot);
                 xfree(e);
@@ -757,14 +789,18 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         return usage(rc);
     }
     if (execmode == _P_NOWAIT) {
-        /* Restore original stdin handle */
+        /**
+         * Restore original stdin handle
+         */
         if(_dup2(orgstdin, _fileno(stdin)) != 0) {
             rc = errno;
             _wperror(L"Fatal error _dup2()");
             return rc;
         }
         _close(orgstdin);
-        /* Create stdin R/W thread */
+        /**
+         * Create stdin R/W thread
+         */
         stdinpipe[0] = _fileno(stdin);
         _beginthread(xstdinrw, 0, (void *)stdinpipe);
         if (_cwait(&rc, rp, _WAIT_CHILD) == (intptr_t)-1) {
