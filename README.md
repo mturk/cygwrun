@@ -56,7 +56,7 @@ of the current posix subsystem.
 
 In case the `-r <directory>` was not specified the program will
 check the following environment variables.
-First check `POSIX_ROOT` then `CYGWIN_ROOT` and finally `HOMEDIR`.
+First check `CYGWIN_ROOT` and then `POSIX_ROOT`.
 
 Make sure that you provide a correct posix root since it will
 be used as prefix to `/usr, /bin, /tmp` constructing an actual
@@ -67,7 +67,7 @@ For example, if Cygwin is installed inside `C:\cygwin64` you
 can set either environment variable
 
 ```
-    $ export POSIX_ROOT=C:/cygwin64
+    $ export CYGWIN_ROOT=C:/cygwin64
     ...
     $ cygwrun ... -f1=/usr/local
 ```
