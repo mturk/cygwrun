@@ -14,7 +14,7 @@
  */
 
 #include <windows.h>
-#include "cygrunexe.h"
+#include "cygwrun.h"
 
 1 VERSIONINFO
  FILEVERSION PROJECT_VERSION_CSV,0

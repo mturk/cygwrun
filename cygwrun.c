@@ -23,7 +23,7 @@
 #include <fcntl.h>
 #include <io.h>
 
-#include "cygrunexe.h"
+#include "cygwrun.h"
 
 #define IS_PSW(c)         ((c) == L'/' || (c) == L'\\')
 #define IS_EMPTY_WCS(_s)  (((_s) == 0) || (*(_s) == L'\0'))

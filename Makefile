@@ -19,7 +19,7 @@ CC = cl.exe
 LN = link.exe
 RC = rc.exe
 
-PROJECT = cygrunexe
+PROJECT = cygwrun
 WINVER  = 0x0601
 WORKDIR = x64
 OUTPUT  = $(WORKDIR)\$(PROJECT).exe
