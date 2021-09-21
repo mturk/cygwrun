@@ -616,17 +616,18 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             /* Argument has no forward slashes */
             continue;
         }
-        if (isdotpath(a)) {
+        if ((a[0] == L'/') && (a[1] == L'\0')) {
+            /* Special case for / (root) */
+            xfree(a);
+            wargv[i] = xwcsdup(posixroot);
+        }
+        else if (isdotpath(a)) {
             /**
              * We have something like
              * ./[foobar] or ../[foobar]
              * Replace to backward slashes inplace
              */
              xwinpathsep(a);
-#if defined(_HAVE_DEBUG_OPTION)
-            if (debug)
-                wprintf(L"     * %s\n", wargv[i]);
-#endif
         }
         else if (wcslen(a) > 3) {
             wchar_t *p;
@@ -644,12 +645,18 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                     xfree(p);
                 }
                 xfree(a);
-#if defined(_HAVE_DEBUG_OPTION)
-                if (debug)
-                    wprintf(L"     * %s\n", wargv[i]);
-#endif
             }
         }
+        else {
+            /**
+             * No need to change the argument
+             */
+            continue;
+        }
+#if defined(_HAVE_DEBUG_OPTION)
+        if (debug)
+            wprintf(L"     * %s\n", wargv[i]);
+#endif
     }
 
 #if defined(_HAVE_DEBUG_OPTION)
@@ -672,29 +679,36 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                  */
                 continue;
             }
-            if (isdotpath(v)) {
+            if ((v[0] == L'/') && (v[1] == L'\0')) {
+                /* Special case for / (root) */
+                *v = L'\0';
+                wenvp[i] = xwcsconcat(e, posixroot);
+                xfree(e);
+            }
+            else if (isdotpath(v)) {
                 /**
                  * We have something like
                  * VARIABLE=./[foobar] or VARIABLE=../[foobar]
                  * Replace value to backward slashes inplace
                  */
                  xwinpathsep(v);
-#if defined(_HAVE_DEBUG_OPTION)
-                if (debug)
-                    wprintf(L"     * %s\n", wenvp[i]);
-#endif
-                 continue;
             }
-            if ((wcslen(v) > 3) && ((p = convert2win(v)) != 0)) {
+            else if ((wcslen(v) > 3) && ((p = convert2win(v)) != 0)) {
                 *v = L'\0';
                 wenvp[i] = xwcsconcat(e, p);
                 xfree(e);
                 xfree(p);
-#if defined(_HAVE_DEBUG_OPTION)
-                if (debug)
-                    wprintf(L"     * %s\n", wenvp[i]);
-#endif
             }
+            else {
+                /**
+                 * No need to change Environment variable's value
+                 */
+                continue;
+            }
+#if defined(_HAVE_DEBUG_OPTION)
+            if (debug)
+                wprintf(L"     * %s\n", wenvp[i]);
+#endif
         }
     }
 #if defined(_HAVE_DEBUG_OPTION)
