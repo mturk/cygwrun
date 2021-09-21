@@ -25,12 +25,8 @@
 
 #include "cygwrun.h"
 
-#define IS_PSW(c)         ((c) == L'/' || (c) == L'\\')
-#define IS_EMPTY_WCS(_s)  (((_s) == 0) || (*(_s) == L'\0'))
-
-#if defined(_TEST_MODE)
-#undef _HAVE_DEBUG_OPTION
-#endif
+#define IS_PSW(_c)        (((_c) == L'/') || ((_c) == L'\\'))
+#define IS_EMPTY_WCS(_s)  (((_s) == 0)    || (*(_s) == L'\0'))
 
 #if defined(_HAVE_DEBUG_OPTION)
 static int      debug     = 0;
@@ -656,7 +652,6 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
 #if defined(_HAVE_DEBUG_OPTION)
     if (debug) {
         wprintf(L"[%2d] : %s\n", i, wenvp[i]);
-        return 0;
     }
 #endif
 
@@ -675,8 +670,8 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         return 0;
     }
     fprintf(stderr, "unknown test %S .. use arg or env\n", wargv[0]);
-    rc = EINVAL;
-#else
+    return EINVAL;
+#endif
     if (execmode == _P_NOWAIT) {
         if(_pipe(stdinpipe, BUFSIZ, O_NOINHERIT) == -1) {
             rc = errno;
@@ -718,7 +713,6 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         }
     }
 
-#endif
     return rc;
 }
 
