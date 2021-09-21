@@ -489,7 +489,7 @@ static wchar_t *posix2win(wchar_t *pp)
     wchar_t *rv;
     wchar_t  windrive[] = { 0, L':', L'\\', 0};
 
-    if (wcschr(pp, L'/') == 0)
+    if ((*pp == L'\'') || (wcschr(pp, L'/') == 0))
         return pp;
     /**
      * Check for special paths
