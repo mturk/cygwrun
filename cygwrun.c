@@ -519,13 +519,18 @@ static wchar_t *posix2win(wchar_t *pp)
 
 static wchar_t *convert2win(const wchar_t *str)
 {
-    wchar_t *wp;
+    wchar_t *wp = 0;
 
     if ((*str == L'\'') || (wcschr(str, L'/') == 0))
         return 0;
     if (iswinpath(str)) {
         wp = xwcsdup(str);
         xwinpathsep(wp);
+    }
+    else if (wcschr(str, L':') == 0) {
+        /* No posix path separator found */
+        wchar_t *e = xwcsdup(str);
+        wp = posix2win(e);
     }
     else {
         int i, n;
@@ -607,9 +612,23 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         if (debug)
             wprintf(L"[%2d] : %s\n", i, a);
 #endif
-        if (wcschr(a, L'/') == 0)
+        if (wcschr(a, L'/') == 0) {
+            /* Argument has no forward slashes */
             continue;
-        if (wcslen(a) > 3) {
+        }
+        if (isdotpath(a)) {
+            /**
+             * We have something like
+             * ./[foobar] or ../[foobar]
+             * Replace to backward slashes inplace
+             */
+             xwinpathsep(a);
+#if defined(_HAVE_DEBUG_OPTION)
+            if (debug)
+                wprintf(L"     * %s\n", wargv[i]);
+#endif
+        }
+        else if (wcslen(a) > 3) {
             wchar_t *p;
             wchar_t *v = cmdoptionval(a);
             if (IS_EMPTY_WCS(v))
@@ -646,8 +665,26 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
 #endif
         if ((p = wcschr(e, L'=')) != 0) {
             wchar_t *v = p + 1;
-            if (wcschr(v, L'/') == 0)
+            if (wcschr(v, L'/') == 0) {
+                /**
+                 * Environment variable's value
+                 * have no potential posix path
+                 */
                 continue;
+            }
+            if (isdotpath(v)) {
+                /**
+                 * We have something like
+                 * VARIABLE=./[foobar] or VARIABLE=../[foobar]
+                 * Replace value to backward slashes inplace
+                 */
+                 xwinpathsep(v);
+#if defined(_HAVE_DEBUG_OPTION)
+                if (debug)
+                    wprintf(L"     * %s\n", wenvp[i]);
+#endif
+                 continue;
+            }
             if ((wcslen(v) > 3) && ((p = convert2win(v)) != 0)) {
                 *v = L'\0';
                 wenvp[i] = xwcsconcat(e, p);
