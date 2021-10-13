@@ -794,6 +794,12 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             return usage(rc);
         }
     }
+    else {
+        /**
+         * return the child exit code
+         */
+        rc = (int)rp;
+    }
 
     return rc;
 }
