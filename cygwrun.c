@@ -370,7 +370,7 @@ static int envsort(const void *arg1, const void *arg2)
     return _wcsicoll(*((wchar_t **)arg1), *((wchar_t **)arg2));
 }
 
-static void posix2winps(wchar_t *s)
+static void posixdstowin(wchar_t *s)
 {
     while (*s != L'\0') {
         if (*s == L'/')
@@ -485,7 +485,7 @@ static void rmtrailingsep(wchar_t *s)
     }
 }
 
-static wchar_t *posix2win(wchar_t *pp)
+static wchar_t *posixtowin(wchar_t *pp)
 {
     int m;
     wchar_t *rv;
@@ -502,7 +502,7 @@ static wchar_t *posix2win(wchar_t *pp)
          * Not a posix path
          */
         if (iswinpath(pp))
-            posix2winps(pp);
+            posixdstowin(pp);
         return pp;
     }
     else if (m == 100) {
@@ -511,7 +511,7 @@ static wchar_t *posix2win(wchar_t *pp)
          */
         windrive[0] = towupper(pp[10]);
         rv = xwcsconcat(windrive, pp + 12);
-        posix2winps(rv + 3);
+        posixdstowin(rv + 3);
     }
     else if (m == 101) {
         /**
@@ -521,10 +521,10 @@ static wchar_t *posix2win(wchar_t *pp)
         if (windrive[0] != *posixroot)
             return pp;
         rv = xwcsconcat(windrive, pp + 3);
-        posix2winps(rv + 3);
+        posixdstowin(rv + 3);
     }
     else if (m == 300) {
-        posix2winps(pp);
+        posixdstowin(pp);
         return pp;
     }
     else if (m == 301) {
@@ -534,14 +534,14 @@ static wchar_t *posix2win(wchar_t *pp)
         rv = xwcsdup(L"NUL");
     }
     else {
-        posix2winps(pp);
+        posixdstowin(pp);
         rv = xwcsconcat(posixroot, pp);
     }
     xfree(pp);
     return rv;
 }
 
-static wchar_t *convert2win(const wchar_t *str)
+static wchar_t *converttowin(const wchar_t *str)
 {
     wchar_t *wp = NULL;
 
@@ -549,7 +549,7 @@ static wchar_t *convert2win(const wchar_t *str)
         return 0;
     if (iswinpath(str)) {
         wp = xwcsdup(str);
-        posix2winps(wp);
+        posixdstowin(wp);
     }
     else if (wcschr(str, L':') == 0) {
         /**
@@ -558,7 +558,7 @@ static wchar_t *convert2win(const wchar_t *str)
          * only one path element
          */
         wchar_t *e = xwcsdup(str);
-        wp = posix2win(e);
+        wp = posixtowin(e);
     }
     else {
         int i, n;
@@ -566,7 +566,7 @@ static wchar_t *convert2win(const wchar_t *str)
 
         for (i = 0; i < n; i++) {
             wchar_t *e = pa[i];
-            pa[i] = posix2win(e);
+            pa[i] = posixtowin(e);
             if (pa[i] == e) {
                break;
             }
@@ -596,7 +596,7 @@ static wchar_t *getposixroot(wchar_t *r)
     }
     else {
         rmtrailingsep(r);
-        posix2winps(r);
+        posixdstowin(r);
         if ((*r < 128) && isalpha(*r))
             *r = towupper(*r);
     }
@@ -709,15 +709,15 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
              * ./[foobar] or ../[foobar]
              * Replace to backward slashes inplace
              */
-             posix2winps(a);
+             posixdstowin(a);
         }
         else if (wcslen(a) > 3) {
             wchar_t *p;
             wchar_t *v = cmdoptionval(a);
             if (IS_EMPTY_WCS(v))
-                p = convert2win(a);
+                p = converttowin(a);
             else
-                p = convert2win(v);
+                p = converttowin(v);
             if (p != NULL) {
                 if (IS_EMPTY_WCS(v))
                     wargv[i] = p;
@@ -775,9 +775,9 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                  * VARIABLE=./[foobar] or VARIABLE=../[foobar]
                  * Replace value to backward slashes inplace
                  */
-                 posix2winps(v);
+                 posixdstowin(v);
             }
-            else if ((wcslen(v) > 3) && ((p = convert2win(v)) != NULL)) {
+            else if ((wcslen(v) > 3) && ((p = converttowin(v)) != NULL)) {
                 *v = L'\0';
                 wenvp[i] = xwcsconcat(e, p);
                 xfree(e);
@@ -962,7 +962,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
 #endif
     if (cwd != NULL) {
         rmtrailingsep(cwd);
-        cwd = posix2win(cwd);
+        cwd = posixtowin(cwd);
         if (_wchdir(cwd) != 0) {
             fwprintf(stderr, L"Invalid working directory: %s\nFatal error: %s\n\n",
                      cwd, _wcserror(errno));
