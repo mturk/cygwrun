@@ -43,13 +43,13 @@
 /**
  * Version info
  */
-#define PROJECT_MAJOR_VERSION  1
-#define PROJECT_MINOR_VERSION  0
-#define PROJECT_PATCH_VERSION  4
+#define PROJECT_MAJOR_VERSION   1
+#define PROJECT_MINOR_VERSION   0
+#define PROJECT_PATCH_VERSION   4
 #if defined(_VENDOR_NUM)
-# define PROJECT_MICRO_VERSION _VENDOR_NUM
+# define PROJECT_MICRO_VERSION  _VENDOR_NUM
 #else
-# define PROJECT_MICRO_VERSION 0
+# define PROJECT_MICRO_VERSION  0
 #endif
 
 /**
@@ -67,7 +67,7 @@
 /**
  * Set to zero for non dev versions
  */
-#define PROJECT_ISDEV_VERSION    1
+#define PROJECT_ISDEV_VERSION    0
 
 #if PROJECT_ISDEV_VERSION
 # define PROJECT_VERSION_SFX     PROJECT_VENDOR_SFX "-dev"
