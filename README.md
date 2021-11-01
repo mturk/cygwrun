@@ -56,7 +56,8 @@ of the current posix subsystem.
 
 In case the `-r <directory>` was not specified the program will
 check the following environment variables.
-First check `CYGWIN_ROOT` and then `POSIX_ROOT`.
+First it will check `CYGWIN_ROOT` and then `POSIX_ROOT`. If
+none of them are found `C:\cygwin64` will be used.
 
 Make sure that you provide a correct posix root since it will
 be used as prefix to `/usr, /bin, /tmp` constructing an actual

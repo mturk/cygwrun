@@ -370,7 +370,7 @@ static int envsort(const void *arg1, const void *arg2)
     return _wcsicoll(*((wchar_t **)arg1), *((wchar_t **)arg2));
 }
 
-static void fwd2bslash(wchar_t *s)
+static void posix2winps(wchar_t *s)
 {
     while (*s != L'\0') {
         if (*s == L'/')
@@ -502,7 +502,7 @@ static wchar_t *posix2win(wchar_t *pp)
          * Not a posix path
          */
         if (iswinpath(pp))
-            fwd2bslash(pp);
+            posix2winps(pp);
         return pp;
     }
     else if (m == 100) {
@@ -511,7 +511,7 @@ static wchar_t *posix2win(wchar_t *pp)
          */
         windrive[0] = towupper(pp[10]);
         rv = xwcsconcat(windrive, pp + 12);
-        fwd2bslash(rv + 3);
+        posix2winps(rv + 3);
     }
     else if (m == 101) {
         /**
@@ -521,10 +521,10 @@ static wchar_t *posix2win(wchar_t *pp)
         if (windrive[0] != *posixroot)
             return pp;
         rv = xwcsconcat(windrive, pp + 3);
-        fwd2bslash(rv + 3);
+        posix2winps(rv + 3);
     }
     else if (m == 300) {
-        fwd2bslash(pp);
+        posix2winps(pp);
         return pp;
     }
     else if (m == 301) {
@@ -534,7 +534,7 @@ static wchar_t *posix2win(wchar_t *pp)
         rv = xwcsdup(L"NUL");
     }
     else {
-        fwd2bslash(pp);
+        posix2winps(pp);
         rv = xwcsconcat(posixroot, pp);
     }
     xfree(pp);
@@ -549,7 +549,7 @@ static wchar_t *convert2win(const wchar_t *str)
         return 0;
     if (iswinpath(str)) {
         wp = xwcsdup(str);
-        fwd2bslash(wp);
+        posix2winps(wp);
     }
     else if (wcschr(str, L':') == 0) {
         /**
@@ -580,8 +580,6 @@ static wchar_t *convert2win(const wchar_t *str)
 
 static wchar_t *getposixroot(wchar_t *r)
 {
-    wchar_t *b;
-
     if (r == NULL) {
         const wchar_t **e = posixrenv;
         while (*e != 0) {
@@ -598,14 +596,10 @@ static wchar_t *getposixroot(wchar_t *r)
     }
     else {
         rmtrailingsep(r);
-        fwd2bslash(r);
-        if (isalpha(*r & 0x7F))
+        posix2winps(r);
+        if ((*r < 128) && isalpha(*r))
             *r = towupper(*r);
     }
-    b = xwcsconcat(r, L"\\bin\\bash.exe");
-    if (_waccess(b, 0))
-        r = NULL;
-    xfree(b);
     return r;
 }
 
@@ -659,7 +653,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
              * ./[foobar] or ../[foobar]
              * Replace to backward slashes inplace
              */
-             fwd2bslash(a);
+             posix2winps(a);
         }
         else if (wcslen(a) > 3) {
             wchar_t *p;
@@ -725,7 +719,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                  * VARIABLE=./[foobar] or VARIABLE=../[foobar]
                  * Replace value to backward slashes inplace
                  */
-                 fwd2bslash(v);
+                 posix2winps(v);
             }
             else if ((wcslen(v) > 3) && ((p = convert2win(v)) != NULL)) {
                 *v = L'\0';
