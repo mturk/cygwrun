@@ -370,7 +370,7 @@ static int envsort(const void *arg1, const void *arg2)
     return _wcsicoll(*((wchar_t **)arg1), *((wchar_t **)arg2));
 }
 
-static void fwdtobs(wchar_t *s)
+static void fwd2bslash(wchar_t *s)
 {
     while (*s != L'\0') {
         if (*s == L'/')
@@ -502,7 +502,7 @@ static wchar_t *posix2win(wchar_t *pp)
          * Not a posix path
          */
         if (iswinpath(pp))
-            fwdtobs(pp);
+            fwd2bslash(pp);
         return pp;
     }
     else if (m == 100) {
@@ -511,7 +511,7 @@ static wchar_t *posix2win(wchar_t *pp)
          */
         windrive[0] = towupper(pp[10]);
         rv = xwcsconcat(windrive, pp + 12);
-        fwdtobs(rv + 3);
+        fwd2bslash(rv + 3);
     }
     else if (m == 101) {
         /**
@@ -521,10 +521,10 @@ static wchar_t *posix2win(wchar_t *pp)
         if (windrive[0] != *posixroot)
             return pp;
         rv = xwcsconcat(windrive, pp + 3);
-        fwdtobs(rv + 3);
+        fwd2bslash(rv + 3);
     }
     else if (m == 300) {
-        fwdtobs(pp);
+        fwd2bslash(pp);
         return pp;
     }
     else if (m == 301) {
@@ -534,7 +534,7 @@ static wchar_t *posix2win(wchar_t *pp)
         rv = xwcsdup(L"NUL");
     }
     else {
-        fwdtobs(pp);
+        fwd2bslash(pp);
         rv = xwcsconcat(posixroot, pp);
     }
     xfree(pp);
@@ -549,7 +549,7 @@ static wchar_t *convert2win(const wchar_t *str)
         return 0;
     if (iswinpath(str)) {
         wp = xwcsdup(str);
-        fwdtobs(wp);
+        fwd2bslash(wp);
     }
     else if (wcschr(str, L':') == 0) {
         /**
@@ -598,7 +598,7 @@ static wchar_t *getposixroot(wchar_t *r)
     }
     else {
         rmtrailingsep(r);
-        fwdtobs(r);
+        fwd2bslash(r);
         if (isalpha(*r & 0x7F))
             *r = towupper(*r);
     }
@@ -659,7 +659,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
              * ./[foobar] or ../[foobar]
              * Replace to backward slashes inplace
              */
-             fwdtobs(a);
+             fwd2bslash(a);
         }
         else if (wcslen(a) > 3) {
             wchar_t *p;
@@ -725,7 +725,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                  * VARIABLE=./[foobar] or VARIABLE=../[foobar]
                  * Replace value to backward slashes inplace
                  */
-                 fwdtobs(v);
+                 fwd2bslash(v);
             }
             else if ((wcslen(v) > 3) && ((p = convert2win(v)) != NULL)) {
                 *v = L'\0';
