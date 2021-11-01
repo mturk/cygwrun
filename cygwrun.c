@@ -370,7 +370,7 @@ static int envsort(const void *arg1, const void *arg2)
     return _wcsicoll(*((wchar_t **)arg1), *((wchar_t **)arg2));
 }
 
-static void posixdstowin(wchar_t *s)
+static void replacepathsep(wchar_t *s)
 {
     while (*s != L'\0') {
         if (*s == L'/')
@@ -502,7 +502,7 @@ static wchar_t *posixtowin(wchar_t *pp)
          * Not a posix path
          */
         if (iswinpath(pp))
-            posixdstowin(pp);
+            replacepathsep(pp);
         return pp;
     }
     else if (m == 100) {
@@ -511,7 +511,7 @@ static wchar_t *posixtowin(wchar_t *pp)
          */
         windrive[0] = towupper(pp[10]);
         rv = xwcsconcat(windrive, pp + 12);
-        posixdstowin(rv + 3);
+        replacepathsep(rv + 3);
     }
     else if (m == 101) {
         /**
@@ -521,10 +521,10 @@ static wchar_t *posixtowin(wchar_t *pp)
         if (windrive[0] != *posixroot)
             return pp;
         rv = xwcsconcat(windrive, pp + 3);
-        posixdstowin(rv + 3);
+        replacepathsep(rv + 3);
     }
     else if (m == 300) {
-        posixdstowin(pp);
+        replacepathsep(pp);
         return pp;
     }
     else if (m == 301) {
@@ -534,14 +534,14 @@ static wchar_t *posixtowin(wchar_t *pp)
         rv = xwcsdup(L"NUL");
     }
     else {
-        posixdstowin(pp);
+        replacepathsep(pp);
         rv = xwcsconcat(posixroot, pp);
     }
     xfree(pp);
     return rv;
 }
 
-static wchar_t *converttowin(const wchar_t *str)
+static wchar_t *towinpath(const wchar_t *str)
 {
     wchar_t *wp = NULL;
 
@@ -549,7 +549,7 @@ static wchar_t *converttowin(const wchar_t *str)
         return 0;
     if (iswinpath(str)) {
         wp = xwcsdup(str);
-        posixdstowin(wp);
+        replacepathsep(wp);
     }
     else if (wcschr(str, L':') == 0) {
         /**
@@ -596,7 +596,7 @@ static wchar_t *getposixroot(wchar_t *r)
     }
     else {
         rmtrailingsep(r);
-        posixdstowin(r);
+        replacepathsep(r);
         if ((*r < 128) && isalpha(*r))
             *r = towupper(*r);
     }
@@ -709,15 +709,15 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
              * ./[foobar] or ../[foobar]
              * Replace to backward slashes inplace
              */
-             posixdstowin(a);
+             replacepathsep(a);
         }
         else if (wcslen(a) > 3) {
             wchar_t *p;
             wchar_t *v = cmdoptionval(a);
             if (IS_EMPTY_WCS(v))
-                p = converttowin(a);
+                p = towinpath(a);
             else
-                p = converttowin(v);
+                p = towinpath(v);
             if (p != NULL) {
                 if (IS_EMPTY_WCS(v))
                     wargv[i] = p;
@@ -775,9 +775,9 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                  * VARIABLE=./[foobar] or VARIABLE=../[foobar]
                  * Replace value to backward slashes inplace
                  */
-                 posixdstowin(v);
+                 replacepathsep(v);
             }
-            else if ((wcslen(v) > 3) && ((p = converttowin(v)) != NULL)) {
+            else if ((wcslen(v) > 3) && ((p = towinpath(v)) != NULL)) {
                 *v = L'\0';
                 wenvp[i] = xwcsconcat(e, p);
                 xfree(e);
