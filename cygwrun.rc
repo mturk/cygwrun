@@ -18,6 +18,8 @@
 #include <windows.h>
 #include "cygwrun.h"
 
+#define IDI_MAINICON                            101
+IDI_MAINICON ICON                               "cygwrun.ico"
 CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST  "cygwrun.manifest"
 
 1 VERSIONINFO

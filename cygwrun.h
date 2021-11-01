@@ -28,6 +28,18 @@
 # pragma warning(disable: 4100 4244 4702)
 #endif
 
+#define IS_INVALID_HANDLE(h) (((h) == 0 || (h) == INVALID_HANDLE_VALUE))
+#define SAFE_CLOSE_HANDLE(_h)                                       \
+    if (((_h) != NULL) && ((_h) != INVALID_HANDLE_VALUE))           \
+        CloseHandle((_h));                                          \
+    (_h) = NULL
+/** Align to power of 2 boundary */
+#define ALIGN_TO_BOUNDARY(_s, _b) \
+    (((_s) + ((_b) - 1)) & ~((_b) - 1))
+/** Default alignment */
+#define DEFAULT_ALIGNMENT       8
+#define ALIGN_DEFAULT(_s)       ALIGN_TO_BOUNDARY(_s, DEFAULT_ALIGNMENT)
+
 /**
  * Version info
  */
@@ -48,7 +60,7 @@
 #define CPP_TOSTR(n)            CPP_TOSTR_HELPER(n)
 
 #if defined(_VENDOR_SFX)
-# define PROJECT_VENDOR_SFX      CPP_TOSTR(_VENDOR_SFX)
+# define PROJECT_VENDOR_SFX     CPP_TOSTR(_VENDOR_SFX)
 #else
 # define PROJECT_VENDOR_SFX      ""
 #endif
@@ -77,9 +89,7 @@
                                 CPP_TOSTR(PROJECT_PATCH_VERSION)                \
                                 PROJECT_VERSION_SFX
 
-#define PROJECT_INTNAME         "cygwrun"
-#define PROJECT_NAME            PROJECT_INTNAME
-
+#define PROJECT_NAME            "cygwrun"
 #define PROJECT_COPYRIGHT       "Copyright(c) 1964-2021 Mladen Turk"
 #define PROJECT_COMPANY_NAME    "Acme Corporation"
 #define PROJECT_DESCRIPTION     "Run windows applications under posix environment"

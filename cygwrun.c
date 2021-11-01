@@ -30,7 +30,7 @@
 #define IS_PSW(_c)        (((_c) == L'/') || ((_c) == L'\\'))
 #define IS_EMPTY_WCS(_s)  (((_s) == 0)    || (*(_s) == L'\0'))
 
-#if defined(_HAVE_DEBUG_OPTION)
+#if defined(_DBG_TRACE)
 static int      debug     = 0;
 #endif
 static int      execmode  = _P_WAIT;
@@ -110,7 +110,7 @@ static int usage(int rv)
     fputs("\nUsage " PROJECT_NAME " [OPTIONS]... PROGRAM [ARGUMENTS]...\n", os);
     fputs("Execute PROGRAM [ARGUMENTS]...\n\nOptions are:\n", os);
     fputs(" -a        Use async execution mode.\n", os);
-#if defined(_HAVE_DEBUG_OPTION)
+#if defined(_DBG_TRACE)
     fputs(" -d        print replaced arguments and environment\n", os);
     fputs("           instead executing PROGRAM.\n", os);
 #endif
@@ -603,6 +603,63 @@ static wchar_t *getposixroot(wchar_t *r)
     return r;
 }
 
+static wchar_t *searchpathw(const wchar_t *path, const wchar_t *name, const wchar_t **fname)
+{
+    HANDLE   fh = NULL;
+    wchar_t  buf[4];
+    wchar_t  *sp, *fp;
+    DWORD    ln, sz;
+
+    ln = SearchPathW(path, name, L".exe", 4, buf, NULL);
+    if (ln == 0)
+        return NULL;
+
+    sz = ALIGN_DEFAULT(ln) + DEFAULT_ALIGNMENT;
+    sp = xwalloc(sz);
+    ln = SearchPathW(path, name, L".exe", sz, sp, NULL);
+    if (ln == 0)
+        goto finished;
+    fh = CreateFileW(sp, GENERIC_READ, FILE_SHARE_READ, 0,
+                     OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    if (IS_INVALID_HANDLE(fh))
+        goto finished;
+
+    ln = GetFinalPathNameByHandleW(fh, sp, sz, VOLUME_NAME_DOS);
+    if ((ln == 0) || (ln > sz))
+        goto finished;
+    SAFE_CLOSE_HANDLE(fh);
+    if ((ln > 5) && (ln < _MAX_FNAME)) {
+        /**
+         * Strip leading \\?\ for short paths
+         * but not \\?\UNC\* paths
+         */
+        if ((sp[0] == L'\\') &&
+            (sp[1] == L'\\') &&
+            (sp[2] == L'?')  &&
+            (sp[3] == L'\\') &&
+            (sp[5] == L':')) {
+            wmemmove(sp, sp + 4, ln - 3);
+            ln -= 4;
+        }
+    }
+    if (fname != NULL) {
+        fp = sp + ln;
+        while (--fp > sp) {
+            if (*fp == L'\\') {
+                *(fp++) = L'\0';
+                *fname = fp;
+                break;
+            }
+        }
+    }
+    return sp;
+finished:
+    SAFE_CLOSE_HANDLE(fh);
+    xfree(sp);
+    return NULL;
+}
+
+
 static void __cdecl xstdinrw(void *p)
 {
     unsigned char buf[BUFSIZ];
@@ -621,16 +678,15 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     int orgstdin = -1;
     int stdinpipe[2];
 
-
-#if defined(_HAVE_DEBUG_OPTION)
+#if defined(_DBG_TRACE)
     if (debug) {
         wprintf(L"Posix root: %s\n\n", posixroot);
-        wprintf(L"Arguments (%d):\n",  argc);
+        wprintf(L"Number of arguments: %d\n",  argc);
     }
 #endif
     for (i = 0; i < argc; i++) {
         wchar_t *a = wargv[i];
-#if defined(_HAVE_DEBUG_OPTION)
+#if defined(_DBG_TRACE)
         if (debug)
             wprintf(L"[%2d] : %s\n", i, a);
 #endif
@@ -662,7 +718,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 p = convert2win(a);
             else
                 p = convert2win(v);
-            if (p != 0) {
+            if (p != NULL) {
                 if (IS_EMPTY_WCS(v))
                     wargv[i] = p;
                 else {
@@ -679,20 +735,20 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
              */
             continue;
         }
-#if defined(_HAVE_DEBUG_OPTION)
+#if defined(_DBG_TRACE)
         if (debug)
             wprintf(L"     * %s\n", wargv[i]);
 #endif
     }
 
-#if defined(_HAVE_DEBUG_OPTION)
+#if defined(_DBG_TRACE)
     if (debug)
-        wprintf(L"\nEnvironment variables (%d):\n", envc);
+        wprintf(L"\nNumber of environment variables: %d\n", envc);
 #endif
     for (i = 0; i < (envc - 1); i++) {
         wchar_t *p;
         wchar_t *e = wenvp[i];
-#if defined(_HAVE_DEBUG_OPTION)
+#if defined(_DBG_TRACE)
         if (debug)
             wprintf(L"[%2d] : %s\n", i, e);
 #endif
@@ -733,15 +789,15 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                  */
                 continue;
             }
-#if defined(_HAVE_DEBUG_OPTION)
+#if defined(_DBG_TRACE)
             if (debug)
                 wprintf(L"     * %s\n", wenvp[i]);
 #endif
         }
     }
-#if defined(_HAVE_DEBUG_OPTION)
+#if defined(_DBG_TRACE)
     if (debug) {
-        wprintf(L"[%2d] : %s\n", i, wenvp[i]);
+        wprintf(L"[%2d] : %s\n\n", i, wenvp[i]);
     }
 #endif
 
@@ -807,12 +863,15 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     wchar_t **dupwenvp = NULL;
     wchar_t *crp       = NULL;
     wchar_t *cwd       = NULL;
-    wchar_t *opath;
+    wchar_t *cpp;
+    wchar_t *exe;
+
     wchar_t  nnp[4]    = { L'\0', L'\0', L'\0', L'\0' };
     int dupenvc = 0;
     int dupargc = 0;
     int envc    = 0;
-    int opts    = 1;
+
+ int opts    = 1;
 
     if (argc < 2)
         return usage(1);
@@ -832,7 +891,6 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
              * Simple argument parsing
              */
             if (cwd == nnp) {
-
                 cwd = xwcsdup(p);
                 continue;
             }
@@ -842,33 +900,28 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             }
 
             if (p[0] == L'-') {
-                if (p[1] == L'\0' || p[2] != L'\0')
+                int optv = towupper(p[1] & 0x7f);
+                if ((optv == L'\0') || (p[2] != L'\0'))
                     return invalidarg(p);
-                switch (p[1]) {
-                    case L'a':
+                switch (optv) {
                     case L'A':
                         execmode = _P_NOWAIT;
                     break;
-#if defined(_HAVE_DEBUG_OPTION)
-                    case L'd':
+#if defined(_DBG_TRACE)
                     case L'D':
                         debug = 1;
                     break;
 #endif
-                    case L'h':
                     case L'H':
                     case L'?':
                         return usage(0);
                     break;
-                    case L'r':
                     case L'R':
                         crp = nnp;
                     break;
-                    case L'v':
                     case L'V':
                         return version();
                     break;
-                    case L'w':
                     case L'W':
                         cwd = nnp;
                     break;
@@ -886,11 +939,11 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         fputs("Missing required parameter value\n\n", stderr);
         return usage(1);
     }
-    if ((opath = xgetenv(L"PATH")) == NULL) {
+    if ((cpp = xgetenv(L"PATH")) == NULL) {
         fputs("Missing PATH environment variable\n\n", stderr);
         return usage(1);
     }
-    rmtrailingsep(opath);
+    rmtrailingsep(cpp);
     if ((posixroot = getposixroot(crp)) == NULL) {
         if (crp) {
             fwprintf(stderr, L"Cannot find bash.exe in: '%s'\n\n",
@@ -901,7 +954,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         }
         return usage(1);
     }
-#if defined(_HAVE_DEBUG_OPTION)
+#if defined(_DBG_TRACE)
     if (debug) {
         printf(PROJECT_NAME " version %s (%s)\n\n",
                PROJECT_VERSION_STR, __DATE__ " " __TIME__);
@@ -911,10 +964,9 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         rmtrailingsep(cwd);
         cwd = posix2win(cwd);
         if (_wchdir(cwd) != 0) {
-            i = errno;
             fwprintf(stderr, L"Invalid working directory: %s\nFatal error: %s\n\n",
-                     cwd, _wcserror(i));
-            return usage(i);
+                     cwd, _wcserror(errno));
+            return usage(1);
         }
     }
     while (wenv[envc] != NULL) {
@@ -941,12 +993,15 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         if (p != NULL)
             dupwenvp[dupenvc++] = xwcsdup(p);
     }
-
+    exe = searchpathw(cpp, dupwargv[0], NULL);
+    if (exe != NULL) {
+        xfree(dupwargv[0]);
+        dupwargv[0] = exe;
+    }
     /**
-     * Add additional environment variables
+     * Add back environment variables
      */
-    dupwenvp[dupenvc++] = xwcsconcat(L"PATH=", opath);
-    xfree(opath);
-
+    dupwenvp[dupenvc++] = xwcsconcat(L"PATH=", cpp);
+    xfree(cpp);
     return posixmain(dupargc, dupwargv, dupenvc, dupwenvp);
 }
