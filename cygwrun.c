@@ -16,6 +16,8 @@
  */
 
 #include <windows.h>
+#include <tlhelp32.h>
+#include <psapi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -103,6 +105,12 @@ static const wchar_t *posixrenv[] = {
     NULL
 };
 
+static const wchar_t *rootpaths[] = {
+    L"\\usr\\local\\bin\\",
+    L"\\usr\\bin\\",
+    L"\\bin\\",
+    NULL
+};
 
 static int usage(int rv)
 {
@@ -379,6 +387,44 @@ static void replacepathsep(wchar_t *s)
     }
 }
 
+static wchar_t *xgetpexe(DWORD pid)
+{
+    wchar_t  buf[8192];
+    wchar_t *pp   = NULL;
+    DWORD    ppid = 0;
+    HANDLE   h;
+    PROCESSENTRY32W e;
+
+    h = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (h == INVALID_HANDLE_VALUE)
+        return NULL;
+
+    e.dwSize = (DWORD)sizeof(PROCESSENTRY32W);
+    if (Process32FirstW(h, &e)) {
+        do {
+            if (e.th32ProcessID == pid) {
+                /* We found ourself :)
+                 */
+                ppid = e.th32ParentProcessID;
+                break;
+            }
+
+        } while (Process32NextW(h, &e));
+    }
+    CloseHandle(h);
+    if (ppid == 0)
+        return NULL;
+    h = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, ppid);
+    if (IS_INVALID_HANDLE(h))
+        return NULL;
+    if (GetModuleFileNameExW(h, 0, buf, 8192) != 0) {
+        pp = xwcsdup(buf);
+        replacepathsep(pp);
+    }
+    CloseHandle(h);
+    return pp;
+}
+
 static wchar_t **splitpath(const wchar_t *s, int *tokens)
 {
     int c = 0;
@@ -589,10 +635,25 @@ static wchar_t *getposixroot(wchar_t *r)
         }
     }
     if (r == NULL) {
-        /**
-         * Use default location
-         */
-        r = xwcsdup(L"C:\\cygwin64");
+        r = xgetpexe(GetCurrentProcessId());
+        if (r != NULL) {
+            wchar_t *p;
+            const wchar_t **e = rootpaths;
+            while (*e != NULL) {
+                p = wcsstr(r, *e);
+                if (p != NULL) {
+                    *p = L'\0';
+                    break;
+                }
+                e++;
+            }
+        }
+        if (r == NULL) {
+            /**
+             * Use default location
+             */
+            r = xwcsdup(L"C:\\cygwin64");
+        }
     }
     else {
         rmtrailingsep(r);
