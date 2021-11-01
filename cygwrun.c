@@ -34,7 +34,7 @@
 static int      debug     = 0;
 #endif
 static int      execmode  = _P_WAIT;
-static wchar_t *posixroot = 0;
+static wchar_t *posixroot = NULL;
 
 static const wchar_t *pathmatches[] = {
     L"/cygdrive/?/*",
@@ -58,7 +58,7 @@ static const wchar_t *pathmatches[] = {
     L"/ucrt64/*",
     L"/usr/*",
     L"/var/*",
-    0
+    NULL
 };
 
 static const wchar_t *pathfixed[] = {
@@ -75,7 +75,7 @@ static const wchar_t *pathfixed[] = {
     L"/tmp",
     L"/usr",
     L"/var",
-    0
+    NULL
 };
 
 static const wchar_t *removeenv[] = {
@@ -94,13 +94,13 @@ static const wchar_t *removeenv[] = {
     L"_=",
     L"!::=",
     L"!;=",
-    0
+    NULL
 };
 
 static const wchar_t *posixrenv[] = {
     L"CYGWIN_ROOT",
     L"POSIX_ROOT",
-    0
+    NULL
 };
 
 
@@ -137,7 +137,7 @@ static int invalidarg(const wchar_t *arg)
 static void *xmalloc(size_t size)
 {
     void *p = calloc(size, 1);
-    if (p == 0) {
+    if (p == NULL) {
         _wperror(L"xmalloc");
         _exit(1);
     }
@@ -147,7 +147,7 @@ static void *xmalloc(size_t size)
 static wchar_t *xwalloc(size_t size)
 {
     wchar_t *p = (wchar_t *)calloc(size, sizeof(wchar_t));
-    if (p == 0) {
+    if (p == NULL) {
         _wperror(L"xwalloc");
         _exit(1);
     }
@@ -161,7 +161,7 @@ static wchar_t **waalloc(size_t size)
 
 static void xfree(void *m)
 {
-    if (m != 0)
+    if (m != NULL)
         free(m);
 }
 
@@ -169,9 +169,9 @@ static void waafree(wchar_t **array)
 {
     wchar_t **ptr = array;
 
-    if (array == 0)
+    if (array == NULL)
         return;
-    while (*ptr != 0)
+    while (*ptr != NULL)
         xfree(*(ptr++));
     free(array);
 }
@@ -182,7 +182,7 @@ static wchar_t *xwcsdup(const wchar_t *s)
     size_t   n;
 
     if (IS_EMPTY_WCS(s))
-        return 0;
+        return NULL;
     n = wcslen(s);
     p = xwalloc(n + 2);
     wmemcpy(p, s, n);
@@ -194,10 +194,10 @@ static wchar_t *xgetenv(const wchar_t *s)
     wchar_t *d;
 
     if (IS_EMPTY_WCS(s))
-        return 0;
+        return NULL;
     d = _wgetenv(s);
     if (IS_EMPTY_WCS(d))
-        return 0;
+        return NULL;
     else
         return xwcsdup(d);
 }
@@ -220,7 +220,7 @@ static wchar_t *xwcsconcat(const wchar_t *s1, const wchar_t *s2)
     l2 = xwcslen(s2);
 
     if ((l1 + l2) == 0)
-        return 0;
+        return NULL;
     cp = rv = xwalloc(l1 + l2 + 2);
 
     if(l1 > 0)
@@ -355,14 +355,14 @@ static int isposixpath(const wchar_t *str)
 static wchar_t *cmdoptionval(wchar_t *s)
 {
     if (iswinpath(s) || isposixpath(s))
-        return 0;
+        return NULL;
     while (*(s++) != L'\0') {
         if (IS_PSW(*s) || iswspace(*s))
-            return 0;
+            return NULL;
         if (*s == L'=' || *s == L':')
             return s + 1;
     }
-    return 0;
+    return NULL;
 }
 
 static int envsort(const void *arg1, const void *arg2)
@@ -489,9 +489,9 @@ static wchar_t *posix2win(wchar_t *pp)
 {
     int m;
     wchar_t *rv;
-    wchar_t  windrive[] = { 0, L':', L'\\', 0};
+    wchar_t  windrive[] = { L'\0', L':', L'\\', L'\0'};
 
-    if ((*pp == L'\'') || (wcschr(pp, L'/') == 0))
+    if ((*pp == L'\'') || (wcschr(pp, L'/') == NULL))
         return pp;
     /**
      * Check for special paths
@@ -543,7 +543,7 @@ static wchar_t *posix2win(wchar_t *pp)
 
 static wchar_t *convert2win(const wchar_t *str)
 {
-    wchar_t *wp = 0;
+    wchar_t *wp = NULL;
 
     if ((*str == L'\'') || (wcschr(str, L'/') == 0))
         return 0;
@@ -582,15 +582,15 @@ static wchar_t *getposixroot(wchar_t *r)
 {
     wchar_t *b;
 
-    if (r == 0) {
+    if (r == NULL) {
         const wchar_t **e = posixrenv;
         while (*e != 0) {
-            if ((r = xgetenv(*e)) != 0)
+            if ((r = xgetenv(*e)) != NULL)
                 break;
             e++;
         }
     }
-    if (r == 0) {
+    if (r == NULL) {
         /**
          * Use default location
          */
@@ -604,7 +604,7 @@ static wchar_t *getposixroot(wchar_t *r)
     }
     b = xwcsconcat(r, L"\\bin\\bash.exe");
     if (_waccess(b, 0))
-        r = 0;
+        r = NULL;
     xfree(b);
     return r;
 }
@@ -702,9 +702,9 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         if (debug)
             wprintf(L"[%2d] : %s\n", i, e);
 #endif
-        if ((p = wcschr(e, L'=')) != 0) {
+        if ((p = wcschr(e, L'=')) != NULL) {
             wchar_t *v = p + 1;
-            if (wcschr(v, L'/') == 0) {
+            if (wcschr(v, L'/') == NULL) {
                 /**
                  * Environment variable's value
                  * have no potential posix path
@@ -727,7 +727,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                  */
                  fwdtobs(v);
             }
-            else if ((wcslen(v) > 3) && ((p = convert2win(v)) != 0)) {
+            else if ((wcslen(v) > 3) && ((p = convert2win(v)) != NULL)) {
                 *v = L'\0';
                 wenvp[i] = xwcsconcat(e, p);
                 xfree(e);
@@ -809,10 +809,10 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
 int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
 {
     int i;
-    wchar_t **dupwargv = 0;
-    wchar_t **dupwenvp = 0;
-    wchar_t *crp       = 0;
-    wchar_t *cwd       = 0;
+    wchar_t **dupwargv = NULL;
+    wchar_t **dupwenvp = NULL;
+    wchar_t *crp       = NULL;
+    wchar_t *cwd       = NULL;
     wchar_t *opath;
     wchar_t  nnp[4]    = { L'\0', L'\0', L'\0', L'\0' };
     int dupenvc = 0;
@@ -822,7 +822,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
 
     if (argc < 2)
         return usage(1);
-    if (wenv == 0)
+    if (wenv == NULL)
         return invalidarg(L"missing environment");
     dupwargv = waalloc(argc);
     for (i = 1; i < argc; i++) {
@@ -892,12 +892,12 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         fputs("Missing required parameter value\n\n", stderr);
         return usage(1);
     }
-    if ((opath = xgetenv(L"PATH")) == 0) {
+    if ((opath = xgetenv(L"PATH")) == NULL) {
         fputs("Missing PATH environment variable\n\n", stderr);
         return usage(1);
     }
     rmtrailingsep(opath);
-    if ((posixroot = getposixroot(crp)) == 0) {
+    if ((posixroot = getposixroot(crp)) == NULL) {
         if (crp) {
             fwprintf(stderr, L"Cannot find bash.exe in: '%s'\n\n",
                      crp);
@@ -913,7 +913,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                PROJECT_VERSION_STR, __DATE__ " " __TIME__);
     }
 #endif
-    if (cwd != 0) {
+    if (cwd != NULL) {
         rmtrailingsep(cwd);
         cwd = posix2win(cwd);
         if (_wchdir(cwd) != 0) {
@@ -923,7 +923,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             return usage(i);
         }
     }
-    while (wenv[envc] != 0) {
+    while (wenv[envc] != NULL) {
         if (IS_EMPTY_WCS(wenv[envc]))
             return invalidarg(L"empty environment variable");
         ++envc;
@@ -934,17 +934,17 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         const wchar_t **e = removeenv;
         const wchar_t *p  = wenv[i];
 
-        while (*e != 0) {
+        while (*e != NULL) {
             if (strstartswith(p, *e)) {
                 /**
                  * Skip private environment variable
                  */
-                p = 0;
+                p = NULL;
                 break;
             }
             e++;
         }
-        if (p != 0)
+        if (p != NULL)
             dupwenvp[dupenvc++] = xwcsdup(p);
     }
 
