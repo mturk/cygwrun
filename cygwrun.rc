@@ -1,7 +1,10 @@
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -10,15 +13,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 #include <windows.h>
 #include "cygwrun.h"
 
 1 VERSIONINFO
- FILEVERSION PROJECT_VERSION_CSV,0
- PRODUCTVERSION PROJECT_VERSION_CSV,0
+ FILEVERSION PROJECT_VERSION_CSV
+ PRODUCTVERSION PROJECT_VERSION_CSV
  FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
  FILEFLAGS 0x0L
  FILEOS VOS_NT_WINDOWS32
@@ -29,14 +31,14 @@ BEGIN
     BEGIN
         BLOCK "040904b0"
         BEGIN
-            VALUE "Comments",         PROJECT_LICENSE
+            VALUE "Comments",         PROJECT_LICENSE_SHORT
             VALUE "CompanyName",      PROJECT_COMPANY_NAME
             VALUE "FileDescription",  PROJECT_DESCRIPTION
             VALUE "FileVersion",      PROJECT_VERSION_STR
             VALUE "InternalName",     PROJECT_NAME
             VALUE "LegalCopyright",   PROJECT_COPYRIGHT
             VALUE "OriginalFilename", PROJECT_NAME ".exe"
-            VALUE "ProductName",      PROJECT_PNAME
+            VALUE "ProductName",      PROJECT_NAME
             VALUE "ProductVersion",   PROJECT_VERSION_STR
         END
     END
