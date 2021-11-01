@@ -146,7 +146,7 @@ static void *xmalloc(size_t size)
 
 static wchar_t *xwalloc(size_t size)
 {
-    wchar_t *p = (wchar_t *)calloc(size, sizeof(wchar_t));
+    wchar_t *p = (wchar_t *)calloc(ALIGN_DEFAULT(size), sizeof(wchar_t));
     if (p == NULL) {
         _wperror(L"xwalloc");
         _exit(1);

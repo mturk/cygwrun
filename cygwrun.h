@@ -62,17 +62,17 @@
 #if defined(_VENDOR_SFX)
 # define PROJECT_VENDOR_SFX     CPP_TOSTR(_VENDOR_SFX)
 #else
-# define PROJECT_VENDOR_SFX      ""
+# define PROJECT_VENDOR_SFX     ""
 #endif
 /**
  * Set to zero for non dev versions
  */
-#define PROJECT_ISDEV_VERSION    0
+#define PROJECT_ISDEV_VERSION   0
 
 #if PROJECT_ISDEV_VERSION
-# define PROJECT_VERSION_SFX     PROJECT_VENDOR_SFX "-dev"
+# define PROJECT_VERSION_SFX    PROJECT_VENDOR_SFX "-dev"
 #else
-# define PROJECT_VERSION_SFX     PROJECT_VENDOR_SFX
+# define PROJECT_VERSION_SFX    PROJECT_VENDOR_SFX
 #endif
 
 /**
