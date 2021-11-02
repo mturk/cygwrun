@@ -635,20 +635,34 @@ static wchar_t *getposixroot(wchar_t *r)
         }
     }
     if (r == NULL) {
+        wchar_t *p = NULL;
         r = xgetpexe(GetCurrentProcessId());
         if (r != NULL) {
-            wchar_t *p;
             const wchar_t **e = rootpaths;
             while (*e != NULL) {
+                wchar_t  c = 0;
+                wchar_t *x = wcsrchr(r , L'\\');
+                if (x != NULL) {
+                    c    = x[1];
+                    x[1] = L'\0';
+                }
                 p = wcsstr(r, *e);
                 if (p != NULL) {
-                    *p = L'\0';
-                    break;
+                    if (wcscmp(p, *e) == 0) {
+                        p[0] = L'\0';
+                        break;
+                    }
+                }
+                if (x != NULL) {
+                    /**
+                     * Restore path
+                     */
+                    x[1] = c;
                 }
                 e++;
             }
         }
-        if (r == NULL) {
+        if (p == NULL) {
             /**
              * Use default location
              */
