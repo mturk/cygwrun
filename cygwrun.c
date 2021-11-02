@@ -387,17 +387,15 @@ static void replacepathsep(wchar_t *s)
     }
 }
 
-static wchar_t *xgetpexe(DWORD pid)
+static DWORD xgetppid(DWORD pid)
 {
-    wchar_t  buf[8192];
-    wchar_t *pp   = NULL;
-    DWORD    ppid = 0;
-    HANDLE   h;
-    PROCESSENTRY32W e;
+    DWORD               p = 0;
+    HANDLE              h;
+    PROCESSENTRY32W     e;
 
     h = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (h == INVALID_HANDLE_VALUE)
-        return NULL;
+        return 0;
 
     e.dwSize = (DWORD)sizeof(PROCESSENTRY32W);
     if (Process32FirstW(h, &e)) {
@@ -405,24 +403,48 @@ static wchar_t *xgetpexe(DWORD pid)
             if (e.th32ProcessID == pid) {
                 /* We found ourself :)
                  */
-                ppid = e.th32ParentProcessID;
+                p = e.th32ParentProcessID;
                 break;
             }
 
         } while (Process32NextW(h, &e));
     }
     CloseHandle(h);
+    return p;
+}
+
+static wchar_t *xgetpexe(DWORD pid)
+{
+    wchar_t  buf[8192];
+    wchar_t *sp         = NULL;
+    DWORD    ln, ppid   = 0;
+    HANDLE              h;
+
+    ppid = xgetppid(pid);
     if (ppid == 0)
         return NULL;
     h = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, ppid);
     if (IS_INVALID_HANDLE(h))
         return NULL;
-    if (GetModuleFileNameExW(h, 0, buf, 8192) != 0) {
-        pp = xwcsdup(buf);
-        replacepathsep(pp);
+    if ((ln = GetModuleFileNameExW(h, 0, buf, 8192)) != 0) {
+        sp = xwcsdup(buf);
+        replacepathsep(sp);
+        if ((ln > 5) && (ln < _MAX_FNAME)) {
+            /**
+             * Strip leading \\?\ for short paths
+             * but not \\?\UNC\* paths
+             */
+            if ((sp[0] == L'\\') &&
+                (sp[1] == L'\\') &&
+                (sp[2] == L'?')  &&
+                (sp[3] == L'\\') &&
+                (sp[5] == L':')) {
+                wmemmove(sp, sp + 4, ln - 3);
+            }
+        }
     }
     CloseHandle(h);
-    return pp;
+    return sp;
 }
 
 static wchar_t **splitpath(const wchar_t *s, int *tokens)
