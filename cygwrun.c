@@ -389,9 +389,9 @@ static void replacepathsep(wchar_t *s)
 
 static DWORD xgetppid(DWORD pid)
 {
-    DWORD               p = 0;
-    HANDLE              h;
-    PROCESSENTRY32W     e;
+    DWORD           p = 0;
+    HANDLE          h;
+    PROCESSENTRY32W e;
 
     h = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (h == INVALID_HANDLE_VALUE)
@@ -401,7 +401,8 @@ static DWORD xgetppid(DWORD pid)
     if (Process32FirstW(h, &e)) {
         do {
             if (e.th32ProcessID == pid) {
-                /* We found ourself :)
+                /**
+                 * We found ourself :)
                  */
                 p = e.th32ParentProcessID;
                 break;
@@ -416,9 +417,9 @@ static DWORD xgetppid(DWORD pid)
 static wchar_t *xgetpexe(DWORD pid)
 {
     wchar_t  buf[8192];
-    wchar_t *sp         = NULL;
-    DWORD    ln, ppid   = 0;
-    HANDLE              h;
+    wchar_t *sp = NULL;
+    DWORD    n, ppid;
+    HANDLE   h;
 
     ppid = xgetppid(pid);
     if (ppid == 0)
@@ -426,10 +427,10 @@ static wchar_t *xgetpexe(DWORD pid)
     h = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, ppid);
     if (IS_INVALID_HANDLE(h))
         return NULL;
-    if ((ln = GetModuleFileNameExW(h, 0, buf, 8192)) != 0) {
+    if ((n = GetModuleFileNameExW(h, 0, buf, 8192)) != 0) {
         sp = xwcsdup(buf);
         replacepathsep(sp);
-        if ((ln > 5) && (ln < _MAX_FNAME)) {
+        if ((n > 5) && (n < _MAX_FNAME)) {
             /**
              * Strip leading \\?\ for short paths
              * but not \\?\UNC\* paths
@@ -439,7 +440,7 @@ static wchar_t *xgetpexe(DWORD pid)
                 (sp[2] == L'?')  &&
                 (sp[3] == L'\\') &&
                 (sp[5] == L':')) {
-                wmemmove(sp, sp + 4, ln - 3);
+                wmemmove(sp, sp + 4, n - 3);
             }
         }
     }
