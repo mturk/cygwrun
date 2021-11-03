@@ -39,7 +39,7 @@
 #if defined(_VENDOR_NUM)
 # define PROJECT_MICRO_VERSION  _VENDOR_NUM
 #else
-# define PROJECT_MICRO_VERSION  1
+# define PROJECT_MICRO_VERSION  0
 #endif
 
 /**
