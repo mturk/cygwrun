@@ -115,12 +115,12 @@ static int usage(int rv)
     FILE *os = rv == 0 ? stdout : stderr;
     fputs("\nUsage " PROJECT_NAME " [OPTIONS]... PROGRAM [ARGUMENTS]...\n", os);
     fputs("Execute PROGRAM [ARGUMENTS]...\n\nOptions are:\n", os);
+    fputs(" -r <DIR>  use DIR as posix root\n\n", os);
+    fputs(" -w <DIR>  change working directory to DIR before calling PROGRAM\n", os);
+    fputs(" -p        print arguments instead executing PROGRAM.\n", os);
+    fputs(" -e        print current environment block end exit.\n", os);
     fputs(" -v        print version information and exit.\n", os);
     fputs(" -h|-?     print this screen and exit.\n", os);
-    fputs(" -p        print arguments instead executing PROGRAM.\n", os);
-    fputs(" -e        print environment block for PROGRAM end exit.\n", os);
-    fputs(" -w <DIR>  change working directory to DIR before calling PROGRAM\n", os);
-    fputs(" -r <DIR>  use DIR as posix root\n\n", os);
     return rv;
 }
 
@@ -857,8 +857,9 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     qsort((void *)wenvp, envc, sizeof(wchar_t *), envsort);
     if (dumpenvb) {
         for (i = 0; i < envc; i++) {
-            wchar_t *e = wenvp[i];
-            wprintf(L"[%2d] : %s\n", i, e);
+            if (i > 0)
+                fputc(L'\n', stdout);
+            fputws(wenvp[i], stdout);
         }
         return 0;
     }
@@ -955,6 +956,10 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         }
         dupwargv[dupargc++] = xwcsdup(p);
     }
+    if ((xrunexec == 0) && (dumpenvb != 0)) {
+        fputs("Both -p and -e options are defined\n\n", stderr);
+        return usage(1);
+    }
     if ((dupargc < 1) && (dumpenvb == 0)) {
         fputs("Missing argument\n\n", stderr);
         return usage(1);
@@ -1011,6 +1016,8 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         if (p != NULL)
             dupwenvp[dupenvc++] = xwcsdup(p);
     }
+    if (dumpenvb)
+        dupargc = 0;
     if (xrunexec && dupargc) {
         exe = dupwargv[0];
         if (wcschr(exe, L'/')) {
