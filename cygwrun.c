@@ -762,17 +762,17 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 wmemmove(a, a + 1, n--);
             }
         }
-        if (wcschr(a, L'/') == 0) {
-            /**
-             * Argument has no forward slashes
-             */
-        }
-        else if ((a[0] == L'/') && (a[1] == L'\0')) {
+        if ((a[0] == L'/') && (a[1] == L'\0')) {
             /**
              * Special case for / (root)
              */
             xfree(a);
             wargv[i] = xwcsdup(posixroot);
+        }
+        else if ((n < 4) || (wcschr(a, L'/') == 0)) {
+            /**
+             * Argument is too short or has no forward slashes
+             */
         }
         else if (isdotpath(a)) {
             /**
@@ -790,23 +790,19 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
              */
              replacepathsep(a);
         }
-        else if (n > 3) {
+        else {
             wchar_t *p;
             wchar_t *v = cmdoptionval(a);
 
-            if (IS_EMPTY_WCS(v))
-                p = towinpath(a);
-            else
-                p = towinpath(v);
-            if (p != NULL) {
-                if (IS_EMPTY_WCS(v)) {
-                    wargv[i] = p;
-                }
-                else {
-                    *v = L'\0';
-                    wargv[i] = xwcsconcat(a, p);
-                    xfree(p);
-                }
+            if (IS_EMPTY_WCS(v)) {
+                wargv[i] = posixtowin(a);
+            }
+            else {
+                p = xwcsdup(v);
+                p = posixtowin(p);
+               *v = L'\0';
+                wargv[i] = xwcsconcat(a, p);
+                xfree(p);
                 xfree(a);
             }
         }
