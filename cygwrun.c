@@ -34,7 +34,6 @@
 
 static int      xrunexec  = 1;
 static int      dumpenvb  = 0;
-static int      execmode  = _P_WAIT;
 static wchar_t *posixroot = NULL;
 
 static const wchar_t *pathmatches[] = {
@@ -116,7 +115,6 @@ static int usage(int rv)
     FILE *os = rv == 0 ? stdout : stderr;
     fputs("\nUsage " PROJECT_NAME " [OPTIONS]... PROGRAM [ARGUMENTS]...\n", os);
     fputs("Execute PROGRAM [ARGUMENTS]...\n\nOptions are:\n", os);
-    fputs(" -a        use async execution mode.\n", os);
     fputs(" -v        print version information and exit.\n", os);
     fputs(" -h|-?     print this screen and exit.\n", os);
     fputs(" -p        print arguments instead executing PROGRAM.\n", os);
@@ -511,11 +509,11 @@ static wchar_t *mergepath(const wchar_t **pp)
     size_t len = 0;
     wchar_t  *r, *p;
 
-    for (i = 0; pp[i] != 0; i++) {
+    for (i = 0; pp[i] != NULL; i++) {
         len += wcslen(pp[i]) + 1;
     }
     r = p = xwalloc(len + 2);
-    for (i = 0; pp[i] != 0; i++) {
+    for (i = 0; pp[i] != NULL; i++) {
         len = wcslen(pp[i]);
         if (len > 0) {
             if (sc)
@@ -747,23 +745,10 @@ finished:
 }
 
 
-static void __cdecl xstdinrw(void *p)
-{
-    unsigned char buf[BUFSIZ];
-    int *fds = (int *)p;
-    int nr;
-
-    while ((nr = _read(fds[0], buf, BUFSIZ)) > 0) {
-        _write(fds[1], buf, nr);
-    }
-}
-
 static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
 {
     int i, rc = 0;
     intptr_t rp;
-    int orgstdin = -1;
-    int stdinpipe[2];
 
     for (i = xrunexec; i < argc; i++) {
         wchar_t *a = wargv[i];
@@ -879,49 +864,13 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         }
         return 0;
     }
-    if (execmode == _P_NOWAIT) {
-        if(_pipe(stdinpipe, BUFSIZ, O_NOINHERIT) == -1) {
-            rc = errno;
-            _wperror(L"Fatal error _pipe()");
-            return rc;
-        }
-        orgstdin = _dup(_fileno(stdin));
-        if(_dup2(stdinpipe[0], _fileno(stdin)) != 0) {
-            rc = errno;
-            _wperror(L"Fatal error _dup2()");
-            return rc;
-        }
-        _close(stdinpipe[0]);
-    }
     _flushall();
-    rp = _wspawnvpe(execmode, wargv[0], wargv, wenvp);
+    rp = _wspawnvpe(_P_WAIT, wargv[0], wargv, wenvp);
     if (rp == (intptr_t)-1) {
         rc = errno;
         fwprintf(stderr, L"Cannot execute program: %s\nFatal error: %s\n\n",
                  wargv[0], _wcserror(rc));
         return usage(rc);
-    }
-    if (execmode == _P_NOWAIT) {
-        /**
-         * Restore original stdin handle
-         */
-        if(_dup2(orgstdin, _fileno(stdin)) != 0) {
-            rc = errno;
-            _wperror(L"Fatal error _dup2()");
-            return rc;
-        }
-        _close(orgstdin);
-        /**
-         * Create stdin R/W thread
-         */
-        stdinpipe[0] = _fileno(stdin);
-        _beginthread(xstdinrw, 0, (void *)stdinpipe);
-        if (_cwait(&rc, rp, _WAIT_CHILD) == (intptr_t)-1) {
-            rc = errno;
-            fwprintf(stderr, L"Execute failed: %s\nFatal error: %s\n\n",
-                    wargv[0], _wcserror(rc));
-            return usage(rc);
-        }
     }
     else {
         /**
@@ -929,7 +878,6 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
          */
         rc = (int)rp;
     }
-
     return rc;
 }
 
@@ -980,9 +928,6 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                 if ((optv == L'\0') || (p[2] != L'\0'))
                     return invalidarg(p);
                 switch (optv) {
-                    case L'A':
-                        execmode = _P_NOWAIT;
-                    break;
                     case L'E':
                         dumpenvb = 1;
                     break;
