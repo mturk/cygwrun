@@ -621,8 +621,8 @@ static wchar_t *towinpath(const wchar_t *str)
          * No need to split/merge since we have
          * only one path element
          */
-        wchar_t *e = xwcsdup(str);
-        wp = posixtowin(e);
+        wp = xwcsdup(str);
+        wp = posixtowin(wp);
     }
     else {
         int i, n;
@@ -662,10 +662,11 @@ static wchar_t *getposixroot(wchar_t *r)
                 x[1] = L'\0';
             }
             while (*e != NULL) {
-                p = wcsstr(r, *e);
-                if (p != NULL) {
-                    if (wcscmp(p, *e) == 0) {
-                        p[0] = L'\0';
+                x = wcsstr(r, *e);
+                if (x != NULL) {
+                    if (wcscmp(x, *e) == 0) {
+                        x[0] = L'\0';
+                        p = r;
                         break;
                     }
                 }
@@ -676,7 +677,8 @@ static wchar_t *getposixroot(wchar_t *r)
             /**
              * Use default location
              */
-            r = xwcsdup(L"C:\\cygwin64");
+            xfree(r);
+            r = xwcsconcat(xgetenv(L"SYSTEMDRIVE"), L"\\cygwin64");
         }
     }
     else {
@@ -953,7 +955,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         }
         dupwargv[dupargc++] = xwcsdup(p);
     }
-    if (dupargc < 1) {
+    if ((dupargc < 1) && (dumpenvb == 0)) {
         fputs("Missing argument\n\n", stderr);
         return usage(1);
     }
@@ -1009,7 +1011,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         if (p != NULL)
             dupwenvp[dupenvc++] = xwcsdup(p);
     }
-    if (xrunexec) {
+    if (xrunexec && dupargc) {
         exe = dupwargv[0];
         if (wcschr(exe, L'/')) {
             dupwargv[0] = posixtowin(exe);
