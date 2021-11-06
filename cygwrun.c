@@ -149,7 +149,7 @@ static void *xmalloc(size_t size)
 
 static wchar_t *xwalloc(size_t size)
 {
-    wchar_t *p = (wchar_t *)calloc(ALIGN_DEFAULT(size), sizeof(wchar_t));
+    wchar_t *p = (wchar_t *)calloc(size, sizeof(wchar_t));
     if (p == NULL) {
         _wperror(L"xwalloc");
         _exit(1);
@@ -699,19 +699,19 @@ static wchar_t *searchpathw(const wchar_t *path, const wchar_t *name, const wcha
     if (ln == 0)
         return NULL;
 
-    sz = ALIGN_DEFAULT(ln) + DEFAULT_ALIGNMENT;
+    sz = ln + 32;
     sp = xwalloc(sz);
     ln = SearchPathW(path, name, L".exe", sz, sp, NULL);
     if (ln == 0)
-        goto finished;
+        goto failed;
     fh = CreateFileW(sp, GENERIC_READ, FILE_SHARE_READ, 0,
                      OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
     if (IS_INVALID_HANDLE(fh))
-        goto finished;
+        goto failed;
 
     ln = GetFinalPathNameByHandleW(fh, sp, sz, VOLUME_NAME_DOS);
     if ((ln == 0) || (ln > sz))
-        goto finished;
+        goto failed;
     SAFE_CLOSE_HANDLE(fh);
     if ((ln > 5) && (ln < _MAX_FNAME)) {
         /**
@@ -738,7 +738,7 @@ static wchar_t *searchpathw(const wchar_t *path, const wchar_t *name, const wcha
         }
     }
     return sp;
-finished:
+failed:
     SAFE_CLOSE_HANDLE(fh);
     xfree(sp);
     return NULL;

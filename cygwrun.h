@@ -23,12 +23,6 @@
     if (((_h) != NULL) && ((_h) != INVALID_HANDLE_VALUE))           \
         CloseHandle((_h));                                          \
     (_h) = NULL
-/** Align to power of 2 boundary */
-#define ALIGN_TO_BOUNDARY(_s, _b) \
-    (((_s) + ((_b) - 1)) & ~((_b) - 1))
-/** Default alignment */
-#define DEFAULT_ALIGNMENT       8
-#define ALIGN_DEFAULT(_s)       ALIGN_TO_BOUNDARY(_s, DEFAULT_ALIGNMENT)
 
 /**
  * Version info
