@@ -115,12 +115,12 @@ static int usage(int rv)
     FILE *os = rv == 0 ? stdout : stderr;
     fputs("\nUsage " PROJECT_NAME " [OPTIONS]... PROGRAM [ARGUMENTS]...\n", os);
     fputs("Execute PROGRAM [ARGUMENTS]...\n\nOptions are:\n", os);
-    fputs(" -r <DIR>  use DIR as posix root\n\n", os);
+    fputs(" -r <DIR>  use DIR as posix root\n", os);
     fputs(" -w <DIR>  change working directory to DIR before calling PROGRAM\n", os);
     fputs(" -p        print arguments instead executing PROGRAM.\n", os);
     fputs(" -e        print current environment block end exit.\n", os);
     fputs(" -v        print version information and exit.\n", os);
-    fputs(" -h|-?     print this screen and exit.\n", os);
+    fputs(" -h|-?     print this screen and exit.\n\n", os);
     return rv;
 }
 
@@ -133,7 +133,7 @@ static int version(void)
 
 static int invalidarg(const wchar_t *arg)
 {
-    fwprintf(stderr, L"Unknown option: %s\n\n", arg);
+    fwprintf(stderr, L"Unknown option: %s\n", arg);
     return usage(EINVAL);
 }
 
@@ -682,10 +682,16 @@ static wchar_t *getposixroot(wchar_t *r)
         }
     }
     else {
+        wchar_t *p;
         rmtrailingsep(r);
         replacepathsep(r);
         if ((*r < 128) && isalpha(*r))
             *r = towupper(*r);
+        p = xwcsconcat(r, L"\\etc\\fstab");
+        if (_waccess(p, 0)) {
+            r = NULL;
+        }
+        xfree(p);
     }
     return r;
 }
@@ -923,27 +929,26 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             }
 
             if (p[0] == L'-') {
-                int optv = towupper(p[1] & 0x7f);
-                if ((optv == L'\0') || (p[2] != L'\0'))
+                if ((p[1] == L'\0') || (p[2] != L'\0'))
                     return invalidarg(p);
-                switch (optv) {
-                    case L'E':
+                switch (p[1]) {
+                    case L'e':
                         xdumpenv = 1;
                     break;
-                    case L'H':
+                    case L'h':
                     case L'?':
                         return usage(0);
                     break;
-                    case L'P':
+                    case L'p':
                         xrunexec = 0;
                     break;
-                    case L'R':
+                    case L'r':
                         crp = nnp;
                     break;
-                    case L'V':
+                    case L'v':
                         return version();
                     break;
-                    case L'W':
+                    case L'w':
                         cwd = nnp;
                     break;
                     default:
@@ -957,29 +962,29 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         dupwargv[dupargc++] = xwcsdup(p);
     }
     if ((xrunexec == 0) && (xdumpenv != 0)) {
-        fputs("Both -p and -e options are defined\n\n", stderr);
+        fputs("Both -p and -e options are defined\n", stderr);
         return usage(1);
     }
     if ((dupargc < 1) && (xdumpenv == 0)) {
-        fputs("Missing arguments\n\n", stderr);
+        fputs("Missing arguments\n", stderr);
         return usage(1);
     }
     if ((cwd == nnp) || (crp == nnp)) {
-        fputs("Missing required parameter value\n\n", stderr);
+        fputs("Missing required parameter value\n", stderr);
         return usage(1);
     }
     if ((cpp = xgetenv(L"PATH")) == NULL) {
-        fputs("Missing PATH environment variable\n\n", stderr);
+        fputs("Missing PATH environment variable\n", stderr);
         return usage(1);
     }
     rmtrailingsep(cpp);
     if ((posixroot = getposixroot(crp)) == NULL) {
         if (crp) {
-            fwprintf(stderr, L"Cannot find bash.exe in: '%s'\n\n",
+            fwprintf(stderr, L"Cannot find valid POSIX_ROOT in: '%s'\n",
                      crp);
         }
         else {
-            fputs("Cannot find valid POSIX_ROOT\n\n", stderr);
+            fputs("Cannot find valid POSIX_ROOT\n", stderr);
         }
         return usage(1);
     }
@@ -987,7 +992,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         rmtrailingsep(cwd);
         cwd = posixtowin(cwd);
         if (_wchdir(cwd) != 0) {
-            fwprintf(stderr, L"Invalid working directory: %s\nFatal error: %s\n\n",
+            fwprintf(stderr, L"Invalid working directory: %s\nFatal error: %s\n",
                      cwd, _wcserror(errno));
             return usage(1);
         }
