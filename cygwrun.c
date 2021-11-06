@@ -33,7 +33,7 @@
 #define IS_EMPTY_WCS(_s)  (((_s) == 0)    || (*(_s) == L'\0'))
 
 static int      xrunexec  = 1;
-static int      dumpenvb  = 0;
+static int      xdumpenv  = 0;
 static wchar_t *posixroot = NULL;
 
 static const wchar_t *pathmatches[] = {
@@ -855,7 +855,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     }
 
     qsort((void *)wenvp, envc, sizeof(wchar_t *), envsort);
-    if (dumpenvb) {
+    if (xdumpenv) {
         for (i = 0; i < envc; i++) {
             if (i > 0)
                 fputc(L'\n', stdout);
@@ -928,7 +928,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                     return invalidarg(p);
                 switch (optv) {
                     case L'E':
-                        dumpenvb = 1;
+                        xdumpenv = 1;
                     break;
                     case L'H':
                     case L'?':
@@ -956,12 +956,12 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         }
         dupwargv[dupargc++] = xwcsdup(p);
     }
-    if ((xrunexec == 0) && (dumpenvb != 0)) {
+    if ((xrunexec == 0) && (xdumpenv != 0)) {
         fputs("Both -p and -e options are defined\n\n", stderr);
         return usage(1);
     }
-    if ((dupargc < 1) && (dumpenvb == 0)) {
-        fputs("Missing argument\n\n", stderr);
+    if ((dupargc < 1) && (xdumpenv == 0)) {
+        fputs("Missing arguments\n\n", stderr);
         return usage(1);
     }
     if ((cwd == nnp) || (crp == nnp)) {
@@ -998,7 +998,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         ++envc;
     }
 
-    dupwenvp = waalloc(envc + 2);
+    dupwenvp = waalloc(envc + 4);
     for (i = 0; i < envc; i++) {
         const wchar_t **e = removeenv;
         const wchar_t *p  = wenv[i];
@@ -1016,9 +1016,11 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         if (p != NULL)
             dupwenvp[dupenvc++] = xwcsdup(p);
     }
-    if (dumpenvb)
+    if (xdumpenv) {
         dupargc = 0;
-    if (xrunexec && dupargc) {
+        dupwenvp[dupenvc++] = xwcsconcat(L"_POSIX_ROOT=", posixroot);
+    }
+    else if (xrunexec) {
         exe = dupwargv[0];
         if (wcschr(exe, L'/')) {
             dupwargv[0] = posixtowin(exe);
