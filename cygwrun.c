@@ -422,22 +422,21 @@ static wchar_t *xgetpexe(DWORD pid)
     h = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, ppid);
     if (IS_INVALID_HANDLE(h))
         return NULL;
-    if ((n = GetModuleFileNameExW(h, 0, buf, 8192)) != 0) {
-        sp = xwcsdup(buf);
-        replacepathsep(sp);
+    if ((n = GetModuleFileNameExW(h, NULL, buf, 8192)) != 0) {
         if ((n > 5) && (n < _MAX_FNAME)) {
             /**
              * Strip leading \\?\ for short paths
              * but not \\?\UNC\* paths
              */
-            if ((sp[0] == L'\\') &&
-                (sp[1] == L'\\') &&
-                (sp[2] == L'?')  &&
-                (sp[3] == L'\\') &&
-                (sp[5] == L':')) {
-                wmemmove(sp, sp + 4, n - 3);
+            if ((buf[0] == L'\\') &&
+                (buf[1] == L'\\') &&
+                (buf[2] == L'?')  &&
+                (buf[3] == L'\\') &&
+                (buf[5] == L':')) {
+                wmemmove(buf, buf + 4, n - 3);
             }
         }
+        sp = xwcsdup(buf);
     }
     CloseHandle(h);
     return sp;
@@ -702,7 +701,7 @@ static wchar_t *xsearchexe(const wchar_t *path, const wchar_t *name, const wchar
     wchar_t  *sp = NULL;
     wchar_t  *fp;
     DWORD     ln = 0;
-    DWORD     sz = _MAX_FNAME + 1;
+    DWORD     sz = _MAX_PATH;
 
     while (sp == NULL) {
         sp = xwalloc(sz);
@@ -720,7 +719,6 @@ static wchar_t *xsearchexe(const wchar_t *path, const wchar_t *name, const wchar
                      OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
     if (IS_INVALID_HANDLE(fh))
         goto failed;
-
     do {
         if (ln > sz) {
             xfree(sp);
