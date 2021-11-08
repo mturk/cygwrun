@@ -786,7 +786,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     int i, rc = 0;
     intptr_t rp;
 
-    for (i = xrunexec; i < argc; i++) {
+    for (i = xrunexec; i < argc && xdumpenv == 0; i++) {
         wchar_t *a = wargv[i];
         size_t   n = wcslen(a);
 
@@ -842,7 +842,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 xfree(a);
             }
         }
-        if (xrunexec == 0 && xdumpenv == 0) {
+        if (xrunexec == 0) {
             if (i > 0)
                 fputc(L'\n', stdout);
             fputws(wargv[i], stdout);
@@ -908,7 +908,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 fputws(v, stdout);
             }
         }
-        return x ? 0 : EINVAL;
+        return x ? 0 : ERROR_ENVVAR_NOT_FOUND;
     }
     _flushall();
     rp = _wspawnvpe(_P_WAIT, wargv[0], wargv, wenvp);
@@ -1004,7 +1004,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         dupwargv[dupargc++] = xwcsdup(p);
     }
     if ((dupargc < 1) && (xdumpenv == 0)) {
-        fputs("Missing arguments\n", stderr);
+        fputs("Missing PROGRAM argument\n", stderr);
         return usage(1);
     }
     if ((cwd == nnp) || (crp == nnp)) {
