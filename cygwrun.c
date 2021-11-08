@@ -94,9 +94,6 @@ static const wchar_t *removeext[] = {
     L"MSYSTEM_CHOST=",
     L"MSYSTEM_PREFIX=",
     L"OLDPWD=",
-    L"ORIGINAL_PATH=",
-    L"ORIGINAL_TEMP=",
-    L"ORIGINAL_TMP=",
     L"PKG_CONFIG_PATH=",
     L"SHELL=",
     L"TERM=",
@@ -111,6 +108,9 @@ static const wchar_t *removeenv[] = {
     L"!::=",
     L"!;=",
     L"CYGWIN_ROOT=",
+    L"ORIGINAL_PATH=",
+    L"ORIGINAL_TEMP=",
+    L"ORIGINAL_TMP=",
     L"PATH=",
     L"POSIX_ROOT=",
     L"PS1=",
@@ -857,18 +857,13 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         return 0;
     }
     for (i = 0; i < (envc - 1); i++) {
-        wchar_t *p;
+        wchar_t *v;
         wchar_t *e = wenvp[i];
 
-        if ((p = wcschr(e, L'=')) != NULL) {
-            wchar_t *v = p + 1;
-            if (wcschr(v, L'/') == NULL) {
-                /**
-                 * Environment variable's value
-                 * have no potential posix path
-                 */
-            }
-            else if ((v[0] == L'/') && (v[1] == L'\0')) {
+        v = wcschr(e, L'=');
+        if ((v != NULL) && (wcschr(++v, L'/') != NULL)) {
+
+            if ((v[0] == L'/') && (v[1] == L'\0')) {
                 /**
                  * Special case for / (root)
                  */
@@ -884,11 +879,15 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                  */
                  replacepathsep(v);
             }
-            else if ((wcslen(v) > 3) && ((p = towinpath(v)) != NULL)) {
-                *v = L'\0';
-                wenvp[i] = xwcsconcat(e, p);
-                xfree(e);
-                xfree(p);
+            else if (wcslen(v) > 3) {
+                wchar_t *p = towinpath(v);
+
+                if (p != NULL) {
+                    *v = L'\0';
+                    wenvp[i] = xwcsconcat(e, p);
+                    xfree(e);
+                    xfree(p);
+                }
             }
         }
     }
