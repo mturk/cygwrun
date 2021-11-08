@@ -680,7 +680,7 @@ static wchar_t *getposixroot(wchar_t *r)
             r = xwcsconcat(xgetenv(L"SYSTEMDRIVE"), L"\\cygwin64");
         }
     }
-    else {
+    if (r != NULL) {
         wchar_t *p;
         rmtrailingsep(r);
         replacepathsep(r);
