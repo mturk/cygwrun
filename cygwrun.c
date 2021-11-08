@@ -842,13 +842,13 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 xfree(a);
             }
         }
-        if (xrunexec == 0) {
+        if (xrunexec == 0 && xdumpenv == 0) {
             if (i > 0)
                 fputc(L'\n', stdout);
             fputws(wargv[i], stdout);
         }
     }
-    if (xrunexec == 0) {
+    if (xrunexec == 0 && xdumpenv == 0) {
         return 0;
     }
     for (i = 0; i < (envc - 1); i++) {
@@ -890,12 +890,25 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
 
     qsort((void *)wenvp, envc, sizeof(wchar_t *), envsort);
     if (xdumpenv) {
-        for (i = 0; i < envc; i++) {
-            if (i > 0)
-                fputc(L'\n', stdout);
-            fputws(wenvp[i], stdout);
+        int n, x;
+        for (i = 0, x = 0; i < envc; i++) {
+            const wchar_t *v = wenvp[i];
+            if (argc > 0) {
+                v = NULL;
+                for (n = 0; n < argc; n++) {
+                    if (strstartswith(wenvp[i], wargv[n])) {
+                        v = wenvp[i];
+                        break;
+                    }
+                }
+            }
+            if (v != NULL) {
+                if (x++ > 0)
+                    fputc(L'\n', stdout);
+                fputws(v, stdout);
+            }
         }
-        return 0;
+        return x ? 0 : EINVAL;
     }
     _flushall();
     rp = _wspawnvpe(_P_WAIT, wargv[0], wargv, wenvp);
@@ -961,6 +974,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                 switch (p[1]) {
                     case L'e':
                         xdumpenv = 1;
+                        xrunexec = 0;
                     break;
                     case L'h':
                     case L'?':
@@ -968,6 +982,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                     break;
                     case L'p':
                         xrunexec = 0;
+                        xdumpenv = 0;
                     break;
                     case L'r':
                         crp = nnp;
@@ -987,10 +1002,6 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             opts = 0;
         }
         dupwargv[dupargc++] = xwcsdup(p);
-    }
-    if ((xrunexec == 0) && (xdumpenv != 0)) {
-        fputs("Both -p and -e options are defined\n", stderr);
-        return usage(1);
     }
     if ((dupargc < 1) && (xdumpenv == 0)) {
         fputs("Missing arguments\n", stderr);
@@ -1053,11 +1064,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         if (p != NULL)
             dupwenvp[dupenvc++] = xwcsdup(p);
     }
-    if (xdumpenv) {
-        dupargc = 0;
-        dupwenvp[dupenvc++] = xwcsconcat(L"_POSIX_ROOT=", posixroot);
-    }
-    else if (xrunexec) {
+    if (xrunexec) {
         wchar_t *exe;
         wchar_t *sch;
         wchar_t *pp1;
