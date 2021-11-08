@@ -79,21 +79,39 @@ static const wchar_t *pathfixed[] = {
 };
 
 static const wchar_t *removeenv[] = {
+    L"ACLOCAL_PATH=",
+    L"CONFIG_SITE=",
+    L"CONICON=",
+    L"CONTITLE=",
     L"CYGWIN_ROOT=",
     L"INFOPATH=",
     L"MANPATH=",
+    L"MINGW_CHOST=",
+    L"MINGW_PACKAGE_PREFIX=",
+    L"MINGW_PREFIX=",
+    L"MSYSCON=",
+    L"MSYSTEM=",
+    L"MSYSTEM_CARCH=",
+    L"MSYSTEM_CHOST=",
+    L"MSYSTEM_PREFIX=",
     L"OLDPWD=",
     L"ORIGINAL_PATH=",
     L"ORIGINAL_TEMP=",
     L"ORIGINAL_TMP=",
     L"PATH=",
+    L"PKG_CONFIG_PATH=",
     L"POSIX_ROOT=",
     L"PS1=",
     L"SHELL=",
     L"TERM=",
+    L"TERM_PROGRAM=",
+    L"TERM_PROGRAM_VERSION=",
+    L"XDG_DATA_DIRS=",
     L"_=",
     L"!::=",
     L"!;=",
+    L"temp",
+    L"tmp",
     NULL
 };
 
@@ -359,7 +377,7 @@ static wchar_t *cmdoptionval(wchar_t *s)
 {
     if (iswinpath(s) || isposixpath(s))
         return NULL;
-    while (*(s++) != L'\0') {
+    while (*(++s) != L'\0') {
         if (IS_PSW(*s) || iswspace(*s))
             return NULL;
         if (*s == L'=' || *s == L':')
@@ -654,8 +672,6 @@ static wchar_t *getposixroot(wchar_t *r)
     if (r != NULL) {
         rmtrailingsep(r);
         replacepathsep(r);
-        if ((*r < 128) && isalpha(*r))
-            *r = towupper(*r);
     }
     else {
         wchar_t *p = xgetpexe(GetCurrentProcessId());
@@ -688,6 +704,7 @@ static wchar_t *getposixroot(wchar_t *r)
         }
         p = xwcsconcat(r, L"\\etc\\fstab");
         if (_waccess(p, 0)) {
+            xfree(r);
             r = NULL;
         }
         xfree(p);
