@@ -564,7 +564,7 @@ static void rmtrailingsep(wchar_t *s)
     int i = (int)xwcslen(s);
 
     while (--i > 1) {
-        if (IS_PSW(s[i]) || s[1] == L';')
+        if (IS_PSW(s[i]) || (s[i] == L';'))
             s[i] = L'\0';
         else
             break;
@@ -651,12 +651,7 @@ static wchar_t *towinpath(const wchar_t *str)
         wchar_t **pa = splitpath(str, &n);
 
         for (i = 0; i < n; i++) {
-            wchar_t *e = pa[i];
-            pa[i] = posixtowin(e);
-            if (pa[i] == e) {
-               break;
-            }
-            rmtrailingsep(pa[i]);
+            pa[i] = posixtowin(pa[i]);
         }
         wp = mergepath(pa);
         waafree(pa);
