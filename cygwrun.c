@@ -1034,7 +1034,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         xfree(cwd);
     }
     if ((cwd = _wgetcwd(NULL, 0)) == NULL) {
-        fputs("Cannot find current directory\n", stderr);
+        fputs("Cannot get current directory\n", stderr);
         return usage(1);
     }
     while (wenv[envc] != NULL) {
@@ -1102,5 +1102,6 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
      */
     dupwenvp[dupenvc++] = xwcsconcat(L"PATH=", cpp);
     xfree(cpp);
+    xfree(cwd);
     return posixmain(dupargc, dupwargv, dupenvc, dupwenvp);
 }
