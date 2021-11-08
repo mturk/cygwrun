@@ -907,7 +907,6 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     wchar_t *crp       = NULL;
     wchar_t *cwd       = NULL;
     wchar_t *cpp;
-    wchar_t *exe;
 
     wchar_t  nnp[4]    = { L'\0', L'\0', L'\0', L'\0' };
     int dupenvc = 0;
@@ -1011,21 +1010,22 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         }
         xfree(cwd);
     }
-    if ((cwd = _wgetcwd(NULL, 0)) == NULL) {
-        fputs("Cannot determin current directory\n", stderr);
-        return usage(1);
-    }
-    else {
-        wchar_t *spp;
-        wchar_t *mpp;
+    if ((cwd = _wgetcwd(NULL, 0)) != NULL) {
+        wchar_t *pp1;
+        wchar_t *pp2;
         /**
          * Add current directory as first PATH element
          */
-        spp = xwcsconcat(cwd, L";");
-        mpp = xwcsconcat(spp, cpp);
+        pp1 = xwcsconcat(cwd, L";");
+        pp2 = xwcsconcat(pp1, cpp);
+        xfree(pp1);
         xfree(cwd);
         xfree(cpp);
-        cpp = mpp;
+        cpp = pp2;
+    }
+    else {
+        fputs("Cannot find current directory\n", stderr);
+        return usage(1);
     }
     while (wenv[envc] != NULL) {
         if (IS_EMPTY_WCS(wenv[envc]))
@@ -1056,19 +1056,16 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         dupwenvp[dupenvc++] = xwcsconcat(L"_POSIX_ROOT=", posixroot);
     }
     else if (xrunexec) {
-        exe = dupwargv[0];
-        if (wcschr(exe, L'/')) {
-            dupwargv[0] = posixtowin(exe);
+        wchar_t *exe;
+        wchar_t *sch;
+
+        exe = posixtowin(dupwargv[0]);
+        sch = xsearchexe(cpp, exe, NULL);
+        if (sch != NULL) {
+            xfree(exe);
+            exe = sch;
         }
-        else {
-            if (wcschr(exe, L'\\') == 0) {
-                exe = xsearchexe(cpp, dupwargv[0], NULL);
-                if (exe != NULL) {
-                    xfree(dupwargv[0]);
-                    dupwargv[0] = exe;
-                }
-            }
-        }
+        dupwargv[0] = exe;
     }
     /**
      * Add back environment variables
