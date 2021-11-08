@@ -631,13 +631,13 @@ static wchar_t *towinpath(const wchar_t *str)
 {
     wchar_t *wp = NULL;
 
-    if ((*str == L'\'') || (wcschr(str, L'/') == 0))
-        return 0;
+    if ((*str == L'\'') || (wcschr(str, L'/') == NULL))
+        return NULL;
     if (iswinpath(str)) {
         wp = xwcsdup(str);
         replacepathsep(wp);
     }
-    else if (wcschr(str, L':') == 0) {
+    else if (xwcsmatch(str, L"*/*:/*")) {
         /**
          * Posix path separator not found.
          * No need to split/merge since we have
