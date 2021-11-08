@@ -1025,20 +1025,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         }
         xfree(cwd);
     }
-    if ((cwd = _wgetcwd(NULL, 0)) != NULL) {
-        wchar_t *pp1;
-        wchar_t *pp2;
-        /**
-         * Add current directory as first PATH element
-         */
-        pp1 = xwcsconcat(cwd, L";");
-        pp2 = xwcsconcat(pp1, cpp);
-        xfree(pp1);
-        xfree(cwd);
-        xfree(cpp);
-        cpp = pp2;
-    }
-    else {
+    if ((cwd = _wgetcwd(NULL, 0)) == NULL) {
         fputs("Cannot find current directory\n", stderr);
         return usage(1);
     }
@@ -1073,14 +1060,25 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     else if (xrunexec) {
         wchar_t *exe;
         wchar_t *sch;
+        wchar_t *pp1;
+        wchar_t *pp2;
+        /**
+         * Add current directory as first PATH element
+         */
+        pp1 = xwcsconcat(cwd, L";");
+        pp2 = xwcsconcat(pp1, cpp);
 
         exe = posixtowin(dupwargv[0]);
-        sch = xsearchexe(cpp, exe, NULL);
-        if (sch != NULL) {
-            xfree(exe);
-            exe = sch;
+        sch = xsearchexe(pp2, exe, NULL);
+        if (sch == NULL) {
+            fwprintf(stderr, L"Cannot find PROGRAM '%s'\n", exe);
+            fwprintf(stderr, L"  inside: '%s'\n", pp2);
+            return usage(1);
         }
-        dupwargv[0] = exe;
+        xfree(exe);
+        xfree(pp1);
+        xfree(pp2);
+        dupwargv[0] = sch;
     }
     /**
      * Add back environment variables
