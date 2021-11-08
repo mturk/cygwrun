@@ -78,12 +78,11 @@ static const wchar_t *pathfixed[] = {
     NULL
 };
 
-static const wchar_t *removeenv[] = {
+static const wchar_t *removeext[] = {
     L"ACLOCAL_PATH=",
     L"CONFIG_SITE=",
     L"CONICON=",
     L"CONTITLE=",
-    L"CYGWIN_ROOT=",
     L"INFOPATH=",
     L"MANPATH=",
     L"MINGW_CHOST=",
@@ -98,15 +97,20 @@ static const wchar_t *removeenv[] = {
     L"ORIGINAL_PATH=",
     L"ORIGINAL_TEMP=",
     L"ORIGINAL_TMP=",
-    L"PATH=",
     L"PKG_CONFIG_PATH=",
-    L"POSIX_ROOT=",
-    L"PS1=",
     L"SHELL=",
     L"TERM=",
     L"TERM_PROGRAM=",
     L"TERM_PROGRAM_VERSION=",
     L"XDG_DATA_DIRS=",
+    NULL
+};
+
+static const wchar_t *removeenv[] = {
+    L"CYGWIN_ROOT=",
+    L"PATH=",
+    L"POSIX_ROOT=",
+    L"PS1=",
     L"_=",
     L"!::=",
     L"!;=",
@@ -135,6 +139,7 @@ static int usage(int rv)
     fputs("Execute PROGRAM [ARGUMENTS]...\n\nOptions are:\n", os);
     fputs(" -r <DIR>  use DIR as posix root\n", os);
     fputs(" -w <DIR>  change working directory to DIR before calling PROGRAM\n", os);
+    fputs(" -k        keep extra posix environment variables.\n", os);
     fputs(" -p        print arguments instead executing PROGRAM.\n", os);
     fputs(" -e        print current environment block end exit.\n", os);
     fputs(" -v        print version information and exit.\n", os);
@@ -939,6 +944,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     wchar_t  nnp[4]    = { L'\0', L'\0', L'\0', L'\0' };
     int dupenvc = 0;
     int dupargc = 0;
+    int cextenv = 1;
     int envc    = 0;
     int opts    = 1;
 
@@ -979,6 +985,9 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                     case L'h':
                     case L'?':
                         return usage(0);
+                    break;
+                    case L'k':
+                        cextenv = 0;
                     break;
                     case L'p':
                         xrunexec = 0;
@@ -1060,6 +1069,19 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                 break;
             }
             e++;
+        }
+        if (cextenv && p) {
+            e = removeext;
+            while (*e != NULL) {
+                if (strstartswith(p, *e)) {
+                    /**
+                     * Skip private environment variable
+                     */
+                    p = NULL;
+                    break;
+                }
+                e++;
+            }
         }
         if (p != NULL)
             dupwenvp[dupenvc++] = xwcsdup(p);
