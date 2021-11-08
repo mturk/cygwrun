@@ -143,7 +143,7 @@ static int usage(int rv)
     fputs(" -p        print arguments instead executing PROGRAM.\n", os);
     fputs(" -e        print current environment block end exit.\n", os);
     fputs(" -v        print version information and exit.\n", os);
-    fputs(" -h|-?     print this screen and exit.\n\n", os);
+    fputs(" -h        print this screen and exit.\n\n", os);
     return rv;
 }
 
@@ -955,12 +955,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     dupwargv = waalloc(argc);
     for (i = 1; i < argc; i++) {
         const wchar_t *p = wargv[i];
-        if (IS_EMPTY_WCS(p)) {
-            /**
-             * We do not support empty arguments
-             */
-            return invalidarg(L"empty argument");
-        }
+
         if (opts) {
             /**
              * Simple argument parsing
@@ -983,7 +978,6 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                         xrunexec = 0;
                     break;
                     case L'h':
-                    case L'?':
                         return usage(0);
                     break;
                     case L'k':
@@ -1003,7 +997,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                         cwd = nnp;
                     break;
                     default:
-                        return invalidarg(wargv[i]);
+                        return invalidarg(p);
                     break;
                 }
                 continue;
@@ -1026,13 +1020,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     }
     rmtrailingsep(cpp);
     if ((posixroot = getposixroot(crp)) == NULL) {
-        if (crp) {
-            fwprintf(stderr, L"Cannot find valid POSIX_ROOT in: '%s'\n",
-                     crp);
-        }
-        else {
-            fputs("Cannot find valid POSIX_ROOT\n", stderr);
-        }
+        fputs("Cannot find valid POSIX_ROOT\n", stderr);
         return usage(1);
     }
     if (cwd != NULL) {
