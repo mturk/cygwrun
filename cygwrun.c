@@ -651,7 +651,13 @@ static wchar_t *getposixroot(wchar_t *r)
             e++;
         }
     }
-    if (r == NULL) {
+    if (r != NULL) {
+        rmtrailingsep(r);
+        replacepathsep(r);
+        if ((*r < 128) && isalpha(*r))
+            *r = towupper(*r);
+    }
+    else {
         wchar_t *p = xgetpexe(GetCurrentProcessId());
 
         if (p != NULL) {
@@ -680,14 +686,6 @@ static wchar_t *getposixroot(wchar_t *r)
             xfree(p);
             r = xwcsconcat(xgetenv(L"SYSTEMDRIVE"), L"\\cygwin64");
         }
-    }
-    if (r != NULL) {
-        wchar_t *p;
-
-        rmtrailingsep(r);
-        replacepathsep(r);
-        if ((*r < 128) && isalpha(*r))
-            *r = towupper(*r);
         p = xwcsconcat(r, L"\\etc\\fstab");
         if (_waccess(p, 0)) {
             r = NULL;
