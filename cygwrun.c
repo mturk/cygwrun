@@ -107,15 +107,15 @@ static const wchar_t *removeext[] = {
 };
 
 static const wchar_t *removeenv[] = {
+    L"_=",
+    L"!::=",
+    L"!;=",
     L"CYGWIN_ROOT=",
     L"PATH=",
     L"POSIX_ROOT=",
     L"PS1=",
-    L"_=",
-    L"!::=",
-    L"!;=",
-    L"temp",
-    L"tmp",
+    L"temp=",
+    L"tmp=",
     NULL
 };
 
@@ -1055,28 +1055,28 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         ++envc;
     }
 
-    dupwenvp = waalloc(envc + 4);
+    dupwenvp = waalloc(envc + 2);
     for (i = 0; i < envc; i++) {
-        const wchar_t **e = removeenv;
-        const wchar_t *p  = wenv[i];
+        const wchar_t **e;
+        const wchar_t  *p = wenv[i];
 
-        while (*e != NULL) {
-            if (strstartswith(p, *e)) {
-                /**
-                 * Skip private environment variable
-                 */
-                p = NULL;
-                break;
-            }
-            e++;
-        }
-        if (cextenv && p) {
+        if (cextenv) {
             e = removeext;
             while (*e != NULL) {
                 if (strstartswith(p, *e)) {
                     /**
                      * Skip private environment variable
                      */
+                    p = NULL;
+                    break;
+                }
+                e++;
+            }
+        }
+        if (p != NULL) {
+            e = removeenv;
+            while (*e != NULL) {
+                if (strstartswith(p, *e)) {
                     p = NULL;
                     break;
                 }
