@@ -696,31 +696,45 @@ static wchar_t *getposixroot(wchar_t *r)
     return r;
 }
 
-static wchar_t *searchpathw(const wchar_t *path, const wchar_t *name, const wchar_t **fname)
+static wchar_t *xsearchexe(const wchar_t *path, const wchar_t *name, const wchar_t **fname)
 {
-    HANDLE   fh = NULL;
-    wchar_t  buf[4];
-    wchar_t  *sp, *fp;
-    DWORD    ln, sz;
+    HANDLE    fh = NULL;
+    wchar_t  *sp = NULL;
+    wchar_t  *fp;
+    DWORD     ln = 0;
+    DWORD     sz = _MAX_FNAME + 1;
 
-    ln = SearchPathW(path, name, L".exe", 4, buf, NULL);
-    if (ln == 0)
-        return NULL;
-
-    sz = ln + 32;
-    sp = xwalloc(sz);
-    ln = SearchPathW(path, name, L".exe", sz, sp, NULL);
-    if (ln == 0)
-        goto failed;
+    while (sp == NULL) {
+        sp = xwalloc(sz);
+        ln = SearchPathW(path, name, L".exe", sz, sp, NULL);
+        if (ln == 0) {
+            goto failed;
+        }
+        else if (ln > sz) {
+            xfree(sp);
+            sp = NULL;
+            sz = ln;
+        }
+    }
     fh = CreateFileW(sp, GENERIC_READ, FILE_SHARE_READ, 0,
                      OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
     if (IS_INVALID_HANDLE(fh))
         goto failed;
 
-    ln = GetFinalPathNameByHandleW(fh, sp, sz, VOLUME_NAME_DOS);
-    if ((ln == 0) || (ln > sz))
-        goto failed;
-    SAFE_CLOSE_HANDLE(fh);
+    do {
+        if (ln > sz) {
+            xfree(sp);
+            sz = ln;
+            sp = xwalloc(sz);
+        }
+        ln = GetFinalPathNameByHandleW(fh, sp, sz, VOLUME_NAME_DOS);
+        if (ln == 0) {
+            CloseHandle(fh);
+            goto failed;
+        }
+    } while (ln > sz);
+
+    CloseHandle(fh);
     if ((ln > 5) && (ln < _MAX_FNAME)) {
         /**
          * Strip leading \\?\ for short paths
@@ -747,7 +761,6 @@ static wchar_t *searchpathw(const wchar_t *path, const wchar_t *name, const wcha
     }
     return sp;
 failed:
-    SAFE_CLOSE_HANDLE(fh);
     xfree(sp);
     return NULL;
 }
@@ -996,6 +1009,23 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                      cwd, _wcserror(errno));
             return usage(1);
         }
+        xfree(cwd);
+    }
+    if ((cwd = _wgetcwd(NULL, 0)) == NULL) {
+        fputs("Cannot determin current directory\n", stderr);
+        return usage(1);
+    }
+    else {
+        wchar_t *spp;
+        wchar_t *mpp;
+        /**
+         * Add current directory as first PATH element
+         */
+        spp = xwcsconcat(cwd, L";");
+        mpp = xwcsconcat(spp, cpp);
+        xfree(cwd);
+        xfree(cpp);
+        cpp = mpp;
     }
     while (wenv[envc] != NULL) {
         if (IS_EMPTY_WCS(wenv[envc]))
@@ -1032,15 +1062,11 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         }
         else {
             if (wcschr(exe, L'\\') == 0) {
-                wchar_t *spp;
-
-                spp = xwcsconcat(L".;", cpp);
-                exe = searchpathw(spp, dupwargv[0], NULL);
+                exe = xsearchexe(cpp, dupwargv[0], NULL);
                 if (exe != NULL) {
                     xfree(dupwargv[0]);
                     dupwargv[0] = exe;
                 }
-                xfree(spp);
             }
         }
     }
