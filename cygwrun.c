@@ -652,36 +652,38 @@ static wchar_t *getposixroot(wchar_t *r)
         }
     }
     if (r == NULL) {
-        wchar_t *p = NULL;
-        r = xgetpexe(GetCurrentProcessId());
-        if (r != NULL) {
+        wchar_t *p = xgetpexe(GetCurrentProcessId());
+
+        if (p != NULL) {
             const wchar_t **e = rootpaths;
-            wchar_t *x = wcsrchr(r , L'\\');
+            wchar_t        *x = wcsrchr(p , L'\\');
+
             if (x != NULL) {
                 x[1] = L'\0';
-            }
-            while (*e != NULL) {
-                x = wcsstr(r, *e);
-                if (x != NULL) {
-                    if (wcscmp(x, *e) == 0) {
-                        x[0] = L'\0';
-                        p = r;
-                        break;
+                while (*e != NULL) {
+                    x = wcsstr(p, *e);
+                    if (x != NULL) {
+                        if (wcscmp(x, *e) == 0) {
+                            x[0] = L'\0';
+                            r = p;
+                            break;
+                        }
                     }
+                    e++;
                 }
-                e++;
             }
         }
-        if (p == NULL) {
+        if (r == NULL) {
             /**
              * Use default location
              */
-            xfree(r);
+            xfree(p);
             r = xwcsconcat(xgetenv(L"SYSTEMDRIVE"), L"\\cygwin64");
         }
     }
     if (r != NULL) {
         wchar_t *p;
+
         rmtrailingsep(r);
         replacepathsep(r);
         if ((*r < 128) && isalpha(*r))
