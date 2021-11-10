@@ -470,52 +470,46 @@ static wchar_t **splitpath(const wchar_t *s, int *tokens)
     int c = 0;
     int x = 0;
     wchar_t **sa;
-    const wchar_t *b;
     const wchar_t *e;
 
-    e = b = s;
+    e = s;
     while (*e != L'\0') {
         if (*(e++) == L':')
             x++;
     }
     sa = waalloc(x + 1);
-    if (x > 0) {
-        while ((e = wcschr(b, L':')) != 0) {
-            wchar_t *p;
-            int cn   = 1;
-            size_t n = (size_t)(e - b);
+    while ((e = wcschr(s, L':')) != NULL) {
+        wchar_t *p;
+        size_t   n = (size_t)(e - s);
 
-            p = xwalloc(n + 2);
-            if (n == 0) {
+        if (n == 0) {
+            s = e + 1;
+            continue;
+        }
+        p = xwalloc(n + 2);
+        wmemcpy(p, s, n);
+        sa[c++] = p;
+        s = e + 1;
+        /**
+         * Is the previous token a path or a flag
+         */
+        if (isposixpath(p)) {
+            while (*s == L':') {
                 /**
-                 * Preserve leading or multiple colons
+                 * Drop multiple trailing colons
                  */
-                p[n] = L':';
+                s++;
             }
-            else {
-                wmemcpy(p, b, n);
-                /**
-                 * Is the previous token path or flag
-                 */
-                if (isposixpath(p)) {
-                    while (*(e + cn) == L':') {
-                        /**
-                         * Drop multiple trailing colons
-                         */
-                        cn++;
-                    }
-                }
-                else {
-                    /**
-                     * Preserve colon for unresolved paths
-                     */
-                    p[n] = L':';
-                }
-            }
-            sa[c++] = p;
-            b = s = e + cn;
-            if (*b == L'\0')
+            if (*s == L'\0')
                 break;
+        }
+        else {
+            /**
+             * Not a posix path.
+             * Do not split any more.
+             */
+            p[n] = L':';
+            break;
         }
     }
     if (*s != L'\0')
@@ -537,19 +531,17 @@ static wchar_t *mergepath(const wchar_t **pp)
     r = p = xwalloc(len + 2);
     for (i = 0; pp[i] != NULL; i++) {
         len = wcslen(pp[i]);
-        if (len > 0) {
-            if (sc)
-                *(p++) = L';';
-            /**
-             * Do not add semicolon before next path
-             */
-            if (pp[i][len - 1] == L':')
-                sc = 0;
-            else
-                sc = 1;
-            wmemcpy(p, pp[i], len);
-            p += len;
-        }
+        if (sc)
+            *(p++) = L';';
+        /**
+         * Do not add semicolon before next path
+         */
+        if (pp[i][len - 1] == L':')
+            sc = 0;
+        else
+            sc = 1;
+        wmemcpy(p, pp[i], len);
+        p += len;
     }
     return r;
 }
@@ -631,8 +623,6 @@ static wchar_t *towinpath(const wchar_t *str)
 {
     wchar_t *wp = NULL;
 
-    if ((*str == L'\'') || (wcschr(str, L'/') == NULL))
-        return NULL;
     if (iswinpath(str)) {
         wp = xwcsdup(str);
         replacepathsep(wp);
@@ -907,15 +897,15 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 fputws(v, stdout);
             }
         }
-        return x ? 0 : ERROR_ENVVAR_NOT_FOUND;
+        return x ? 0 : ENOENT;
     }
     _flushall();
     rp = _wspawnvpe(_P_WAIT, wargv[0], wargv, wenvp);
     if (rp == (intptr_t)-1) {
         rc = errno;
-        fwprintf(stderr, L"Cannot execute program: %s\nFatal error: %s\n\n",
+        fwprintf(stderr, L"Cannot execute program: %s\nFatal error: %s\n",
                  wargv[0], _wcserror(rc));
-        return usage(rc);
+        return rc;
     }
     else {
         /**
@@ -1010,30 +1000,30 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     }
     if ((cpp = xgetenv(L"PATH")) == NULL) {
         fputs("Missing PATH environment variable\n", stderr);
-        return usage(1);
+        return ENOENT;
     }
     rmtrailingsep(cpp);
     if ((posixroot = getposixroot(crp)) == NULL) {
         fputs("Cannot find valid POSIX_ROOT\n", stderr);
-        return usage(1);
+        return ENOENT;
     }
     if (cwd != NULL) {
         rmtrailingsep(cwd);
         cwd = posixtowin(cwd);
         if (_wchdir(cwd) != 0) {
+            int se = errno;
             fwprintf(stderr, L"Invalid working directory: %s\nFatal error: %s\n",
-                     cwd, _wcserror(errno));
-            return usage(1);
+                     cwd, _wcserror(se));
+            return se;
         }
         xfree(cwd);
     }
     if ((cwd = _wgetcwd(NULL, 0)) == NULL) {
+        int se = errno;
         fputs("Cannot get current directory\n", stderr);
-        return usage(1);
+        return se;
     }
     while (wenv[envc] != NULL) {
-        if (IS_EMPTY_WCS(wenv[envc]))
-            return invalidarg(L"empty environment variable");
         ++envc;
     }
 
@@ -1083,8 +1073,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         sch = xsearchexe(pp2, exe, NULL);
         if (sch == NULL) {
             fwprintf(stderr, L"Cannot find PROGRAM '%s'\n", exe);
-            fwprintf(stderr, L"  inside: '%s'\n", pp2);
-            return usage(1);
+            return ENOENT;
         }
         xfree(exe);
         xfree(pp1);
@@ -1095,6 +1084,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
      * Add back environment variables
      */
     dupwenvp[dupenvc++] = xwcsconcat(L"PATH=", cpp);
+    dupwenvp[dupenvc++] = xwcsconcat(L"POSIX_ROOT=", posixroot);
     xfree(cpp);
     xfree(cwd);
     return posixmain(dupargc, dupwargv, dupenvc, dupwenvp);
