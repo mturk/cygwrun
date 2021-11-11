@@ -310,6 +310,21 @@ static int strstartswith(const wchar_t *str, const wchar_t *src)
     return 0;
 }
 
+static wchar_t *strendswith(wchar_t *str, const wchar_t *src)
+{
+    size_t l1;
+    size_t l2;
+
+    l1 = wcslen(str);
+    l2 = wcslen(src);
+
+    if (l1 >= l2) {
+        if (wcscmp(str + l1 - l2, src) == 0)
+            return str + l1 - l2;
+    }
+    return NULL;
+}
+
 static int iswinpath(const wchar_t *s)
 {
     if (s[0] < 128) {
@@ -673,13 +688,10 @@ static wchar_t *getposixroot(wchar_t *r)
             if (x != NULL) {
                 x[1] = L'\0';
                 while (*e != NULL) {
-                    x = wcsstr(p, *e);
-                    if (x != NULL) {
-                        if (wcscmp(x, *e) == 0) {
-                            x[0] = L'\0';
-                            r = p;
-                            break;
-                        }
+                    if ((x = strendswith(p, *e)) != NULL) {
+                        x[0] = L'\0';
+                        r = p;
+                        break;
                     }
                     e++;
                 }
