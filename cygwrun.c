@@ -263,6 +263,8 @@ static wchar_t *xwcsconcat(const wchar_t *s1, const wchar_t *s2)
  */
 static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
 {
+    int match;
+
     for ( ; *wexp != L'\0'; wstr++, wexp++) {
         if (*wstr == L'\0' && *wexp != L'*')
             return -1;
@@ -285,7 +287,23 @@ static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
                 return -1;
             break;
             case L'?':
-                if (*wstr > 127 || isalpha(*wstr) == 0)
+                if (isalpha(*wstr & 0x7F) == 0)
+                    return 1;
+            break;
+            case L'#':
+                if (isdigit(*wstr & 0x7F) == 0)
+                    return 1;
+            break;
+            case L'[':
+                match = 0;
+                while (*wexp != L']') {
+                    wexp++;
+                    if (*wexp == L'\0')
+                        return -1;
+                    if (*wexp == *wstr)
+                        match = 1;
+                }
+                if (match == 0)
                     return 1;
             break;
             default:
