@@ -16,9 +16,9 @@
 # limitations under the License.
 #
 #
-p=`basename $0`
-r=`dirname $0`
-srcdir="`cd \"$r\" && pwd`"
+b="`basename $0`"
+d="`dirname $0`"
+srcdir="`cd \"$d\" && pwd`"
 
 case "`uname -s`" in
   CYGWIN*)
@@ -44,36 +44,36 @@ xbexit()
 _cygwrun=$srcdir/x64/cygwrun.exe
 test -x "$_cygwrun" || xbexit 1 "Cannot find cygwrun.exe in \`$srcdir/x64'"
 
-echo "Running test suite inside $phost"
+echo "Running $phost test suite"
 
 # Test for working directory
 mkdir $srcdir/.test 2>/dev/null
 cp -f $_cygwrun $srcdir/.test/cygwrun_test.exe
-rv=`$_cygwrun -w $srcdir/.test cygwrun_test -e _POSIX_ROOT=`
-xv=$?
+rv="`$_cygwrun -w $srcdir/.test cygwrun_test -e _POSIX_ROOT=`"
+rc=$?
 rm -rf $srcdir/.test 2>/dev/null
-test $xv -ne 0 && xbexit 1 "Failed #1"
+test $rc -ne 0 && xbexit 1 "Failed #1"
 
 export FOO=bar
-rv=`$_cygwrun -e FOO=`
+rv="`$_cygwrun -e FOO=`"
 test ".$rv" = ".FOO=bar" || xbexit 1 "Failed #2: \`$rv'"
 
 if [ $phost = cygwin ]
 then
   export FOO=/Fo:/tmp:/usr
-  rv=`$_cygwrun -e FOO=`
+  rv="`$_cygwrun -e FOO=`"
   test ".$rv" = ".FOO=/Fo:/tmp:/usr" || xbexit 1 "Failed #3: \`$rv'"
 fi
 
-tmpdir=`$_cygwrun -p /tmp`
+tmpdir="`$_cygwrun -p /tmp`"
 test $? -ne 0 && xbexit 1 "Failed #4"
 
-usrdir=`$_cygwrun -p /usr`
+usrdir="`$_cygwrun -p /usr`"
 test $? -ne 0 && xbexit 1 "Failed #5"
 
-export FOO="/tmp/foo bar:/usr/local"
-rv=`$_cygwrun -e FOO=`
-test ".$rv" = ".FOO=$tmpdir\\foo bar;$usrdir\\local" || xbexit 1 "Failed #6: \`$rv'"
+export FOO="/tmp/foo/bar:/usr/local"
+rv="`$_cygwrun -e FOO=`"
+test ".$rv" = ".FOO=$tmpdir\\foo\\bar;$usrdir\\local" || xbexit 1 "Failed #6: \`$rv'"
 
 echo "All tests passed!"
 exit 0
