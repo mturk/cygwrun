@@ -989,6 +989,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                     case L'e':
                         xdumpenv = 1;
                         xrunexec = 0;
+                        opts     = 0;
                     break;
                     case L'h':
                         return usage(0);
@@ -999,6 +1000,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                     case L'p':
                         xrunexec = 0;
                         xdumpenv = 0;
+                        opts     = 0;
                     break;
                     case L'r':
                         crp = nnp;
