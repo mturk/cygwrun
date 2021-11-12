@@ -142,12 +142,12 @@ static int usage(int rv)
     fputs(" -r <DIR>  use DIR as posix root\n", os);
     fputs(" -w <DIR>  change working directory to DIR before calling PROGRAM\n", os);
     fputs(" -k        keep extra posix environment variables.\n", os);
-    fputs(" -p        print arguments instead executing PROGRAM.\n", os);
-    fputs(" -e [VAR]  print current environment block end exit.\n", os);
-    fputs("           if defined, only print variables that begin with VAR.\n", os);
     fputs(" -s        do not translate environment variables.\n", os);
     fputs(" -v        print version information and exit.\n", os);
-    fputs(" -h        print this screen and exit.\n\n", os);
+    fputs(" -h        print this screen and exit.\n", os);
+    fputs(" -p        print arguments instead executing PROGRAM.\n", os);
+    fputs(" -e        print current environment block end exit.\n", os);
+    fputs("           if defined, only print variables that begin with ARGUMENTS.\n\n", os);
     return rv;
 }
 

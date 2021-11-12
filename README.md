@@ -41,16 +41,17 @@ Options are:
  -r <DIR>  use DIR as posix root
  -w <DIR>  change working directory to DIR before calling PROGRAM
  -k        keep extra posix environment variables.
- -p        print arguments instead executing PROGRAM.
- -e [VAR]  print current environment block end exit.
-           if defined, only print variables that begin with VAR.
  -s        do not translate environment variables.
  -v        print version information and exit.
  -h        print this screen and exit.
+ -p        print arguments instead executing PROGRAM.
+ -e        print current environment block end exit.
+           if defined, only print variables that begin with ARGUMENTS.
 
 ```
 
-Command options are case sensitive.
+Note that `-p` or `-e` option terminate options processing,
+so make sure to define any other options before them.
 
 ## Posix root
 
