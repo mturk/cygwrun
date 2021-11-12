@@ -892,7 +892,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             return 0;
         }
     }
-    for (i = 0; i < (envc - 1); i++) {
+    for (i = 0; i < (envc - xrunexec - 1); i++) {
         wchar_t *v;
         wchar_t *e = wenvp[i];
 
