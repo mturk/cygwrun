@@ -35,6 +35,7 @@
 
 static int      xrunexec  = 1;
 static int      xdumpenv  = 0;
+static int      xskipenv  = 0;
 static wchar_t *posixroot = NULL;
 
 static const wchar_t *pathmatches[] = {
@@ -143,6 +144,7 @@ static int usage(int rv)
     fputs(" -k        keep extra posix environment variables.\n", os);
     fputs(" -p        print arguments instead executing PROGRAM.\n", os);
     fputs(" -e        print current environment block end exit.\n", os);
+    fputs(" -s        do not translate environment variables.\n", os);
     fputs(" -v        print version information and exit.\n", os);
     fputs(" -h        print this screen and exit.\n\n", os);
     return rv;
@@ -881,47 +883,48 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             return 0;
         }
     }
-    for (i = 0; i < (envc - xrunexec - 1); i++) {
-        wchar_t *v;
-        wchar_t *e = wenvp[i];
+    if (xskipenv == 0) {
+        for (i = 0; i < (envc - xrunexec - 1); i++) {
+            wchar_t *v;
+            wchar_t *e = wenvp[i];
 
-        v = wcschr(e, L'=');
-        if (v == NULL) {
-            /**
-             * Bad environment
-             */
-            return EBADF;
-        }
-        if (wcschr(++v, L'/') != NULL) {
-            if ((v[0] == L'/') && (v[1] == L'\0')) {
+            v = wcschr(e, L'=');
+            if (v == NULL) {
                 /**
-                 * Special case for / (root)
+                 * Bad environment
                  */
-                *v = L'\0';
-                wenvp[i] = xwcsconcat(e, posixroot);
-                xfree(e);
+                return EBADF;
             }
-            else if (wcslen(v) > 3) {
-                wchar_t *p = towinpath(v);
-
-                if (p != NULL) {
+            if (wcschr(++v, L'/') != NULL) {
+                if ((v[0] == L'/') && (v[1] == L'\0')) {
+                    /**
+                     * Special case for / (root)
+                     */
                     *v = L'\0';
-                    wenvp[i] = xwcsconcat(e, p);
+                    wenvp[i] = xwcsconcat(e, posixroot);
                     xfree(e);
-                    xfree(p);
                 }
-            }
-            else if (isdotpath(v)) {
-                /**
-                 * We have something like
-                 * VARIABLE=./ or VARIABLE=../
-                 * Replace value to backward slashes inplace
-                 */
-                 replacepathsep(v);
+                else if (wcslen(v) > 3) {
+                    wchar_t *p = towinpath(v);
+
+                    if (p != NULL) {
+                        *v = L'\0';
+                        wenvp[i] = xwcsconcat(e, p);
+                        xfree(e);
+                        xfree(p);
+                    }
+                }
+                else if (isdotpath(v)) {
+                    /**
+                     * We have something like
+                     * VARIABLE=./ or VARIABLE=../
+                     * Replace value to backward slashes inplace
+                     */
+                     replacepathsep(v);
+                }
             }
         }
     }
-
     qsort((void *)wenvp, envc, sizeof(wchar_t *), envsort);
     if (xdumpenv) {
         int n, x;
@@ -973,7 +976,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     wchar_t  nnp[4]    = { L'\0', L'\0', L'\0', L'\0' };
     int dupenvc = 0;
     int dupargc = 0;
-    int kextenv = 1;
+    int clreenv = 1;
     int envc    = 0;
     int opts    = 1;
 
@@ -1003,7 +1006,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                     return invalidarg(p);
                 switch (p[1]) {
                     case L'k':
-                        kextenv  = 0;
+                        clreenv  = 0;
                     break;
                     case L'e':
                         xdumpenv = 1;
@@ -1017,6 +1020,9 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                     break;
                     case L'r':
                         crp = nnp;
+                    break;
+                    case L's':
+                        xskipenv = 1;
                     break;
                     case L'w':
                         cwd = nnp;
@@ -1076,7 +1082,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         const wchar_t **e;
         const wchar_t  *p = wenv[i];
 
-        if (kextenv) {
+        if (clreenv) {
             e = removeext;
             while (*e != NULL) {
                 if (strstartswith(p, *e)) {

@@ -43,6 +43,7 @@ Options are:
  -k        keep extra posix environment variables.
  -p        print arguments instead executing PROGRAM.
  -e        print current environment block end exit.
+ -s        do not translate environment variables.
  -v        print version information and exit.
  -h        print this screen and exit.
 ```
