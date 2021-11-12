@@ -690,6 +690,8 @@ static wchar_t *towinpath(const wchar_t *str)
 
 static wchar_t *getposixroot(wchar_t *r)
 {
+    wchar_t *p;
+
     if (r == NULL) {
         const wchar_t **e = posixrenv;
         while (*e != 0) {
@@ -697,37 +699,37 @@ static wchar_t *getposixroot(wchar_t *r)
                 break;
             e++;
         }
+        if (r == NULL) {
+            p = xgetpexe(GetCurrentProcessId());
+
+            if (p != NULL) {
+                const wchar_t **e = rootpaths;
+                wchar_t        *x = wcsrchr(p , L'\\');
+
+                if (x != NULL) {
+                    x[1] = L'\0';
+                    while (*e != NULL) {
+                        if ((x = strendswith(p, *e)) != NULL) {
+                            x[0] = L'\0';
+                            r = p;
+                            break;
+                        }
+                        e++;
+                    }
+                }
+            }
+            if (r == NULL) {
+                /**
+                 * Use default location
+                 */
+                xfree(p);
+                r = xwcsconcat(xgetenv(L"SYSTEMDRIVE"), L"\\cygwin64");
+            }
+        }
     }
     if (r != NULL) {
         rmtrailingsep(r);
         replacepathsep(r);
-    }
-    else {
-        wchar_t *p = xgetpexe(GetCurrentProcessId());
-
-        if (p != NULL) {
-            const wchar_t **e = rootpaths;
-            wchar_t        *x = wcsrchr(p , L'\\');
-
-            if (x != NULL) {
-                x[1] = L'\0';
-                while (*e != NULL) {
-                    if ((x = strendswith(p, *e)) != NULL) {
-                        x[0] = L'\0';
-                        r = p;
-                        break;
-                    }
-                    e++;
-                }
-            }
-        }
-        if (r == NULL) {
-            /**
-             * Use default location
-             */
-            xfree(p);
-            r = xwcsconcat(xgetenv(L"SYSTEMDRIVE"), L"\\cygwin64");
-        }
         p = xwcsconcat(r, L"\\etc\\fstab");
         if (_waccess(p, 0)) {
             xfree(r);
