@@ -546,8 +546,15 @@ static wchar_t **splitpath(const wchar_t *s, int *tokens)
             return NULL;
         }
     }
-    if (*s != L'\0')
-        sa[c++] = xwcsdup(s);
+    if (*s != L'\0') {
+        if (isposixpath(s)) {
+            sa[c++] = xwcsdup(s);
+        }
+        else {
+            waafree(sa);
+            return NULL;
+        }
+    }
 
     *tokens = c;
     return sa;
@@ -654,7 +661,7 @@ static wchar_t *towinpath(const wchar_t *str)
         wp = xwcsdup(str);
         replacepathsep(wp);
     }
-    else if (xwcsmatch(str, L"*/*:/*")) {
+    else if (xwcsmatch(str, L"*/*:*/*")) {
         /**
          * Posix path separator not found.
          * No need to split/merge since we have
