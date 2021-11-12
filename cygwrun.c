@@ -414,8 +414,6 @@ static int isposixpath(const wchar_t *str)
  */
 static wchar_t *cmdoptionval(wchar_t *s)
 {
-    if (iswinpath(s) || isposixpath(s))
-        return NULL;
     while (*(++s) != L'\0') {
         if (IS_PSW(*s) || iswspace(*s))
             return NULL;
@@ -831,14 +829,6 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
              * Argument is too short or has no forward slashes
              */
         }
-        else if (isdotpath(a)) {
-            /**
-             * We have something like
-             * ./[foobar] or ../[foobar]
-             * Replace to backward slashes inplace
-             */
-             replacepathsep(a);
-        }
         else if (iswinpath(a)) {
             /**
              * We have something like
@@ -847,14 +837,17 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
              */
              replacepathsep(a);
         }
+        else if (isposixpath(a)) {
+            /**
+             * We have posix path
+             */
+             wargv[i] = posixtowin(a);
+        }
         else {
             wchar_t *p;
             wchar_t *v = cmdoptionval(a);
 
-            if (IS_EMPTY_WCS(v)) {
-                wargv[i] = posixtowin(a);
-            }
-            else {
+            if (v != NULL) {
                 p = xwcsdup(v);
                 p = posixtowin(p);
                *v = L'\0';
