@@ -1042,17 +1042,14 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         rmtrailingsep(cwd);
         cwd = posixtowin(cwd);
         if (_wchdir(cwd) != 0) {
-            int se = errno;
-            fwprintf(stderr, L"Invalid working directory: %s\nFatal error: %s\n",
-                     cwd, _wcserror(se));
-            return se;
+            fwprintf(stderr, L"Invalid working directory: '%s'\n", cwd);
+            return ENOENT;
         }
         xfree(cwd);
     }
     if ((cwd = _wgetcwd(NULL, 0)) == NULL) {
-        int se = errno;
-        fputs("Cannot get current directory\n", stderr);
-        return se;
+        fputs("Cannot get current working directory\n", stderr);
+        return ENOENT;
     }
     while (wenv[envc] != NULL) {
         ++envc;
