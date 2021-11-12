@@ -868,13 +868,15 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             }
             else {
                 wchar_t *v = cmdoptionval(a);
+
                 if (IS_VALID_WCS(v)) {
                     if (iswinpath(v)) {
                         replacepathsep(v);
                     }
                     else if (isposixpath(v)) {
                         wchar_t *p = posixtowin(xwcsdup(v));
-                       *v = L'\0';
+
+                        v[0] = L'\0';
                         wargv[i] = xwcsconcat(a, p);
                         xfree(p);
                         xfree(a);
@@ -960,9 +962,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     rp = _wspawnvpe(_P_WAIT, wargv[0], wargv, wenvp);
     if (rp == (intptr_t)-1) {
         rc = errno;
-        fwprintf(stderr, L"Cannot execute program: %s\nFatal error: %s\n",
-                 wargv[0], _wcserror(rc));
-        return rc;
+        fwprintf(stderr, L"Failed to execute: '%s'\n", wargv[0]);
     }
     else {
         /**
