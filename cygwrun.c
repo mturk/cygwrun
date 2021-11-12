@@ -120,7 +120,6 @@ static const wchar_t *removeenv[] = {
 };
 
 static const wchar_t *posixrenv[] = {
-    L"_POSIX_ROOT",
     L"CYGWIN_ROOT",
     L"POSIX_ROOT",
     NULL
@@ -694,7 +693,10 @@ static wchar_t *getposixroot(wchar_t *r)
 
     if (r == NULL) {
         const wchar_t **e = posixrenv;
-        while (*e != 0) {
+
+        if ((r = xgetenv(L"_POSIX_ROOT")) != NULL)
+            return r;
+        while (*e != NULL) {
             if ((r = xgetenv(*e)) != NULL)
                 break;
             e++;
