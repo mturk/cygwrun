@@ -1090,25 +1090,31 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     }
     if (xrunexec) {
         wchar_t *exe;
-        wchar_t *sch;
-        wchar_t *pp1;
-        wchar_t *pp2;
-        /**
-         * Add current directory as first PATH element
-         */
-        pp1 = xwcsconcat(cwd, L";");
-        pp2 = xwcsconcat(pp1, cpp);
 
         exe = posixtowin(dupwargv[0]);
-        sch = xsearchexe(pp2, exe, NULL);
-        if (sch == NULL) {
-            fwprintf(stderr, L"Cannot find PROGRAM '%s'\n", exe);
-            return ENOENT;
+        if (_waccess(exe, 0)) {
+            wchar_t *sch;
+            wchar_t *pp1;
+            wchar_t *pp2;
+            /**
+             * PROGRAM is not an absolute path.
+             * Add current directory as first PATH element
+             * and search for PROGRAM[.exe]
+             */
+            pp1 = xwcsconcat(cwd, L";");
+            pp2 = xwcsconcat(pp1, cpp);
+
+            sch = xsearchexe(pp2, exe, NULL);
+            if (sch == NULL) {
+                fwprintf(stderr, L"Cannot find PROGRAM '%s'\n", exe);
+                return ENOENT;
+            }
+            xfree(pp1);
+            xfree(pp2);
+            xfree(exe);
+            exe = sch;
         }
-        xfree(exe);
-        xfree(pp1);
-        xfree(pp2);
-        dupwargv[0] = sch;
+        dupwargv[0] = exe;
     }
     /**
      * Add back environment variables
