@@ -65,5 +65,15 @@ then
   test ".$rv" = ".FOO=/Fo:/tmp:/usr" || xbexit 1 "Failed #3: \`$rv'"
 fi
 
+tmpdir=`$_cygwrun -p /tmp`
+test $? -ne 0 && xbexit 1 "Failed #4"
+
+usrdir=`$_cygwrun -p /usr`
+test $? -ne 0 && xbexit 1 "Failed #5"
+
+export FOO="/tmp/foo bar:/usr/local"
+rv=`$_cygwrun -e FOO=`
+test ".$rv" = ".FOO=$tmpdir\\foo bar;$usrdir\\local" || xbexit 1 "Failed #6: \`$rv'"
+
 echo "All tests passed!"
 exit 0
