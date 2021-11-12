@@ -957,7 +957,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     wchar_t  nnp[4]    = { L'\0', L'\0', L'\0', L'\0' };
     int dupenvc = 0;
     int dupargc = 0;
-    int cextenv = 1;
+    int kextenv = 1;
     int envc    = 0;
     int opts    = 1;
 
@@ -986,16 +986,13 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                 if ((p[1] == L'\0') || (p[2] != L'\0'))
                     return invalidarg(p);
                 switch (p[1]) {
+                    case L'k':
+                        kextenv  = 0;
+                    break;
                     case L'e':
                         xdumpenv = 1;
                         xrunexec = 0;
                         opts     = 0;
-                    break;
-                    case L'h':
-                        return usage(0);
-                    break;
-                    case L'k':
-                        cextenv = 0;
                     break;
                     case L'p':
                         xrunexec = 0;
@@ -1005,11 +1002,14 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                     case L'r':
                         crp = nnp;
                     break;
+                    case L'w':
+                        cwd = nnp;
+                    break;
                     case L'v':
                         return version();
                     break;
-                    case L'w':
-                        cwd = nnp;
+                    case L'h':
+                        return usage(0);
                     break;
                     default:
                         return invalidarg(p);
@@ -1060,7 +1060,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         const wchar_t **e;
         const wchar_t  *p = wenv[i];
 
-        if (cextenv) {
+        if (kextenv) {
             e = removeext;
             while (*e != NULL) {
                 if (strstartswith(p, *e)) {
