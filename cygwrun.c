@@ -29,8 +29,9 @@
 
 #include "cygwrun.h"
 
-#define IS_PSW(_c)        (((_c) == L'/') || ((_c) == L'\\'))
-#define IS_EMPTY_WCS(_s)  (((_s) == 0)    || (*(_s) == L'\0'))
+#define IS_PSW(_c)        (((_c) == L'/') || ((_c)  == L'\\'))
+#define IS_EMPTY_WCS(_s)  (((_s) == NULL) || (*(_s) == L'\0'))
+#define IS_VALID_WCS(_s)  (((_s) != NULL) && (*(_s) != L'\0'))
 
 static int      xrunexec  = 1;
 static int      xdumpenv  = 0;
@@ -868,7 +869,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         }
         else {
             wchar_t *v = cmdoptionval(a + 1);
-            if (v != NULL) {
+            if (IS_VALID_WCS(v)) {
                 if (iswinpath(v)) {
                     replacepathsep(v);
                 }
