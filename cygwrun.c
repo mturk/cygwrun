@@ -408,17 +408,20 @@ static int isposixpath(const wchar_t *str)
 /**
  * Check if the argument is command line option
  * containing a posix path as value.
- * Eg. name[:value] or name[=value] will try to
+ * Eg. [/]name[:value] or [--]name[=value] will try to
  * convert value part to Windows paths unless the
  * name part itself is a path
  */
 static wchar_t *cmdoptionval(wchar_t *s)
 {
-    while (*(++s) != L'\0') {
+    if (*s == L'-')
+        s++;
+    while (*s != L'\0') {
         if (IS_PSW(*s) || iswspace(*s))
             return NULL;
         if (*s == L'=' || *s == L':')
             return s + 1;
+        s++;
     }
     return NULL;
 }
@@ -841,12 +844,10 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
              wargv[i] = posixtowin(a);
         }
         else {
-            wchar_t *p;
-            wchar_t *v = cmdoptionval(a);
+            wchar_t *v = cmdoptionval(a + 1);
 
-            if (v != NULL) {
-                p = xwcsdup(v);
-                p = posixtowin(p);
+            if ((v != NULL) && isposixpath(v)) {
+                wchar_t *p = posixtowin(xwcsdup(v));
                *v = L'\0';
                 wargv[i] = xwcsconcat(a, p);
                 xfree(p);
