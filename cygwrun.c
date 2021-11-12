@@ -538,10 +538,9 @@ static wchar_t **splitpath(const wchar_t *s, int *tokens)
         else {
             /**
              * Not a posix path.
-             * Do not split any more.
              */
-            p[n] = L':';
-            break;
+            waafree(sa);
+            return NULL;
         }
     }
     if (*s != L'\0')
@@ -553,7 +552,7 @@ static wchar_t **splitpath(const wchar_t *s, int *tokens)
 
 static wchar_t *mergepath(const wchar_t **pp)
 {
-    int  i, sc = 0;
+    int  i;
     size_t len = 0;
     wchar_t  *r, *p;
 
@@ -563,15 +562,8 @@ static wchar_t *mergepath(const wchar_t **pp)
     r = p = xwalloc(len + 2);
     for (i = 0; pp[i] != NULL; i++) {
         len = wcslen(pp[i]);
-        if (sc)
+        if (i > 0)
             *(p++) = L';';
-        /**
-         * Do not add semicolon before next path
-         */
-        if (pp[i][len - 1] == L':')
-            sc = 0;
-        else
-            sc = 1;
         wmemcpy(p, pp[i], len);
         p += len;
     }
@@ -672,11 +664,16 @@ static wchar_t *towinpath(const wchar_t *str)
         int i, n;
         wchar_t **pa = splitpath(str, &n);
 
-        for (i = 0; i < n; i++) {
-            pa[i] = posixtowin(pa[i]);
+        if (pa != NULL) {
+            for (i = 0; i < n; i++) {
+                pa[i] = posixtowin(pa[i]);
+            }
+            wp = mergepath(pa);
+            waafree(pa);
         }
-        wp = mergepath(pa);
-        waafree(pa);
+        else {
+            wp = xwcsdup(str);
+        }
     }
     return wp;
 }
