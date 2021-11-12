@@ -728,9 +728,11 @@ static wchar_t *getposixroot(wchar_t *r)
         }
         else {
             /**
-             * Presume that POSIX_ROOT envvar is
-             * well formed
+             * Presume that POSIX_ROOT envvar
+             * points to a valid location
              */
+            rmtrailingsep(r);
+            replacepathsep(r);
             return r;
         }
     }
