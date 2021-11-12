@@ -120,6 +120,7 @@ static const wchar_t *removeenv[] = {
 };
 
 static const wchar_t *posixrenv[] = {
+    L"CYGWRUN_ROOT",
     L"CYGWIN_ROOT",
     L"POSIX_ROOT",
     NULL
@@ -1120,7 +1121,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
      * Add back environment variables
      */
     dupwenvp[dupenvc++] = xwcsconcat(L"PATH=", cpp);
-    dupwenvp[dupenvc++] = xwcsconcat(L"POSIX_ROOT=", posixroot);
+    dupwenvp[dupenvc++] = xwcsconcat(L"CYGWRUN_ROOT=", posixroot);
     xfree(cpp);
     xfree(cwd);
     return posixmain(dupargc, dupwargv, dupenvc, dupwenvp);
