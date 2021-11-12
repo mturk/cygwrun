@@ -55,8 +55,10 @@ rm -rf $srcdir/.test 2>/dev/null
 test $rc -ne 0 && xbexit 1 "Failed #0"
 
 export POSIX_ROOT="C:\\_not\\a\\directory"
-rv="`$_cygwrun -p /tmp`"
-test ".$rv" = ".C:\\_not\\a\\directory\\tmp" || xbexit 1 "Failed #1: \`$rv'"
+v=/tmp
+test $phost = mingw && v=/$v
+rv="`$_cygwrun -p $v`"
+test ".$rv" = ".$POSIX_ROOT\\tmp" || xbexit 1 "Failed #1: \`$rv'"
 export POSIX_ROOT=
 
 export FOO=bar
