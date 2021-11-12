@@ -420,10 +420,12 @@ static wchar_t *cmdoptionval(wchar_t *s)
     if (*s == L'-')
         s++;
     while (*s != L'\0') {
-        if (IS_PSW(*s) || iswspace(*s))
+        if ((*s < L'-')  || (*s > 'z'))
             return NULL;
-        if (*s == L'=' || *s == L':')
+        if ((*s == L'=') || (*s == L':'))
             return s + 1;
+        if ((*s != L'_') && (*s != L'-') && (isalnum(*s) == 0))
+            return NULL;
         s++;
     }
     return NULL;

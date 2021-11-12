@@ -103,8 +103,8 @@ export FOO="/tmp/foo/bar:/usr/local::/usr/cc"
 rv="`$_cygwrun -e FOO=`"
 test ".$rv" = ".FOO=$tmpdir\\foo\\bar;$usrdir\\local;$usrdir\\cc" || xbexit 1 "Failed #8: \`$rv'"
 
-rv="`$_cygwrun -p -I:./tmp/foo`"
-test ".$rv" = ".-I:.\\tmp\\foo" || xbexit 1 "Failed #9: \`$rv'"
+rv="`$_cygwrun -p --I-B:./tmp/foo`"
+test ".$rv" = ".--I-B:.\\tmp\\foo" || xbexit 1 "Failed #9: \`$rv'"
 
 echo "All tests passed!"
 exit 0
