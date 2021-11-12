@@ -417,8 +417,13 @@ static int isposixpath(const wchar_t *str)
  */
 static wchar_t *cmdoptionval(wchar_t *s)
 {
-    if (*s == L'-')
+    if (*s == L'/') {
         s++;
+    }
+    else if (*s == L'-') {
+        if (*(++s) == L'-')
+            s++;
+    }
     while (*s != L'\0') {
         wchar_t c = *(s++);
         if ((c <= L',') || (c >= L'{'))
@@ -862,7 +867,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                  wargv[i] = posixtowin(a);
             }
             else {
-                wchar_t *v = cmdoptionval(a + 1);
+                wchar_t *v = cmdoptionval(a);
                 if (IS_VALID_WCS(v)) {
                     if (iswinpath(v)) {
                         replacepathsep(v);
