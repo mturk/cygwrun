@@ -754,17 +754,16 @@ static wchar_t *getposixroot(wchar_t *r)
     return r;
 }
 
-static wchar_t *xsearchexe(const wchar_t *path, const wchar_t *name, const wchar_t **fname)
+static wchar_t *xsearchexe(const wchar_t *paths, const wchar_t *name)
 {
     HANDLE    fh = NULL;
     wchar_t  *sp = NULL;
-    wchar_t  *fp;
     DWORD     ln = 0;
     DWORD     sz = _MAX_PATH;
 
     while (sp == NULL) {
         sp = xwalloc(sz);
-        ln = SearchPathW(path, name, L".exe", sz, sp, NULL);
+        ln = SearchPathW(paths, name, L".exe", sz, sp, NULL);
         if (ln == 0) {
             goto failed;
         }
@@ -804,16 +803,6 @@ static wchar_t *xsearchexe(const wchar_t *path, const wchar_t *name, const wchar
             (sp[5] == L':')) {
             wmemmove(sp, sp + 4, ln - 3);
             ln -= 4;
-        }
-    }
-    if (fname != NULL) {
-        fp = sp + ln;
-        while (--fp > sp) {
-            if (*fp == L'\\') {
-                *(fp++) = L'\0';
-                *fname = fp;
-                break;
-            }
         }
     }
     return sp;
@@ -1129,7 +1118,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             pp1 = xwcsconcat(cwd, L";");
             pp2 = xwcsconcat(pp1, cpp);
 
-            sch = xsearchexe(pp2, exe, NULL);
+            sch = xsearchexe(pp2, exe);
             if (sch == NULL) {
                 fwprintf(stderr, L"Cannot find PROGRAM '%s'\n", exe);
                 return ENOENT;
