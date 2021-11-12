@@ -42,6 +42,7 @@ Options are:
  -w <DIR>  change working directory to DIR before calling PROGRAM
  -k        keep extra posix environment variables.
  -s        do not translate environment variables.
+ -q        do not print errors to stderr.
  -v        print version information and exit.
  -h        print this screen and exit.
  -p        print arguments instead executing PROGRAM.

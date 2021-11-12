@@ -36,6 +36,7 @@
 static int      xrunexec  = 1;
 static int      xdumpenv  = 0;
 static int      xskipenv  = 0;
+static int      xshowerr  = 1;
 static wchar_t *posixroot = NULL;
 
 static const wchar_t *pathmatches[] = {
@@ -136,18 +137,21 @@ static const wchar_t *rootpaths[] = {
 
 static int usage(int rv)
 {
-    FILE *os = rv == 0 ? stdout : stderr;
-    fputs("\nUsage " PROJECT_NAME " [OPTIONS]... PROGRAM [ARGUMENTS]...\n", os);
-    fputs("Execute PROGRAM [ARGUMENTS]...\n\nOptions are:\n", os);
-    fputs(" -r <DIR>  use DIR as posix root\n", os);
-    fputs(" -w <DIR>  change working directory to DIR before calling PROGRAM\n", os);
-    fputs(" -k        keep extra posix environment variables.\n", os);
-    fputs(" -s        do not translate environment variables.\n", os);
-    fputs(" -v        print version information and exit.\n", os);
-    fputs(" -h        print this screen and exit.\n", os);
-    fputs(" -p        print arguments instead executing PROGRAM.\n", os);
-    fputs(" -e        print current environment block end exit.\n", os);
-    fputs("           if defined, only print variables that begin with ARGUMENTS.\n\n", os);
+    if (xshowerr) {
+        FILE *os = rv == 0 ? stdout : stderr;
+        fputs("\nUsage " PROJECT_NAME " [OPTIONS]... PROGRAM [ARGUMENTS]...\n", os);
+        fputs("Execute PROGRAM [ARGUMENTS]...\n\nOptions are:\n", os);
+        fputs(" -r <DIR>  use DIR as posix root\n", os);
+        fputs(" -w <DIR>  change working directory to DIR before calling PROGRAM\n", os);
+        fputs(" -k        keep extra posix environment variables.\n", os);
+        fputs(" -s        do not translate environment variables.\n", os);
+        fputs(" -q        do not print errors to stderr.\n", os);
+        fputs(" -v        print version information and exit.\n", os);
+        fputs(" -h        print this screen and exit.\n", os);
+        fputs(" -p        print arguments instead executing PROGRAM.\n", os);
+        fputs(" -e        print current environment block end exit.\n", os);
+        fputs("           if defined, only print variables that begin with ARGUMENTS.\n\n", os);
+    }
     return rv;
 }
 
@@ -160,7 +164,8 @@ static int version(void)
 
 static int invalidarg(const wchar_t *arg)
 {
-    fwprintf(stderr, L"Unknown option: %s\n", arg);
+    if (xshowerr)
+        fwprintf(stderr, L"Unknown option: %s\n", arg);
     return usage(EINVAL);
 }
 
@@ -962,7 +967,8 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     rp = _wspawnvpe(_P_WAIT, wargv[0], wargv, wenvp);
     if (rp == (intptr_t)-1) {
         rc = errno;
-        fwprintf(stderr, L"Failed to execute: '%s'\n", wargv[0]);
+        if (xshowerr)
+            fwprintf(stderr, L"Failed to execute: '%s'\n", wargv[0]);
     }
     else {
         /**
@@ -1033,6 +1039,9 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                     case L's':
                         xskipenv = 1;
                     break;
+                    case L'q':
+                        xshowerr = 0;
+                    break;
                     case L'w':
                         cwd = nnp;
                     break;
@@ -1053,33 +1062,39 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         dupwargv[dupargc++] = xwcsdup(p);
     }
     if ((dupargc == 0) && (xdumpenv == 0)) {
-        fputs("Missing PROGRAM argument\n", stderr);
+        if (xshowerr)
+            fputs("Missing PROGRAM argument\n", stderr);
         return usage(1);
     }
     if ((cwd == nnp) || (crp == nnp)) {
-        fputs("Missing required parameter value\n", stderr);
+        if (xshowerr)
+            fputs("Missing required parameter value\n", stderr);
         return usage(1);
     }
     if ((cpp = xgetenv(L"PATH")) == NULL) {
-        fputs("Missing PATH environment variable\n", stderr);
+        if (xshowerr)
+            fputs("Missing PATH environment variable\n", stderr);
         return ENOENT;
     }
     rmtrailingsep(cpp);
     if ((posixroot = getposixroot(crp)) == NULL) {
-        fputs("Cannot find valid POSIX_ROOT\n", stderr);
+        if (xshowerr)
+            fputs("Cannot find valid POSIX_ROOT\n", stderr);
         return ENOENT;
     }
     if (cwd != NULL) {
         rmtrailingsep(cwd);
         cwd = posixtowin(cwd);
         if (_wchdir(cwd) != 0) {
-            fwprintf(stderr, L"Invalid working directory: '%s'\n", cwd);
+            if (xshowerr)
+                fwprintf(stderr, L"Invalid working directory: '%s'\n", cwd);
             return ENOENT;
         }
         xfree(cwd);
     }
     if ((cwd = _wgetcwd(NULL, 0)) == NULL) {
-        fputs("Cannot get current working directory\n", stderr);
+        if (xshowerr)
+            fputs("Cannot get current working directory\n", stderr);
         return ENOENT;
     }
     while (wenv[envc] != NULL) {
@@ -1135,7 +1150,8 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
 
             sch = xsearchexe(pp2, exe);
             if (sch == NULL) {
-                fwprintf(stderr, L"Cannot find PROGRAM '%s'\n", exe);
+                if (xshowerr)
+                    fwprintf(stderr, L"Cannot find PROGRAM '%s'\n", exe);
                 return ENOENT;
             }
             xfree(pp1);
