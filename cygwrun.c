@@ -868,13 +868,17 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         }
         else {
             wchar_t *v = cmdoptionval(a + 1);
-
-            if ((v != NULL) && isposixpath(v)) {
-                wchar_t *p = posixtowin(xwcsdup(v));
-               *v = L'\0';
-                wargv[i] = xwcsconcat(a, p);
-                xfree(p);
-                xfree(a);
+            if (v != NULL) {
+                if (isposixpath(v)) {
+                    wchar_t *p = posixtowin(xwcsdup(v));
+                   *v = L'\0';
+                    wargv[i] = xwcsconcat(a, p);
+                    xfree(p);
+                    xfree(a);
+                }
+                else if (iswinpath(v)) {
+                    replacepathsep(v);
+                }
             }
         }
         if (xrunexec == 0) {

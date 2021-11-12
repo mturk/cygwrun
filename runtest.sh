@@ -95,6 +95,8 @@ then
 else
 # mingw's auto conversion is broken
   test ".$rv" = ".FOO=-unknown:$tmpdir\\foo\\bar;$usrdir\\local" || xbexit 1 "Failed #7: \`$rv'"
+  rv="`$_cygwrun -p -I=/tmp/foo`"
+  test ".$rv" = ".-I=$tmpdir\\foo" || xbexit 1 "Failed #7.1: \`$rv'"
 fi
 
 export FOO="/tmp/foo/bar:/usr/local::/usr/cc"
