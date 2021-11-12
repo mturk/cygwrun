@@ -726,6 +726,13 @@ static wchar_t *getposixroot(wchar_t *r)
                 r = xwcsconcat(xgetenv(L"SYSTEMDRIVE"), L"\\cygwin64");
             }
         }
+        else {
+            /**
+             * Presume that POSIX_ROOT envvar is
+             * well formed
+             */
+            return r;
+        }
     }
     if (r != NULL) {
         rmtrailingsep(r);

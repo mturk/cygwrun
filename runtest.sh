@@ -52,7 +52,12 @@ cp -f $_cygwrun $srcdir/.test/cygwrun_test.exe
 rv="`$_cygwrun -w $srcdir/.test cygwrun_test -e _POSIX_ROOT=`"
 rc=$?
 rm -rf $srcdir/.test 2>/dev/null
-test $rc -ne 0 && xbexit 1 "Failed #1"
+test $rc -ne 0 && xbexit 1 "Failed #0"
+
+export POSIX_ROOT="C:\\_not\\a\\directory"
+rv="`$_cygwrun -p /tmp`"
+test ".$rv" = ".C:\\_not\\a\\directory\\tmp" || xbexit 1 "Failed #1: \`$rv'"
+export POSIX_ROOT=
 
 export FOO=bar
 rv="`$_cygwrun -e FOO=`"
