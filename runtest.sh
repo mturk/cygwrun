@@ -54,7 +54,7 @@ rc=$?
 rm -rf $srcdir/.test 2>/dev/null
 test $rc -ne 0 && xbexit 1 "Failed #0"
 
-export POSIX_ROOT="C:\\_not\\a/directory//"
+export POSIX_ROOT="c:\\_not\\a/directory//"
 v=/tmp
 test $phost = mingw && v=/$v
 rv="`$_cygwrun -p $v`"

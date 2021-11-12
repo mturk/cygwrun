@@ -602,11 +602,12 @@ static wchar_t *posixtowin(wchar_t *pp)
     wchar_t *rv;
     wchar_t  windrive[] = { L'\0', L':', L'\\', L'\0'};
 
-    if ((*pp == L'\'') || (wcschr(pp, L'/') == NULL))
+    if (wcschr(pp, L'/') == NULL) {
+        /**
+         * Nothing to do.
+         */
         return pp;
-    /**
-     * Check for special paths
-     */
+    }
     m = isposixpath(pp);
     if (m == 0) {
         /**
@@ -735,12 +736,14 @@ static wchar_t *getposixroot(wchar_t *r)
              */
             rmtrailingsep(r);
             replacepathsep(r);
+           *r = towupper(*r);
             return r;
         }
     }
     if (r != NULL) {
         rmtrailingsep(r);
         replacepathsep(r);
+       *r = towupper(*r);
         p = xwcsconcat(r, L"\\etc\\fstab");
         if (_waccess(p, 0)) {
             xfree(r);
