@@ -829,67 +829,69 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     int i, rc = 0;
     intptr_t rp;
 
-    for (i = xrunexec; i < argc && xdumpenv == 0; i++) {
-        wchar_t *a = wargv[i];
-        size_t   n = wcslen(a);
+    if (xdumpenv == 0) {
+        for (i = xrunexec; i < argc; i++) {
+            wchar_t *a = wargv[i];
+            size_t   n = wcslen(a);
 
-        if ((a[0] == L'/') && (a[1] == L'/')) {
-            if (wcschr(a + 2, L'/')) {
-                /**
-                 * Handle mingw double slash
-                 */
-                wmemmove(a, a + 1, n--);
+            if ((a[0] == L'/') && (a[1] == L'/')) {
+                if (wcschr(a + 2, L'/')) {
+                    /**
+                     * Handle mingw double slash
+                     */
+                    wmemmove(a, a + 1, n--);
+                }
             }
-        }
-        if ((a[0] == L'/') && (a[1] == L'\0')) {
-            /**
-             * Special case for / (root)
-             */
-            xfree(a);
-            wargv[i] = xwcsdup(posixroot);
-        }
-        else if ((n < 4) || (wcschr(a, L'/') == 0)) {
-            /**
-             * Argument is too short or has no forward slashes
-             */
-        }
-        else if (iswinpath(a)) {
-            /**
-             * We have something like
-             * \\ or C:[/...]
-             * Replace to backward slashes inplace
-             */
-             replacepathsep(a);
-        }
-        else if (isposixpath(a)) {
-            /**
-             * We have posix path
-             */
-             wargv[i] = posixtowin(a);
-        }
-        else {
-            wchar_t *v = cmdoptionval(a + 1);
-            if (IS_VALID_WCS(v)) {
-                if (iswinpath(v)) {
-                    replacepathsep(v);
+            if ((a[0] == L'/') && (a[1] == L'\0')) {
+                /**
+                 * Special case for / (root)
+                 */
+                xfree(a);
+                wargv[i] = xwcsdup(posixroot);
+            }
+            else if ((n < 4) || (wcschr(a, L'/') == 0)) {
+                /**
+                 * Argument is too short or has no forward slashes
+                 */
+            }
+            else if (iswinpath(a)) {
+                /**
+                 * We have something like
+                 * \\ or C:[/...]
+                 * Replace to backward slashes inplace
+                 */
+                 replacepathsep(a);
+            }
+            else if (isposixpath(a)) {
+                /**
+                 * We have posix path
+                 */
+                 wargv[i] = posixtowin(a);
+            }
+            else {
+                wchar_t *v = cmdoptionval(a + 1);
+                if (IS_VALID_WCS(v)) {
+                    if (iswinpath(v)) {
+                        replacepathsep(v);
+                    }
+                    else if (isposixpath(v)) {
+                        wchar_t *p = posixtowin(xwcsdup(v));
+                       *v = L'\0';
+                        wargv[i] = xwcsconcat(a, p);
+                        xfree(p);
+                        xfree(a);
+                    }
                 }
-                else if (isposixpath(v)) {
-                    wchar_t *p = posixtowin(xwcsdup(v));
-                   *v = L'\0';
-                    wargv[i] = xwcsconcat(a, p);
-                    xfree(p);
-                    xfree(a);
-                }
+            }
+            if (xrunexec == 0) {
+                if (i > 0)
+                    fputc(L'\n', stdout);
+                fputws(wargv[i], stdout);
             }
         }
         if (xrunexec == 0) {
-            if (i > 0)
-                fputc(L'\n', stdout);
-            fputws(wargv[i], stdout);
+            return 0;
         }
-    }
-    if (xrunexec == 0 && xdumpenv == 0) {
-        return 0;
     }
     for (i = 0; i < (envc - 1); i++) {
         wchar_t *v;
@@ -1047,7 +1049,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         }
         dupwargv[dupargc++] = xwcsdup(p);
     }
-    if ((dupargc < 1) && (xdumpenv == 0)) {
+    if ((dupargc == 0) && (xdumpenv == 0)) {
         fputs("Missing PROGRAM argument\n", stderr);
         return usage(1);
     }
