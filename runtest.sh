@@ -49,9 +49,10 @@ echo "Running test suite inside $phost"
 # Test for working directory
 mkdir $srcdir/.test 2>/dev/null
 cp -f $_cygwrun $srcdir/.test/cygwrun_test.exe
-rv=`$_cygwrun -w $srcdir/.test cygwrun_test -e CYGWRUN_ROOT=`
-test $? -ne 0 && xbexit 1 "Failed #1"
+rv=`$_cygwrun -w $srcdir/.test cygwrun_test -e _POSIX_ROOT=`
+xv=$?
 rm -rf $srcdir/.test 2>/dev/null
+test $xv -ne 0 && xbexit 1 "Failed #1"
 
 export FOO=bar
 rv=`$_cygwrun -e FOO=`
