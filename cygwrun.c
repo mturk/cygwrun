@@ -1111,12 +1111,12 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             exe = sch;
         }
         dupwargv[0] = exe;
+        dupwenvp[dupenvc++] = xwcsconcat(L"CYGWRUN_ROOT=", posixroot);
     }
     /**
      * Add back environment variables
      */
     dupwenvp[dupenvc++] = xwcsconcat(L"PATH=", cpp);
-    dupwenvp[dupenvc++] = xwcsconcat(L"CYGWRUN_ROOT=", posixroot);
     xfree(cpp);
     xfree(cwd);
     return posixmain(dupargc, dupwargv, dupenvc, dupwenvp);

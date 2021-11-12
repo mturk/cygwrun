@@ -20,7 +20,7 @@ p=`basename $0`
 r=`dirname $0`
 srcdir="`cd \"$r\" && pwd`"
 
-case "`uname`" in
+case "`uname -s`" in
   CYGWIN*)
     phost=cygwin
   ;;
@@ -49,7 +49,7 @@ echo "Running test suite inside $phost"
 # Test for working directory
 mkdir $srcdir/.test 2>/dev/null
 cp -f $_cygwrun $srcdir/.test/cygwrun_test.exe
-rv=`$_cygwrun -w $srcdir/.test cygwrun_test -e POSIX_ROOT=`
+rv=`$_cygwrun -w $srcdir/.test cygwrun_test -e CYGWRUN_ROOT=`
 test $? -ne 0 && xbexit 1 "Failed #1"
 rm -rf $srcdir/.test 2>/dev/null
 
