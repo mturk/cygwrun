@@ -420,13 +420,13 @@ static wchar_t *cmdoptionval(wchar_t *s)
     if (*s == L'-')
         s++;
     while (*s != L'\0') {
-        if ((*s < L'-')  || (*s > 'z'))
+        wchar_t c = *(s++);
+        if ((c <= L',') || (c >= L'{'))
             return NULL;
-        if ((*s == L'=') || (*s == L':'))
-            return s + 1;
-        if ((*s != L'_') && (*s != L'-') && (isalnum(*s) == 0))
+        if ((c == L'=') || (c == L':'))
+            return s;
+        if ((c != L'_') && (c != L'-') && (isalnum(c) == 0))
             return NULL;
-        s++;
     }
     return NULL;
 }
