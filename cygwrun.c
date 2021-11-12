@@ -877,7 +877,14 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             return EBADF;
         }
         if (wcschr(++v, L'/') != NULL) {
-
+            if ((v[0] == L'/') && (v[1] == L'/')) {
+                if (wcschr(v + 2, L'/')) {
+                    /**
+                     * Handle mingw double slash
+                     */
+                    v++;
+                }
+            }
             if ((v[0] == L'/') && (v[1] == L'\0')) {
                 /**
                  * Special case for / (root)
