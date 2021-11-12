@@ -346,7 +346,7 @@ static wchar_t *strendswith(wchar_t *str, const wchar_t *src)
 static int iswinpath(const wchar_t *s)
 {
     if (s[0] < 128) {
-        if (s[0] == L'\\' && s[1] == L'\\')
+        if (s[0] == L'\\')
             return 1;
         if (isalpha(s[0]) && s[1] == L':') {
             if (IS_PSW(s[2]) || s[2] == L'\0')
@@ -869,15 +869,15 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         else {
             wchar_t *v = cmdoptionval(a + 1);
             if (v != NULL) {
-                if (isposixpath(v)) {
+                if (iswinpath(v)) {
+                    replacepathsep(v);
+                }
+                else if (isposixpath(v)) {
                     wchar_t *p = posixtowin(xwcsdup(v));
                    *v = L'\0';
                     wargv[i] = xwcsconcat(a, p);
                     xfree(p);
                     xfree(a);
-                }
-                else if (iswinpath(v)) {
-                    replacepathsep(v);
                 }
             }
         }
