@@ -896,12 +896,13 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                  */
                 return EBADF;
             }
-            if (wcschr(++v, L'/') != NULL) {
+            v++;
+            if ((*v != L'\'') && (wcschr(v, L'/') != NULL)) {
                 if ((v[0] == L'/') && (v[1] == L'\0')) {
                     /**
                      * Special case for / (root)
                      */
-                    *v = L'\0';
+                    v[0] = L'\0';
                     wenvp[i] = xwcsconcat(e, posixroot);
                     xfree(e);
                 }
@@ -909,7 +910,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                     wchar_t *p = towinpath(v);
 
                     if (p != NULL) {
-                        *v = L'\0';
+                        v[0] = L'\0';
                         wenvp[i] = xwcsconcat(e, p);
                         xfree(e);
                         xfree(p);
