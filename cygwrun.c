@@ -870,7 +870,13 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         wchar_t *e = wenvp[i];
 
         v = wcschr(e, L'=');
-        if ((v != NULL) && (wcschr(++v, L'/') != NULL)) {
+        if (v == NULL) {
+            /**
+             * Bad environment
+             */
+            return EBADF;
+        }
+        if (wcschr(++v, L'/') != NULL) {
 
             if ((v[0] == L'/') && (v[1] == L'\0')) {
                 /**
