@@ -600,13 +600,19 @@ static wchar_t *mergepath(const wchar_t **pp)
  * so that we don't have problems with quoting
  * or appending
  */
-static void rmtrailingsep(wchar_t *s)
+static void rmtrailingpsep(wchar_t *s)
 {
-    int i = (int)xwcslen(s);
+    int i = (int)xwcslen(s) - 1;
 
-    while (--i > 1) {
-        if (IS_PSW(s[i]) || (s[i] == L';'))
-            s[i] = L'\0';
+    while (i > 2) {
+        if (s[i] == L';')
+            s[i--] = L'\0';
+        else
+            break;
+    }
+    while (i > 1) {
+        if (IS_PSW(s[i]))
+            s[i--] = L'\0';
         else
             break;
     }
@@ -754,7 +760,7 @@ static wchar_t *getposixroot(wchar_t *r)
         }
     }
     if (r != NULL) {
-        rmtrailingsep(r);
+        rmtrailingpsep(r);
         replacepathsep(r);
        *r = towupper(*r);
         if (rcheck) {
@@ -1076,14 +1082,14 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             fputs("Missing PATH environment variable\n", stderr);
         return ENOENT;
     }
-    rmtrailingsep(cpp);
+    rmtrailingpsep(cpp);
     if ((posixroot = getposixroot(crp)) == NULL) {
         if (xshowerr)
             fputs("Cannot find valid POSIX_ROOT\n", stderr);
         return ENOENT;
     }
     if (cwd != NULL) {
-        rmtrailingsep(cwd);
+        rmtrailingpsep(cwd);
         cwd = posixtowin(cwd);
         if (_wchdir(cwd) != 0) {
             if (xshowerr)
