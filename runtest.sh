@@ -49,7 +49,7 @@ echo "Running $phost test suite"
 # Test for working directory
 mkdir $srcdir/.test 2>/dev/null
 cp -f $_cygwrun $srcdir/.test/cygwrun_test.exe
-rv="`$_cygwrun -w $srcdir/.test cygwrun_test -e _POSIX_ROOT=`"
+rv="`$_cygwrun -w $srcdir/.test cygwrun_test -e _CYGWRUN_POSIX_ROOT=`"
 rc=$?
 rm -rf $srcdir/.test 2>/dev/null
 test $rc -ne 0 && xbexit 1 "Failed #0"

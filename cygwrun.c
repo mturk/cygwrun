@@ -722,7 +722,7 @@ static wchar_t *getposixroot(wchar_t *r)
     if (r == NULL) {
         const wchar_t **e = posixrenv;
 
-        if ((r = xgetenv(L"_POSIX_ROOT")) != NULL)
+        if ((r = xgetenv(L"_CYGWRUN_POSIX_ROOT")) != NULL)
             return r;
         while (*e != NULL) {
             if ((r = xgetenv(*e)) != NULL)
@@ -1168,7 +1168,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             exe = sch;
         }
         dupwargv[0] = exe;
-        dupwenvp[dupenvc++] = xwcsconcat(L"_POSIX_ROOT=", posixroot);
+        dupwenvp[dupenvc++] = xwcsconcat(L"_CYGWRUN_POSIX_ROOT=", posixroot);
     }
     /**
      * Add back environment variables
