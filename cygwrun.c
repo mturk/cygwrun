@@ -422,6 +422,8 @@ static int isposixpath(const wchar_t *str)
  */
 static wchar_t *cmdoptionval(wchar_t *s)
 {
+    int n = 0;
+
     if (*s == L'/') {
         s++;
     }
@@ -434,9 +436,10 @@ static wchar_t *cmdoptionval(wchar_t *s)
         if ((c <= L',') || (c >= L'{'))
             return NULL;
         if ((c == L'=') || (c == L':'))
-            return s;
+            return n > 0 ? s : NULL;
         if ((c != L'_') && (c != L'-') && (isalnum(c) == 0))
             return NULL;
+        n++;
     }
     return NULL;
 }
