@@ -880,7 +880,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             else {
                 wchar_t *v = cmdoptionval(a);
 
-                if (IS_VALID_WCS(v)) {
+                if (IS_VALID_WCS(v) && (*v != L'\'')) {
                     if (iswinpath(v)) {
                         replacepathsep(v);
                     }
