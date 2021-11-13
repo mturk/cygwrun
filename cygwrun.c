@@ -677,7 +677,7 @@ static wchar_t *posixtowin(wchar_t *pp)
 
 static wchar_t *towinpath(const wchar_t *str)
 {
-    wchar_t *wp = NULL;
+    wchar_t *wp;
 
     if (iswinpath(str)) {
         wp = xwcsdup(str);
@@ -929,12 +929,10 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 else if (wcslen(v) > 3) {
                     wchar_t *p = towinpath(v);
 
-                    if (p != NULL) {
-                        v[0] = L'\0';
-                        wenvp[i] = xwcsconcat(e, p);
-                        xfree(e);
-                        xfree(p);
-                    }
+                    v[0] = L'\0';
+                    wenvp[i] = xwcsconcat(e, p);
+                    xfree(e);
+                    xfree(p);
                 }
                 else if (isdotpath(v)) {
                     /**
