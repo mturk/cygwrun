@@ -297,7 +297,7 @@ static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
                 return -1;
             break;
             case L'?':
-                if (isalpha(*wstr & 0x7F) == 0)
+                if ((*wstr < L'A') || (*wstr > L'z') || (isalpha(*wstr) == 0))
                     return -1;
             break;
             case L'+':
@@ -313,7 +313,8 @@ static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
                      * Negate range
                      */
                     wexp++;
-                    mflag = 1;
+                    if (*wexp != L']')
+                        mflag = 1;
                 }
                 while (*wexp != L']') {
                     if (*wexp == L'\0')
