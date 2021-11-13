@@ -41,7 +41,7 @@ static wchar_t *posixroot = NULL;
 
 static const wchar_t *pathmatches[] = {
     L"/cygdrive/?/*",
-    L"/?/*",
+    L"/?/+*",
     L"/bin/*",
     L"/clang*/*",
     L"/dev/*",
@@ -297,11 +297,12 @@ static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
             break;
             case L'?':
                 if (isalpha(*wstr & 0x7F) == 0)
-                    return 1;
+                    return -1;
             break;
-            case L'#':
-                if (isdigit(*wstr & 0x7F) == 0)
-                    return 1;
+            case L'+':
+                /**
+                 * Any character
+                 */
             break;
             case L'[':
                 match = 0;
@@ -686,7 +687,7 @@ static wchar_t *towinpath(const wchar_t *str)
         wp = xwcsdup(str);
         replacepathsep(wp);
     }
-    else if (xwcsmatch(str, L"*/*:*/*")) {
+    else if (xwcsmatch(str, L"*/+*:*/+*")) {
         /**
          * Posix path separator not found.
          * No need to split/merge since we have
