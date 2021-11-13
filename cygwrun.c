@@ -317,7 +317,7 @@ static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
                         mflag = 1;
                 }
                 while (*wexp != L']') {
-                    if (*wexp == L'\0')
+                    if ((*wexp == L'\0') || (*wexp == L'['))
                         return -1;
                     if (*wexp == *wstr)
                         match = 1;
