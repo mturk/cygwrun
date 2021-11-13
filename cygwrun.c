@@ -899,7 +899,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             }
             if (xrunexec == 0) {
                 if (i > 0)
-                    fputc(L'\n', stdout);
+                    fputwc(L'\n', stdout);
                 fputws(wargv[i], stdout);
             }
         }
@@ -964,7 +964,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             }
             if (v != NULL) {
                 if (x++ > 0)
-                    fputc(L'\n', stdout);
+                    fputwc(L'\n', stdout);
                 fputws(v, stdout);
             }
         }
