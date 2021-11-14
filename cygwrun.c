@@ -40,7 +40,7 @@ static int      xshowerr  = 1;
 static wchar_t *posixroot = NULL;
 
 static const wchar_t *pathmatches[] = {
-    L"/cygdrive/?/*",
+    L"/cygdrive/?/+*",
     L"/?/+*",
     L"/bin/*",
     L"/clang*/*",
