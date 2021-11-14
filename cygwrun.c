@@ -866,6 +866,12 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 xfree(a);
                 wargv[i] = xwcsdup(posixroot);
             }
+            else if (a[0] == L'\'') {
+                /**
+                 * Do not convert arguments enclosed
+                 * in single qoutes.
+                 */
+            }
             else if (iswinpath(a)) {
                 /**
                  * We have something like
