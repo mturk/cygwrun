@@ -99,9 +99,12 @@ else
   test ".$rv" = ".-I=$tmpdir\\foo" || xbexit 1 "Failed #7.1: \`$rv'"
 fi
 
-export FOO="/tmp/foo/bar:/usr/local::/usr/cc"
-rv="`$_cygwrun -e FOO=`"
-test ".$rv" = ".FOO=$tmpdir\\foo\\bar;$usrdir\\local;$usrdir\\cc" || xbexit 1 "Failed #8: \`$rv'"
+if [ $phost = cygwin ]
+then
+  export FOO="/usr/a::/usr/b"
+  rv="`$_cygwrun -e FOO=`"
+  test ".$rv" = ".FOO=$FOO" || xbexit 1 "Failed #8: \`$rv'"
+fi
 
 rv="`$_cygwrun -p --I-B:./tmp/foo`"
 test ".$rv" = ".--I-B:.\\tmp\\foo" || xbexit 1 "Failed #9: \`$rv'"

@@ -547,33 +547,25 @@ static wchar_t **splitpath(const wchar_t *s, int *tokens)
         size_t   n = (size_t)(e - s);
 
         if (n == 0) {
-            s = e + 1;
-            continue;
-        }
-        p = xwalloc(n + 2);
-        wmemcpy(p, s, n);
-        sa[c++] = p;
-        s = e + 1;
-        /**
-         * Is the previous token a path or a flag
-         */
-        if (isposixpath(p)) {
-            while (*s == L':') {
-                /**
-                 * Drop multiple trailing colons
-                 */
-                s++;
-            }
-            if (*s == L'\0')
-                break;
-        }
-        else {
             /**
-             * Not a posix path.
+             * Do not support double collons
              */
             waafree(sa);
             return NULL;
         }
+        p = xwalloc(n + 2);
+        wmemcpy(p, s, n);
+        sa[c++] = p;
+        if (isposixpath(p) == 0) {
+            /**
+             * Token before ':' was not a posix path.
+             * Return original str regerdless if some
+             * previous tokens evaluated as posix path.
+             */
+            waafree(sa);
+            return NULL;
+        }
+        s = e + 1;
     }
     if (*s != L'\0') {
         if (isposixpath(s)) {
@@ -697,16 +689,14 @@ static wchar_t *towinpath(const wchar_t *str)
         wp = xwcsdup(str);
         replacepathsep(wp);
     }
-    else if (xwcsmatch(str, L"*/+*:*/+*")) {
+    else if (xwcsmatch(str, L"*/+*:*/+*") == 0) {
         /**
-         * Posix path separator not found.
-         * No need to split/merge since we have
-         * only one path element
+         * We have [...]/x[...]:[...]/x[...]
+         * which can be eventually converted
+         * to token1;token2[;tokenN...]
+         * If any of tokens is not a posix path
+         * return original string.
          */
-        wp = xwcsdup(str);
-        wp = posixtowin(wp);
-    }
-    else {
         int i, n;
         wchar_t **pa = splitpath(str, &n);
 
@@ -720,6 +710,10 @@ static wchar_t *towinpath(const wchar_t *str)
         else {
             wp = xwcsdup(str);
         }
+    }
+    else {
+        wp = xwcsdup(str);
+        wp = posixtowin(wp);
     }
     return wp;
 }
