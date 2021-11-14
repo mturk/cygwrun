@@ -866,11 +866,6 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 xfree(a);
                 wargv[i] = xwcsdup(posixroot);
             }
-            else if ((n < 4) || (wcschr(a, L'/') == 0)) {
-                /**
-                 * Argument is too short or has no forward slashes
-                 */
-            }
             else if (iswinpath(a)) {
                 /**
                  * We have something like
@@ -878,6 +873,11 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                  * Replace to backward slashes inplace
                  */
                  replacepathsep(a);
+            }
+            else if ((n < 4) || (wcschr(a, L'/') == 0)) {
+                /**
+                 * Argument is too short or has no forward slashes
+                 */
             }
             else if (isposixpath(a)) {
                 /**
