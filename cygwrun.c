@@ -78,6 +78,7 @@ static const wchar_t *pathfixed[] = {
 static const wchar_t *removeext[] = {
     L"INFOPATH=",
     L"MANPATH=",
+    L"PROFILEREAD=",
     L"SHELL=",
     L"TERM=",
     NULL
