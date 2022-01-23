@@ -80,6 +80,7 @@ static const wchar_t *removeext[] = {
     L"MANPATH=",
     L"PROFILEREAD=",
     L"SHELL=",
+    L"SHLVL=",
     L"TERM=",
     NULL
 };
