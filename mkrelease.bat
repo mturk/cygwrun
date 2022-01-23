@@ -31,10 +31,6 @@ set "CygwrunVer=%~1"
 rem
 set "ReleaseName=cygwrun-%CygwrunVer%-win-x64"
 rem
-rem Set path for ClamAV and 7za
-rem
-set "PATH=C:\Tools\clamav;C:\Utils;%PATH%"
-rem
 freshclam.exe --quiet
 pushd x64
 echo ## Binary release v%CygwrunVer% > %ReleaseName%.txt
