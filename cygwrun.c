@@ -16,8 +16,6 @@
  */
 
 #include <windows.h>
-#include <tlhelp32.h>
-#include <psapi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -41,16 +39,13 @@ static wchar_t *posixroot = NULL;
 
 static const wchar_t *pathmatches[] = {
     L"/cygdrive/?/+*",
-    L"/?/+*",
     L"/bin/*",
-    L"/clang*/*",
     L"/dev/*",
     L"/dir/*",
     L"/etc/*",
     L"/home/*",
     L"/lib*/*",
     L"/media/*",
-    L"/mingw*/*",
     L"/mnt/*",
     L"/opt/*",
     L"/proc/*",
@@ -58,7 +53,6 @@ static const wchar_t *pathmatches[] = {
     L"/run/*",
     L"/sbin/*",
     L"/tmp/*",
-    L"/ucrt64/*",
     L"/usr/*",
     L"/var/*",
     NULL
@@ -82,27 +76,10 @@ static const wchar_t *pathfixed[] = {
 };
 
 static const wchar_t *removeext[] = {
-    L"ACLOCAL_PATH=",
-    L"CONFIG_SITE=",
-    L"CONICON=",
-    L"CONTITLE=",
     L"INFOPATH=",
     L"MANPATH=",
-    L"MINGW_CHOST=",
-    L"MINGW_PACKAGE_PREFIX=",
-    L"MINGW_PREFIX=",
-    L"MSYSCON=",
-    L"MSYSTEM=",
-    L"MSYSTEM_CARCH=",
-    L"MSYSTEM_CHOST=",
-    L"MSYSTEM_PREFIX=",
-    L"OLDPWD=",
-    L"PKG_CONFIG_PATH=",
     L"SHELL=",
     L"TERM=",
-    L"TERM_PROGRAM=",
-    L"TERM_PROGRAM_VERSION=",
-    L"XDG_DATA_DIRS=",
     NULL
 };
 
@@ -111,6 +88,7 @@ static const wchar_t *removeenv[] = {
     L"!::=",
     L"!;=",
     L"CYGWIN_ROOT=",
+    L"OLDPWD=",
     L"ORIGINAL_PATH=",
     L"ORIGINAL_TEMP=",
     L"ORIGINAL_TMP=",
@@ -125,13 +103,6 @@ static const wchar_t *removeenv[] = {
 static const wchar_t *posixrenv[] = {
     L"CYGWIN_ROOT",
     L"POSIX_ROOT",
-    NULL
-};
-
-static const wchar_t *rootpaths[] = {
-    L"\\usr\\local\\bin\\",
-    L"\\usr\\bin\\",
-    L"\\bin\\",
     NULL
 };
 
@@ -469,66 +440,6 @@ static void replacepathsep(wchar_t *s)
     }
 }
 
-static DWORD xgetppid(DWORD pid)
-{
-    DWORD           p = 0;
-    HANDLE          h;
-    PROCESSENTRY32W e;
-
-    h = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (h == INVALID_HANDLE_VALUE)
-        return 0;
-
-    e.dwSize = (DWORD)sizeof(PROCESSENTRY32W);
-    if (Process32FirstW(h, &e)) {
-        do {
-            if (e.th32ProcessID == pid) {
-                /**
-                 * We found ourself :)
-                 */
-                p = e.th32ParentProcessID;
-                break;
-            }
-
-        } while (Process32NextW(h, &e));
-    }
-    CloseHandle(h);
-    return p;
-}
-
-static wchar_t *xgetpexe(DWORD pid)
-{
-    wchar_t  buf[8192];
-    wchar_t *sp = NULL;
-    DWORD    n, ppid;
-    HANDLE   h;
-
-    ppid = xgetppid(pid);
-    if (ppid == 0)
-        return NULL;
-    h = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, ppid);
-    if (IS_INVALID_HANDLE(h))
-        return NULL;
-    if ((n = GetModuleFileNameExW(h, NULL, buf, 8192)) != 0) {
-        if ((n > 5) && (n < _MAX_FNAME)) {
-            /**
-             * Strip leading \\?\ for short paths
-             * but not \\?\UNC\* paths
-             */
-            if ((buf[0] == L'\\') &&
-                (buf[1] == L'\\') &&
-                (buf[2] == L'?')  &&
-                (buf[3] == L'\\') &&
-                (buf[5] == L':')) {
-                wmemmove(buf, buf + 4, n - 3);
-            }
-        }
-        sp = xwcsdup(buf);
-    }
-    CloseHandle(h);
-    return sp;
-}
-
 static wchar_t **splitpath(const wchar_t *s, int *tokens)
 {
     int c = 0;
@@ -653,16 +564,6 @@ static wchar_t *posixtowin(wchar_t *pp)
         rv = xwcsconcat(windrive, pp + 12);
         replacepathsep(rv + 3);
     }
-    else if (m == 101) {
-        /**
-         * /x/... msys2 absolute path
-         */
-        windrive[0] = towupper(pp[1]);
-        if (windrive[0] != *posixroot)
-            return pp;
-        rv = xwcsconcat(windrive, pp + 3);
-        replacepathsep(rv + 3);
-    }
     else if (m == 300) {
         replacepathsep(pp);
         return pp;
@@ -735,36 +636,15 @@ static wchar_t *getposixroot(wchar_t *r)
         }
         if (r == NULL) {
             wchar_t *d;
-            p = xgetpexe(GetCurrentProcessId());
-
-            if (p != NULL) {
-                const wchar_t **e = rootpaths;
-
-                d = wcsrchr(p , L'\\');
-                if (d != NULL) {
-                    d[1] = L'\0';
-                    while (*e != NULL) {
-                        if ((d = strendswith(p, *e)) != NULL) {
-                            d[0] = L'\0';
-                            r = p;
-                            break;
-                        }
-                        e++;
-                    }
-                }
+            /**
+             * Use default location
+             */
+            d = xgetenv(L"SYSTEMDRIVE");
+            if (d != NULL) {
+                r = xwcsconcat(d, L"\\cygwin64");
+                xfree(d);
+                rcheck = 1;
             }
-            if (r == NULL) {
-                /**
-                 * Use default location
-                 */
-                xfree(p);
-                d = xgetenv(L"SYSTEMDRIVE");
-                if (d != NULL) {
-                    r = xwcsconcat(d, L"\\cygwin64");
-                    xfree(d);
-                }
-            }
-            rcheck = 1;
         }
     }
     if (r != NULL) {

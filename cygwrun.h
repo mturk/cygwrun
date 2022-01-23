@@ -51,7 +51,7 @@
 /**
  * Set to zero for non dev versions
  */
-#define PROJECT_ISDEV_VERSION   1
+#define PROJECT_ISDEV_VERSION   0
 
 #if PROJECT_ISDEV_VERSION
 # define PROJECT_VERSION_SFX    PROJECT_VENDOR_SFX "-dev"
@@ -74,7 +74,7 @@
                                 PROJECT_VERSION_SFX
 
 #define PROJECT_NAME            "cygwrun"
-#define PROJECT_COPYRIGHT       "Copyright(c) 1964-2021 Mladen Turk"
+#define PROJECT_COPYRIGHT       "Copyright(c) 1964-2022 Mladen Turk"
 #define PROJECT_COMPANY_NAME    "Acme Corporation"
 #define PROJECT_DESCRIPTION     "Run windows applications under posix environment"
 
