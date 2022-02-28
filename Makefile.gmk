@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Compile native Windows binary from Cygwing
+# Compile native Windows binary from Cygwin
 # The following packages need to be installed:
 #
 # mingw64-x86_64-binutils,
