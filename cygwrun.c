@@ -639,11 +639,15 @@ static wchar_t *getposixroot(wchar_t *r)
         if (r == NULL) {
             wchar_t *d;
             /**
-             * Use default location
+             * Use default locations
              */
             d = xgetenv(L"SYSTEMDRIVE");
             if (d != NULL) {
                 r = xwcsconcat(d, L"\\cygwin64");
+                if (_waccess(r, 0)) {
+                    xfree(r);
+                    r = xwcsconcat(d, L"\\cygwin");
+                }
                 xfree(d);
                 rcheck = 1;
             }

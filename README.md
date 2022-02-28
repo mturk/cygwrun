@@ -68,7 +68,7 @@ First it will check `CYGWIN_ROOT` and then `POSIX_ROOT`. If
 none of them are defined, cygwrun will check if its parent process
 (usually `bash.exe`) path ends with `usr/local/bin/`, `usr/bin/` or `bin/`
 and has `etc/fstab` file inside that directory.
-If none are found `%SYSTEMDRIVE%\cygwin64` will be used as default.
+If none are found `%SYSTEMDRIVE%\cygwin64` or `%SYSTEMDRIVE%\cygwin` will be used as default.
 
 Make sure that you provide a correct posix root since it will
 be used as prefix to `/usr, /bin, /tmp` constructing an actual
