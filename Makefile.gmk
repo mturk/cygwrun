@@ -23,8 +23,8 @@
 
 CC = x86_64-w64-mingw32-gcc
 LN = $(CC)
-RC = x86_64-w64-mingw32-windres
-RL = x86_64-w64-mingw32-strip --strip-unneeded
+RC = windres
+RL = strip --strip-unneeded
 
 SRCDIR  = .
 PROJECT = cygwrun
