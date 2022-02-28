@@ -23,8 +23,13 @@
 
 CC = x86_64-w64-mingw32-gcc
 LN = $(CC)
+ifdef MINGW_PACKAGE_PREFIX
 RC = windres
 RL = strip --strip-unneeded
+else
+RC = x86_64-w64-mingw32-windres
+RL = x86_64-w64-mingw32-strip --strip-unneeded
+endif
 
 SRCDIR  = .
 PROJECT = cygwrun
