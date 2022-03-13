@@ -76,29 +76,29 @@ static const wchar_t *pathfixed[] = {
 };
 
 static const wchar_t *removeext[] = {
-    L"INFOPATH=",
-    L"MANPATH=",
-    L"PROFILEREAD=",
-    L"SHELL=",
-    L"SHLVL=",
-    L"TERM=",
+    L"INFOPATH",
+    L"MANPATH",
+    L"PROFILEREAD",
+    L"SHELL",
+    L"SHLVL",
+    L"TERM",
     NULL
 };
 
 static const wchar_t *removeenv[] = {
-    L"_=",
-    L"!::=",
-    L"!;=",
-    L"CYGWIN_ROOT=",
-    L"OLDPWD=",
-    L"ORIGINAL_PATH=",
-    L"ORIGINAL_TEMP=",
-    L"ORIGINAL_TMP=",
-    L"PATH=",
-    L"POSIX_ROOT=",
-    L"PS1=",
-    L"temp=",
-    L"tmp=",
+    L"_",
+    L"!::",
+    L"!;",
+    L"CYGWIN_ROOT",
+    L"OLDPWD",
+    L"ORIGINAL_PATH",
+    L"ORIGINAL_TEMP",
+    L"ORIGINAL_TMP",
+    L"PATH",
+    L"POSIX_ROOT",
+    L"PS1",
+    L"temp",
+    L"tmp",
     NULL
 };
 
@@ -308,32 +308,17 @@ static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
     return (*wstr != L'\0');
 }
 
-static int strstartswith(const wchar_t *str, const wchar_t *src)
+static int xwcsisenvvar(const wchar_t *str, const wchar_t *var)
 {
     while (*str != L'\0') {
-        if (*str != *src)
+        if (*str != *var)
             break;
         str++;
-        src++;
-        if (*src == L'\0')
+        var++;
+        if (*var == L'\0' && *str == L'=')
             return 1;
     }
     return 0;
-}
-
-static wchar_t *strendswith(wchar_t *str, const wchar_t *src)
-{
-    size_t l1;
-    size_t l2;
-
-    l1 = wcslen(str);
-    l2 = wcslen(src);
-
-    if (l1 >= l2) {
-        if (wcscmp(str + l1 - l2, src) == 0)
-            return str + l1 - l2;
-    }
-    return NULL;
 }
 
 static int iswinpath(const wchar_t *s)
@@ -853,7 +838,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             if (argc > 0) {
                 v = NULL;
                 for (n = 0; n < argc; n++) {
-                    if (strstartswith(wenvp[i], wargv[n])) {
+                    if (xwcsisenvvar(wenvp[i], wargv[n])) {
                         v = wenvp[i];
                         break;
                     }
@@ -1013,7 +998,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         if (clreenv) {
             e = removeext;
             while (*e != NULL) {
-                if (strstartswith(p, *e)) {
+                if (xwcsisenvvar(p, *e)) {
                     /**
                      * Skip private environment variable
                      */
@@ -1026,7 +1011,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         if (p != NULL) {
             e = removeenv;
             while (*e != NULL) {
-                if (strstartswith(p, *e)) {
+                if (xwcsisenvvar(p, *e)) {
                     p = NULL;
                     break;
                 }

@@ -46,7 +46,7 @@ echo "Running $phost test suite"
 # Test for working directory
 mkdir $srcdir/.test 2>/dev/null
 cp -f $_cygwrun $srcdir/.test/cygwrun_test.exe
-rv="`$_cygwrun -w $srcdir/.test cygwrun_test -e _CYGWRUN_POSIX_ROOT=`"
+rv="`$_cygwrun -w $srcdir/.test cygwrun_test -e _CYGWRUN_POSIX_ROOT`"
 rc=$?
 rm -rf $srcdir/.test 2>/dev/null
 test $rc -ne 0 && xbexit 1 "Failed #0"
@@ -58,11 +58,11 @@ test ".$rv" = ".C:\\_not\\a\\directory\\tmp" || xbexit 1 "Failed #1: \`$rv'"
 export POSIX_ROOT=
 
 export FOO=bar
-rv="`$_cygwrun -e FOO=`"
+rv="`$_cygwrun -e FOO`"
 test ".$rv" = ".FOO=bar" || xbexit 1 "Failed #2: \`$rv'"
 
 export FOO=/Fo:/tmp:/usr
-rv="`$_cygwrun -e FOO=`"
+rv="`$_cygwrun -e FOO`"
 test ".$rv" = ".FOO=/Fo:/tmp:/usr" || xbexit 1 "Failed #3: \`$rv'"
 
 tmpdir="`$_cygwrun -p /tmp`"
@@ -72,20 +72,20 @@ usrdir="`$_cygwrun -p /usr`"
 test $? -ne 0 && xbexit 1 "Failed #5"
 
 export FOO="/tmp/foo/bar:/usr/local"
-rv="`$_cygwrun -e FOO=`"
+rv="`$_cygwrun -e FOO`"
 test ".$rv" = ".FOO=$tmpdir\\foo\\bar;$usrdir\\local" || xbexit 1 "Failed #6: \`$rv'"
 
 export FOO="-unknown:/tmp/foo/bar:/usr/local"
-rv="`$_cygwrun -e FOO=`"
+rv="`$_cygwrun -e FOO`"
 test ".$rv" = ".FOO=$FOO" || xbexit 1 "Failed #7: \`$rv'"
 export FOO="/tmp/foo/bar::unknown:/usr/local"
-rv="`$_cygwrun -e FOO=`"
+rv="`$_cygwrun -e FOO`"
 test ".$rv" = ".FOO=$FOO" || xbexit 1 "Failed #7.1: \`$rv'"
 rv="`$_cygwrun -p -I=/tmp/foo`"
 test ".$rv" = ".-I=$tmpdir\\foo" || xbexit 1 "Failed #7.2: \`$rv'"
 
 export FOO="/usr/a::/usr/b"
-rv="`$_cygwrun -e FOO=`"
+rv="`$_cygwrun -e FOO`"
 test ".$rv" = ".FOO=$FOO" || xbexit 1 "Failed #8: \`$rv'"
 
 rv="`$_cygwrun -p --I-B:./tmp/foo`"
