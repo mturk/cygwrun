@@ -989,11 +989,9 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                         cwd = nnp;
                     break;
                     case L'v':
-                    case L'V':
                         return version();
                     break;
                     case L'h':
-                    case L'H':
                     case L'?':
                         xshowerr = 1;
                         return usage(0);
