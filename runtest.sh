@@ -88,8 +88,8 @@ export FOO="/usr/a::/usr/b"
 rv="`$_cygwrun -e FOO`"
 test ".$rv" = ".FOO=$FOO" || xbexit 1 "Failed #8: \`$rv'"
 
-rv="`$_cygwrun -p --I-B:./tmp/foo`"
-test ".$rv" = ".--I-B:.\\tmp\\foo" || xbexit 1 "Failed #9: \`$rv'"
+rv="`$_cygwrun -p /libpath:./tmp/foo`"
+test ".$rv" = "./libpath:.\\tmp\\foo" || xbexit 1 "Failed #9: \`$rv'"
 
 echo "All tests passed!"
 exit 0

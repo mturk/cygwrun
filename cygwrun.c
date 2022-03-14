@@ -44,7 +44,8 @@ static const wchar_t *pathmatches[] = {
     L"/dir/*",
     L"/etc/*",
     L"/home/*",
-    L"/lib*/*",
+    L"/lib/*",
+    L"/lib64/*",
     L"/media/*",
     L"/mnt/*",
     L"/opt/*",
@@ -401,9 +402,10 @@ static int isposixpath(const wchar_t *str)
  * convert value part to Windows paths unless the
  * name part itself is a path
  */
-static wchar_t *cmdoptionval(wchar_t *s)
+static wchar_t *cmdoptionval(wchar_t *v)
 {
-    int n = 0;
+    int n      = 0;
+    wchar_t *s = v;
 
     if (*s == L'/') {
         s++;
@@ -416,8 +418,15 @@ static wchar_t *cmdoptionval(wchar_t *s)
         int c = *(s++);
         if (c >= 127)
             return NULL;
-        if ((c == L'=') || (c == L':'))
+        if (c == L':') {
+            if (*v != L'/' || n == 0)
+                return NULL;
+            else
+                return s;
+        }
+        else if (c == L'=') {
             return n ? s : NULL;
+        }
         if (xisvarchar[c] == 0)
             return NULL;
         n++;
