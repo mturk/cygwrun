@@ -602,6 +602,7 @@ static wchar_t *towinpath(const wchar_t *str)
 
     if (iswinpath(str)) {
         wp = xwcsdup(str);
+        rmtrailingpsep(wp);
         replacepathsep(wp);
     }
     else if (xwcsmatch(str, L"*/+*:*/+*") == 0) {
@@ -618,6 +619,7 @@ static wchar_t *towinpath(const wchar_t *str)
         if (pa != NULL) {
             for (i = 0; i < n; i++) {
                 pa[i] = posixtowin(pa[i]);
+                rmtrailingpsep(pa[i]);
             }
             wp = mergepath(pa);
             waafree(pa);
@@ -814,23 +816,30 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             wchar_t *e = wenvp[i];
 
             v = wcschr(e, L'=');
-            if (v == NULL) {
+            if ((v == NULL) || (v[1] == L'\0')) {
                 /**
                  * Bad environment
                  */
                 return EBADF;
             }
             v++;
-            if ((*v != L'\'') && (wcschr(v, L'/') != NULL)) {
-                if ((v[0] == L'/') && (v[1] == L'\0')) {
-                    /**
-                     * Special case for / (root)
-                     */
-                    v[0] = L'\0';
-                    wenvp[i] = xwcsconcat(e, posixroot);
-                    xfree(e);
-                }
-                else if (wcslen(v) > 3) {
+            if (v[0] == L'\'') {
+                /**
+                 * Do not process single quoted variables
+                 */
+                continue;
+
+            }
+            else if ((v[0] == L'/') && (v[1] == L'\0')) {
+                /**
+                 * Special case for / (root)
+                 */
+                v[0] = L'\0';
+                wenvp[i] = xwcsconcat(e, posixroot);
+                xfree(e);
+            }
+            else if (wcschr(v, L'/') != NULL) {
+                if (wcschr(v, L':') != NULL) {
                     wchar_t *p = towinpath(v);
 
                     v[0] = L'\0';
@@ -845,6 +854,14 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                      * Replace value to backward slashes inplace
                      */
                      replacepathsep(v);
+                }
+                else {
+                    wchar_t *p = posixtowin(xwcsdup(v));
+
+                    v[0] = L'\0';
+                    wenvp[i] = xwcsconcat(e, p);
+                    xfree(e);
+                    xfree(p);
                 }
             }
         }
@@ -1041,8 +1058,18 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                 e++;
             }
         }
-        if (p != NULL)
+        if (p != NULL) {
+            const wchar_t *v;
+
+            v = wcschr(p, L'=');
+            if ((v == NULL) || (v[1] == L'\0')) {
+                /**
+                 * Bad environment
+                 */
+                return EBADF;
+            }
             dupwenvp[dupenvc++] = xwcsdup(p);
+        }
     }
     if (xrunexec) {
         wchar_t *exe;
