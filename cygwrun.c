@@ -467,10 +467,16 @@ static wchar_t **splitpath(const wchar_t *s, int *tokens)
 
         if (n == 0) {
             /**
-             * Do not support double collons
+             * Handle multiple collons
              */
-            waafree(sa);
-            return NULL;
+            if (c == 0) {
+                waafree(sa);
+                return NULL;
+            }
+            else {
+                s = e + 1;
+                continue;
+            }
         }
         p = xwalloc(n + 2);
         wmemcpy(p, s, n);

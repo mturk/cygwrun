@@ -86,7 +86,7 @@ test ".$rv" = ".-I=$tmpdir\\foo" || xbexit 1 "Failed #7.2: \`$rv'"
 
 export FOO="/usr/a::/usr/b"
 rv="`$_cygwrun -e FOO`"
-test ".$rv" = ".FOO=$FOO" || xbexit 1 "Failed #8: \`$rv'"
+test ".$rv" = ".FOO=$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #8: \`$rv'"
 
 rv="`$_cygwrun -p /libpath:./tmp/foo`"
 test ".$rv" = "./libpath:.\\tmp\\foo" || xbexit 1 "Failed #9: \`$rv'"
