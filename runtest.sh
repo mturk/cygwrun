@@ -91,5 +91,14 @@ test ".$rv" = ".FOO=$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #8: \`$rv'"
 rv="`$_cygwrun -p /libpath:./tmp/foo`"
 test ".$rv" = "./libpath:.\\tmp\\foo" || xbexit 1 "Failed #9: \`$rv'"
 
+rv="`$_cygwrun -p ./tmp`"
+test ".$rv" = "..\\tmp" || xbexit 1 "Failed #10: \`$rv'"
+
+rv="`$_cygwrun -p ../tmp/foo`"
+test ".$rv" = "...\\tmp\\foo" || xbexit 1 "Failed #11: \`$rv'"
+
+rv="`$_cygwrun -p ../tmp:/foo`"
+test ".$rv" = ".../tmp:/foo" || xbexit 1 "Failed #12: \`$rv'"
+
 echo "All tests passed!"
 exit 0

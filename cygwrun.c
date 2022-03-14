@@ -352,8 +352,14 @@ static int isdotpath(const wchar_t *s)
     int dots = 0;
 
     while ((*(s++) == L'.') && (++dots < 3)) {
-        if (IS_PSW(*s) || *s == L'\0')
+        if (*s == L'\0')
             return 300;
+        if (IS_PSW(*s)) {
+            if (wcschr(s + 1, L':'))
+                return 0;
+            else
+                return 300;
+        }
     }
     return 0;
 }
