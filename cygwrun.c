@@ -110,7 +110,7 @@ static const wchar_t *posixrenv[] = {
 
 static int usage(int rv)
 {
-    if (rv == 0 || xshowerr) {
+    if (xshowerr) {
         FILE *os = rv == 0 ? stdout : stderr;
         fputs("\nUsage " PROJECT_NAME " [OPTIONS]... PROGRAM [ARGUMENTS]...\n", os);
         fputs("Execute PROGRAM [ARGUMENTS]...\n\nOptions are:\n", os);
@@ -933,6 +933,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                     case L'h':
                     case L'H':
                     case L'?':
+                        xshowerr = 1;
                         return usage(0);
                     break;
                     default:
