@@ -110,7 +110,7 @@ static const wchar_t *posixrenv[] = {
 
 static int usage(int rv)
 {
-    if (xshowerr) {
+    if (rv == 0 || xshowerr) {
         FILE *os = rv == 0 ? stdout : stderr;
         fputs("\nUsage " PROJECT_NAME " [OPTIONS]... PROGRAM [ARGUMENTS]...\n", os);
         fputs("Execute PROGRAM [ARGUMENTS]...\n\nOptions are:\n", os);
@@ -608,8 +608,6 @@ static wchar_t *towinpath(const wchar_t *str)
 
 static wchar_t *getposixroot(wchar_t *r)
 {
-    int     rcheck = 0;
-    wchar_t *p;
 
     if (r == NULL) {
         const wchar_t **e = posixrenv;
@@ -622,34 +620,28 @@ static wchar_t *getposixroot(wchar_t *r)
             e++;
         }
         if (r == NULL) {
-            wchar_t *d;
             /**
              * Use default locations
              */
-            d = xgetenv(L"SYSTEMDRIVE");
-            if (d != NULL) {
-                r = xwcsconcat(d, L"\\cygwin64");
+            r = xwcsdup(L"C:\\cygwin64\\etc\\fstab");
+            if (_waccess(r, 0)) {
+                wcscpy(r, L"C:\\cygwin\\etc\\fstab");
                 if (_waccess(r, 0)) {
                     xfree(r);
-                    r = xwcsconcat(d, L"\\cygwin");
+                    return NULL;
                 }
-                xfree(d);
-                rcheck = 1;
+                r[9]  = L'\0';
             }
+            else {
+                r[11] = L'\0';
+            }
+            return r;
         }
     }
     if (r != NULL) {
         rmtrailingpsep(r);
         replacepathsep(r);
        *r = towupper(*r);
-        if (rcheck) {
-            p = xwcsconcat(r, L"\\etc\\fstab");
-            if (_waccess(p, 0)) {
-                xfree(r);
-                r = NULL;
-            }
-            xfree(p);
-        }
     }
     return r;
 }
