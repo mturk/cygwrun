@@ -108,6 +108,18 @@ static const wchar_t *posixrenv[] = {
     NULL
 };
 
+const char xisvarchar[128] =
+{
+    /** Reject all ctrl codes...                                          */
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    /**   ! " # $ % & ' ( ) * + , - . /  0 1 2 3 4 5 6 7 8 9 : ; < = > ?  */
+        0,0,0,0,3,3,3,0,3,3,0,3,3,1,1,0, 1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,3,
+    /** @ A B C D E F G H I J K L M N O  P Q R S T U V W X Y Z [ \ ] ^ _  */
+        3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,1,3,0,3,0,1,
+    /** ` a b c d e f g h i j k l m n o  p q r s t u v w x y z { | } ~    */
+        0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,1,3,0,3,3,0
+};
+
 static int usage(int rv)
 {
     if (xshowerr) {
@@ -401,12 +413,12 @@ static wchar_t *cmdoptionval(wchar_t *s)
             s++;
     }
     while (*s != L'\0') {
-        wchar_t c = *(s++);
-        if ((c <= L',') || (c >= L'{'))
+        int c = *(s++);
+        if (c >= 127)
             return NULL;
         if ((c == L'=') || (c == L':'))
-            return n > 0 ? s : NULL;
-        if ((c != L'_') && (c != L'-') && (isalnum(c) == 0))
+            return n ? s : NULL;
+        if (xisvarchar[c] == 0)
             return NULL;
         n++;
     }
