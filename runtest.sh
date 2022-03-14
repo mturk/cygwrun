@@ -41,9 +41,10 @@ xbexit()
 _cygwrun=$srcdir/x64/cygwrun.exe
 test -x "$_cygwrun" || xbexit 1 "Cannot find cygwrun.exe in \`$srcdir/x64'"
 
-echo "Running $phost test suite"
+echo "Running cygwrun test suite on: $phost"
 
 # Test for working directory
+rm -rf $srcdir/.test 2>/dev/null
 mkdir $srcdir/.test 2>/dev/null
 cp -f $_cygwrun $srcdir/.test/cygwrun_test.exe
 rv="`$_cygwrun -w $srcdir/.test cygwrun_test -e _CYGWRUN_POSIX_ROOT`"
