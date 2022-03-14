@@ -88,17 +88,21 @@ export FOO="/usr/a::/usr/b"
 rv="`$_cygwrun -e FOO`"
 test ".$rv" = ".FOO=$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #8: \`$rv'"
 
+export FOO="/usr/a:$abcd0123456789::/usr/b"
+rv="`$_cygwrun -e FOO`"
+test ".$rv" = ".FOO=$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #8.1: \`$rv'"
+
 rv="`$_cygwrun -p /libpath:./tmp/foo`"
 test ".$rv" = "./libpath:.\\tmp\\foo" || xbexit 1 "Failed #9: \`$rv'"
 
 rv="`$_cygwrun -p ./tmp`"
-test ".$rv" = "..\\tmp" || xbexit 1 "Failed #10: \`$rv'"
+test ".$rv" = "..\\tmp" || xbexit 1 "Failed #10.1: \`$rv'"
 
 rv="`$_cygwrun -p ../tmp/foo`"
-test ".$rv" = "...\\tmp\\foo" || xbexit 1 "Failed #11: \`$rv'"
+test ".$rv" = "...\\tmp\\foo" || xbexit 1 "Failed #10.2: \`$rv'"
 
 rv="`$_cygwrun -p ../tmp:/foo`"
-test ".$rv" = ".../tmp:/foo" || xbexit 1 "Failed #12: \`$rv'"
+test ".$rv" = ".../tmp:/foo" || xbexit 1 "Failed #10.3: \`$rv'"
 
 echo "All tests passed!"
 exit 0
