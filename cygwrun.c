@@ -315,8 +315,8 @@ static int xwcsisenvvar(const wchar_t *str, const wchar_t *var)
             break;
         str++;
         var++;
-        if (*var == L'\0' && *str == L'=')
-            return 1;
+        if (*var == L'\0')
+            return *str == L'=';
     }
     return 0;
 }
