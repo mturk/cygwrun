@@ -960,8 +960,19 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             }
 
             if (p[0] == L'-') {
-                if ((p[1] == L'\0') || (p[2] != L'\0'))
-                    return invalidarg(p);
+                if (p[1] == L'\0') {
+                    /**
+                     * We have single '-' argument
+                     * Break arg processing
+                     */
+                    break;
+                }
+                if (p[2] != L'\0') {
+                    /**
+                     * We have something like -ab
+                     */
+                    break;
+                }
                 switch (p[1]) {
                     case L'k':
                         clreenv  = 0;
