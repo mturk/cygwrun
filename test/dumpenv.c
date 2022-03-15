@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 static int xwcsisienvvar(const wchar_t *str, const wchar_t *var)
 {
@@ -37,23 +38,24 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     int e = 0;
 
     while (wenv[e] != NULL) {
-        const wchar_t *ep = wenv[e];
+        const wchar_t *v = wenv[e];
         if (argc > 1) {
             int i;
-            ep = NULL;
+            v = NULL;
             for (i = 1; i < argc; i++) {
                 if (xwcsisienvvar(wenv[e], wargv[i])) {
-                    ep = wenv[e];
+                    v = wenv[e];
                     break;
                 }
             }
         }
-        if (ep) {
+        if (v != NULL) {
             if (x++ > 0)
                 fputc(L'\n', stdout);
-            fputws(ep, stdout);
+            fputws(v, stdout);
         }
         e++;
     }
-    return 0;
+
+    return x ? 0 : ENOENT;
 }
