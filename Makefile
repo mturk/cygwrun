@@ -34,6 +34,9 @@ CRT_CFLAGS = -MD
 !ENDIF
 WORKDIR = $(SRCDIR)\$(MACHINE)
 OUTPUT  = $(WORKDIR)\$(PROJECT).exe
+TESTDA  = $(WORKDIR)\dumpargs.exe
+TESTDE  = $(WORKDIR)\dumpenv.exe
+
 
 CFLAGS = -DNDEBUG -D_WIN32_WINNT=$(WINVER) -DWINVER=$(WINVER) -DWIN32_LEAN_AND_MEAN
 CFLAGS = $(CFLAGS) -D_CRT_SECURE_NO_WARNINGS  -D_CRT_SECURE_NO_DEPRECATE
@@ -60,19 +63,46 @@ OBJECTS = \
 	$(WORKDIR)\$(PROJECT).obj \
 	$(WORKDIR)\$(PROJECT).res
 
+TESTDA_OBJECTS = \
+	$(WORKDIR)\dumpargs.obj
+
+TESTDE_OBJECTS = \
+	$(WORKDIR)\dumpenv.obj
+
+
 all : $(WORKDIR) $(OUTPUT)
 
 $(WORKDIR):
 	@-md $(WORKDIR)
 
-$(WORKDIR)\$(PROJECT).obj: $(PPREFIX).h $(PPREFIX).c
-	$(CC) $(CLOPTS) $(CFLAGS) -Fo$(WORKDIR)\ $(PPREFIX).c
+{$(SRCDIR)}.c{$(WORKDIR)}.obj:
+	$(CC) $(CLOPTS) $(CFLAGS) -Fo$(WORKDIR)\ $<
 
-$(WORKDIR)\$(PROJECT).res: $(PPREFIX).h $(PPREFIX).rc
-	$(RC) $(RCOPTS) $(RFLAGS) /fo $@ $(PPREFIX).rc
+{$(SRCDIR)\test}.c{$(WORKDIR)}.obj:
+	$(CC) $(CLOPTS) $(CFLAGS) -Fo$(WORKDIR)\ $<
+
+{$(SRCDIR)}.rc{$(WORKDIR)}.res:
+	$(RC) $(RCOPTS) $(RFLAGS) /fo $@ $<
 
 $(OUTPUT): $(WORKDIR) $(OBJECTS)
 	$(LN) $(LFLAGS) $(OBJECTS) $(LDLIBS) /out:$(OUTPUT)
+
+$(TESTDA): $(WORKDIR) $(TESTDA_OBJECTS)
+	$(LN) $(LFLAGS) $(TESTDA_OBJECTS) $(LDLIBS) /out:$@
+
+$(TESTDE): $(WORKDIR) $(TESTDE_OBJECTS)
+	$(LN) $(LFLAGS) $(TESTDE_OBJECTS) $(LDLIBS) /out:$@
+
+test: all $(TESTDA) $(TESTDE)
+	@echo Running simple tests ...
+	@echo.
+	@$(OUTPUT) $(TESTDE) MAKEDIR
+	@echo.
+	@$(OUTPUT) $(TESTDA) /Foo:/tmp
+	@echo.
+	@echo.
+	@echo Done
+
 
 !IF !DEFINED(PREFIX) || "$(PREFIX)" == ""
 install:
