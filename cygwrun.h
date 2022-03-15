@@ -28,8 +28,8 @@
  * Version info
  */
 #define PROJECT_MAJOR_VERSION   1
-#define PROJECT_MINOR_VERSION   0
-#define PROJECT_PATCH_VERSION   9
+#define PROJECT_MINOR_VERSION   1
+#define PROJECT_PATCH_VERSION   0
 #if defined(_VENDOR_NUM)
 # define PROJECT_MICRO_VERSION  _VENDOR_NUM
 #else
@@ -77,18 +77,19 @@
 #define PROJECT_COPYRIGHT       "Copyright(c) 1964-2022 Mladen Turk"
 #define PROJECT_COMPANY_NAME    "Acme Corporation"
 #define PROJECT_DESCRIPTION     "Run windows applications under posix environment"
+#define PROJECT_URL             "https://github.com/mturk/cygwrun"
 
 #define PROJECT_LICENSE_SHORT \
     "Licensed under the Apache-2.0 License"
 #define PROJECT_LICENSE \
-  "Licensed under the Apache License, Version 2.0 (the ""License""); "          \
-  "you may not use this file except in compliance with the License. "           \
-  "You may obtain a copy of the License at\r\n\r\n"                             \
-  "http://www.apache.org/licenses/LICENSE-2.0\r\n\r\n"                          \
-  "Unless required by applicable law or agreed to in writing, software "        \
-  "distributed under the License is distributed on an ""AS IS"" BASIS, "        \
-  "WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  "  \
-  "See the License for the specific language governing permissions and "        \
+  "Licensed under the Apache License, Version 2.0 (the ""License"");\n"         \
+  "you may not use this file except in compliance with the License.\n"          \
+  "You may obtain a copy of the License at\n\n"                                 \
+  "http://www.apache.org/licenses/LICENSE-2.0\n\n"                              \
+  "Unless required by applicable law or agreed to in writing, software\n"       \
+  "distributed under the License is distributed on an ""AS IS"" BASIS,\n"       \
+  "WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n"  \
+  "See the License for the specific language governing permissions and\n"       \
   "limitations under the License."
 
 

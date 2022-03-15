@@ -44,7 +44,8 @@ Options are:
  -s        do not translate environment variables.
  -q        do not print errors to stderr.
  -v        print version information and exit.
- -h        print this screen and exit.
+ -V        print detailed version information and exit.
+ -h | -?   print this screen and exit.
  -p        print arguments instead executing PROGRAM.
  -e        print current environment block end exit.
            if defined, only print variables that begin with ARGUMENTS.

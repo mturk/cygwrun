@@ -85,7 +85,7 @@ $(WORKDIR):
 	$(RC) $(RCOPTS) $(RFLAGS) /fo $@ $<
 
 $(OUTPUT): $(WORKDIR) $(OBJECTS)
-	$(LN) $(LFLAGS) $(OBJECTS) $(LDLIBS) /out:$(OUTPUT)
+	$(LN) $(LFLAGS) $(OBJECTS) $(LDLIBS) /out:$@
 
 $(TESTDA): $(WORKDIR) $(TESTDA_OBJECTS)
 	$(LN) $(LFLAGS) $(TESTDA_OBJECTS) $(LDLIBS) /out:$@
@@ -94,8 +94,8 @@ $(TESTDE): $(WORKDIR) $(TESTDE_OBJECTS)
 	$(LN) $(LFLAGS) $(TESTDE_OBJECTS) $(LDLIBS) /out:$@
 
 test: all $(TESTDA) $(TESTDE)
-	@echo Running simple tests ...
 	@echo.
+	@echo Running simple tests ...
 	@$(OUTPUT) $(TESTDE) MAKEDIR
 	@echo.
 	@$(OUTPUT) $(TESTDA) /Foo:/tmp

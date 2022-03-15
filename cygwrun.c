@@ -133,18 +133,27 @@ static int usage(int rv)
         fputs(" -s        do not translate environment variables.\n", os);
         fputs(" -q        do not print errors to stderr.\n", os);
         fputs(" -v        print version information and exit.\n", os);
-        fputs(" -h        print this screen and exit.\n", os);
+        fputs(" -V        print detailed version information and exit.\n", os);
+        fputs(" -h | -?   print this screen and exit.\n", os);
         fputs(" -p        print arguments instead executing PROGRAM.\n", os);
         fputs(" -e        print current environment block end exit.\n", os);
         fputs("           if defined, only print variables that begin with ARGUMENTS.\n\n", os);
+        fputs("To file bugs, visit " PROJECT_URL, os);
     }
     return rv;
 }
 
-static int version(void)
+static int version(int verbose)
 {
-    fputs(PROJECT_NAME " version " PROJECT_VERSION_STR \
-          " (" __DATE__ " " __TIME__ ")\n", stdout);
+    if (verbose) {
+        fputs(PROJECT_NAME " version " PROJECT_VERSION_STR \
+              " (" __DATE__ " " __TIME__ ")\n", stdout);
+        fputs("\n" PROJECT_LICENSE "\n\n", stdout);
+        fputs("Visit " PROJECT_URL " for more details", stdout);
+    }
+    else {
+        fputs(PROJECT_NAME " version " PROJECT_VERSION_STR, stdout);
+    }
     return 0;
 }
 
@@ -1000,7 +1009,10 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                         cwd = nnp;
                     break;
                     case L'v':
-                        return version();
+                        return version(0);
+                    break;
+                    case L'V':
+                        return version(1);
                     break;
                     case L'h':
                     case L'?':
