@@ -68,7 +68,8 @@ First it will check `CYGWIN_ROOT` and then `POSIX_ROOT`. If
 none of them are defined, cygwrun will check if its parent process
 (usually `bash.exe`) path ends with `usr/local/bin/`, `usr/bin/` or `bin/`
 and has `etc/fstab` file inside that directory.
-If none are found `%SYSTEMDRIVE%\cygwin64` or `%SYSTEMDRIVE%\cygwin` will be used as default.
+If none are found `C:\cygwin64` or `C:\cygwin` will be used if there
+is `C:\cygwin64\etc\fstab` or `C:\cygwin\etc\fstab` file present.
 
 Make sure that you provide a correct posix root since it will
 be used as prefix to `/usr, /bin, /tmp` constructing an actual
@@ -78,7 +79,7 @@ Windows path.
 For example, if Cygwin is installed inside `C:\cygwin64` you
 can set either environment variable
 
-```
+```sh
     $ export CYGWIN_ROOT=C:/cygwin64
     ...
     $ cygwrun ... -f1=/usr/local
@@ -86,11 +87,49 @@ can set either environment variable
 
 Or declare it on command line
 
-```
+```sh
     $ cygwrun -r C:/cygwin64 ... -f1=/usr/local
 ```
 
-In both cases `--f1 parameter` will evaluate to `C:\cygwin64\usr\local`
+In both cases `-f1 parameter` will evaluate to `-f1=C:\cygwin64\usr\local`
+
+## Environment variables
+
+Since Cygwrun presumes that it's called by some Cygwin process,
+it translates current environment variables from posix to windows
+paths automatically.
+
+Cygwin program that calls Cygwrun, will already translate
+most of the known environment variables to Windows format,
+but not others. Cygwrun will translate all environment
+variables which value is a valid posix path to Windows format.
+
+Note that some environment variables are allways removed from the
+current environment variable list that is passed to chiled process,
+like `OLDPWD` or `PS1`.
+
+The full list of variables that are allways removed is defined
+with `removeenv[]` array in [cygwrun.c](cygwrun.c) source file.
+
+For example, if environment variable contains valid posix path(s)
+it will be translated to windows path(s).
+
+```sh
+    $ export FOO=/usr:/sbin:../dir
+    $ cygwrun -e FOO
+    $ FOO=C:\cygwin64\usr;C:\cygwin64\sbin;..\dir
+```
+
+However in case the environment variable value contains path element that
+cannot be translated to windows path, the original value is preserved,
+regardless if all other path elements can be translated.
+
+```sh
+    $ export FOO=/usr:/sbin:/unknown:../dir
+    $ cygwrun -e FOO
+    $ FOO=/usr:/sbin:/unknown:../dir
+```
+
 
 
 ## License
