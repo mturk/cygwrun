@@ -66,7 +66,7 @@ In case the `-r <directory>` was not specified, the program will
 check the following environment variables;
 
 First it will check private environment variable `_CYGWRUN_POSIX_ROOT`.
-Then it will check `CYGWIN_ROOT` and then `POSIX_ROOT` variables.
+Then it will check `CYGWIN_ROOT` and then `POSIX_ROOT` variable.
 If none of them were defined, the `C:\cygwin64` or `C:\cygwin`
 will be used, if there is `C:\cygwin64\etc\fstab` or `C:\cygwin\etc\fstab` file present.
 
@@ -84,7 +84,7 @@ can set either environment variable
     $ cygwrun ... -f1=/usr/local
 ```
 
-Or declare it on command line
+... or declare it on command line
 
 ```sh
     $ cygwrun -r C:/cygwin64 ... -f1=/usr/local
@@ -94,17 +94,16 @@ In both cases `-f1 parameter` will evaluate to `-f1=C:\cygwin64\usr\local`
 
 ## Environment variables
 
-Since Cygwrun presumes that it's called by some Cygwin process,
-it translates current environment variables from posix to windows
-paths automatically.
-
-Cygwin program that calls Cygwrun, will already translate
+Any Cygwin program that calls Cygwrun, will already translate
 most of the known environment variables to Windows format,
-but not others. Cygwrun will translate all environment
-variables which value is a valid posix path to Windows format.
+but not all of them.
+
+Cygwrun presumes that it's called from some Cygwin process,
+and it will try to translate all environment variables from
+posix to windows notation.
 
 Note that some environment variables are allways removed from the
-current environment variable list that is passed to chiled process,
+current environment variable list that is passed to child process,
 like `OLDPWD` or `PS1`.
 
 The full list of variables that are allways removed is defined
