@@ -35,7 +35,7 @@ CRT_CFLAGS = -MD
 WORKDIR = $(SRCDIR)\$(MACHINE)
 OUTPUT  = $(WORKDIR)\$(PROJECT).exe
 TESTDA  = $(WORKDIR)\dumpargs.exe
-TESTDE  = $(WORKDIR)\dumpenv.exe
+TESTDE  = $(WORKDIR)\dumpenvp.exe
 
 
 CFLAGS = -DNDEBUG -D_WIN32_WINNT=$(WINVER) -DWINVER=$(WINVER) -DWIN32_LEAN_AND_MEAN
@@ -67,7 +67,7 @@ TESTDA_OBJECTS = \
 	$(WORKDIR)\dumpargs.obj
 
 TESTDE_OBJECTS = \
-	$(WORKDIR)\dumpenv.obj
+	$(WORKDIR)\dumpenvp.obj
 
 
 all : $(WORKDIR) $(OUTPUT)

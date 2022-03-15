@@ -108,6 +108,18 @@ test "x$rv" = "x../tmp:/foo" || xbexit 1 "Failed #10.3: \`$rv'"
 rv="`$_cygwrun -p .../tmp`"
 test "x$rv" = "x.../tmp" || xbexit 1 "Failed #10.4: \`$rv'"
 
+_dumpargs=$srcdir/x64/dumpargs.exe
+test -x "$_dumpargs" || xbexit 1 "Cannot find dumpargs.exe in \`$srcdir/x64'"
+_dumpenvp=$srcdir/x64/dumpenvp.exe
+test -x "$_dumpenvp" || xbexit 1 "Cannot find dumpenvp.exe in \`$srcdir/x64'"
+
+rv="`$_cygwrun $_dumpargs -f1=../tmp/foo`"
+test "x$rv" = "x-f1=..\\tmp\\foo" || xbexit 1 "Failed #11: \`$rv'"
+
+export FOO="/usr/a::/usr/b"
+rv="`$_cygwrun $_dumpenvp FOO`"
+test "x$rv" = "xFOO=$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #12: \`$rv'"
+
 
 echo "All tests passed!"
 exit 0
