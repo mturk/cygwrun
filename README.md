@@ -62,14 +62,13 @@ location inside Windows environment.
 Use `-r <directory>` command line option to setup the install location
 of the current posix subsystem.
 
-In case the `-r <directory>` was not specified the program will
-check the following environment variables.
-First it will check `CYGWIN_ROOT` and then `POSIX_ROOT`. If
-none of them are defined, cygwrun will check if its parent process
-(usually `bash.exe`) path ends with `usr/local/bin/`, `usr/bin/` or `bin/`
-and has `etc/fstab` file inside that directory.
-If none are found `C:\cygwin64` or `C:\cygwin` will be used if there
-is `C:\cygwin64\etc\fstab` or `C:\cygwin\etc\fstab` file present.
+In case the `-r <directory>` was not specified, the program will
+check the following environment variables;
+
+First it will check private environment variable `_CYGWRUN_POSIX_ROOT`.
+Then it will check `CYGWIN_ROOT` and then `POSIX_ROOT` variables.
+If none of them were defined, the `C:\cygwin64` or `C:\cygwin`
+will be used, if there is `C:\cygwin64\etc\fstab` or `C:\cygwin\etc\fstab` file present.
 
 Make sure that you provide a correct posix root since it will
 be used as prefix to `/usr, /bin, /tmp` constructing an actual
