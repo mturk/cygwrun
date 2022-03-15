@@ -40,17 +40,21 @@ xbexit()
 
 _cygwrun=$srcdir/x64/cygwrun.exe
 test -x "$_cygwrun" || xbexit 1 "Cannot find cygwrun.exe in \`$srcdir/x64'"
+_dumpargs=$srcdir/x64/dumpargs.exe
+test -x "$_dumpargs" || xbexit 1 "Cannot find dumpargs.exe in \`$srcdir/x64'"
+_dumpenvp=$srcdir/x64/dumpenvp.exe
+test -x "$_dumpenvp" || xbexit 1 "Cannot find dumpenvp.exe in \`$srcdir/x64'"
 
 echo "Running cygwrun test suite on: $phost"
 
 # Test for working directory
-rm -rf $srcdir/.test 2>/dev/null
-mkdir $srcdir/.test 2>/dev/null
-cp -f $_cygwrun $srcdir/.test/cygwrun_test.exe
-rv="`$_cygwrun -w $srcdir/.test cygwrun_test -e _CYGWRUN_POSIX_ROOT`"
+rm -rf $srcdir/x64/.test 2>/dev/null
+mkdir $srcdir/x64/.test 2>/dev/null
+cp -f $_cygwrun $srcdir/x64/.test/cygwrun_test.exe
+rv="`$_cygwrun -w $srcdir/x64/.test cygwrun_test -e _CYGWRUN_POSIX_ROOT`"
 rc=$?
-rm -rf $srcdir/.test 2>/dev/null
-test $rc -ne 0 && xbexit 1 "Failed #0"
+rm -rf $srcdir/x64/.test 2>/dev/null
+test $rc -ne 0 && xbexit 1 "Failed #0: \`$rv'"
 
 export POSIX_ROOT="C:\\_not\\a/directory//"
 v=/tmp
@@ -107,11 +111,6 @@ test "x$rv" = "x../tmp:/foo" || xbexit 1 "Failed #10.3: \`$rv'"
 
 rv="`$_cygwrun -p .../tmp`"
 test "x$rv" = "x.../tmp" || xbexit 1 "Failed #10.4: \`$rv'"
-
-_dumpargs=$srcdir/x64/dumpargs.exe
-test -x "$_dumpargs" || xbexit 1 "Cannot find dumpargs.exe in \`$srcdir/x64'"
-_dumpenvp=$srcdir/x64/dumpenvp.exe
-test -x "$_dumpenvp" || xbexit 1 "Cannot find dumpenvp.exe in \`$srcdir/x64'"
 
 rv="`$_cygwrun $_dumpargs -f1=../tmp/foo`"
 test "x$rv" = "x-f1=..\\tmp\\foo" || xbexit 1 "Failed #11: \`$rv'"
