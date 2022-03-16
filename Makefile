@@ -22,8 +22,6 @@ RC = rc.exe
 MACHINE = x64
 SRCDIR  = .
 PROJECT = cygwrun
-PPREFIX = $(SRCDIR)\$(PROJECT)
-
 WINVER  = 0x0601
 
 !IF DEFINED(_STATIC_MSVCRT)
@@ -32,11 +30,11 @@ EXTRA_LIBS =
 !ELSE
 CRT_CFLAGS = -MD
 !ENDIF
+
 WORKDIR = $(SRCDIR)\$(MACHINE)
 OUTPUT  = $(WORKDIR)\$(PROJECT).exe
 TESTDA  = $(WORKDIR)\dumpargs.exe
 TESTDE  = $(WORKDIR)\dumpenvp.exe
-
 
 CFLAGS = -DNDEBUG -D_WIN32_WINNT=$(WINVER) -DWINVER=$(WINVER) -DWIN32_LEAN_AND_MEAN
 CFLAGS = $(CFLAGS) -D_CRT_SECURE_NO_WARNINGS  -D_CRT_SECURE_NO_DEPRECATE
@@ -95,25 +93,14 @@ $(TESTDE): $(WORKDIR) $(TESTDE_OBJECTS)
 
 test: all $(TESTDA) $(TESTDE)
 	@echo.
-	@echo Running simple tests ...
+	@echo Running simple verification tests ...
+	@echo.
 	@$(OUTPUT) $(TESTDE) MAKEDIR
 	@echo.
 	@$(OUTPUT) $(TESTDA) /Foo:/tmp
 	@echo.
 	@echo.
-	@echo Done
-
-
-!IF !DEFINED(PREFIX) || "$(PREFIX)" == ""
-install:
-	@echo PREFIX is not defined
-	@echo Use `nmake install PREFIX=directory`
-	@echo.
-	@exit /B 1
-!ELSE
-install : all
-	@xcopy /I /Y /Q "$(WORKDIR)\*.exe" "$(PREFIX)\bin"
-!ENDIF
+	@echo You can now call runtest.sh from Cygwin environment
 
 clean:
 	@-rd /S /Q $(WORKDIR) 2>NUL
