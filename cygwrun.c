@@ -1059,13 +1059,15 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             fputs("Cannot have both -p and -e options defined\n", stderr);
         return usage(EINVAL);
     }
-    if ((cpp = xgetenv(L"PATH")) == NULL) {
+    cpp = xgetenv(L"PATH");
+    if (cpp == NULL) {
         if (xshowerr)
             fputs("Missing PATH environment variable\n", stderr);
         return ENOENT;
     }
     rmtrailingpsep(cpp);
-    if ((posixroot = getposixroot(crp)) == NULL) {
+    posixroot = getposixroot(crp);
+    if (posixroot == NULL) {
         if (xshowerr)
             fputs("Cannot find valid POSIX_ROOT\n", stderr);
         return ENOENT;
@@ -1080,7 +1082,8 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         }
         xfree(cwd);
     }
-    if ((cwd = _wgetcwd(NULL, 0)) == NULL) {
+    cwd = _wgetcwd(NULL, 0);
+    if (cwd == NULL) {
         if (xshowerr)
             fputs("Cannot get current working directory\n", stderr);
         return ENOENT;
