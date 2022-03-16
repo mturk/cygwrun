@@ -903,9 +903,8 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     if (xdumpenv) {
         int n, x;
         for (i = 0, x = 0; i < envc; i++) {
-            const wchar_t *v = wenvp[i];
+            const wchar_t *v = NULL;
             if (argc > 0) {
-                v = NULL;
                 for (n = 0; n < argc; n++) {
                     if (xwcsisenvvar(wenvp[i], wargv[n])) {
                         v = wenvp[i];
@@ -913,6 +912,8 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                     }
                 }
             }
+            else
+                v = wenvp[i];
             if (v != NULL) {
                 if (x++ > 0)
                     fputwc(L'\n', stdout);
@@ -981,9 +982,14 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
 
             if (p[0] == L'-') {
 
-                if ((p[1] == L'\0') || (p[2] != L'\0'))
+                if ((p[1] == L'\0') || (p[2] != L'\0')) {
+                    if (haspopt) {
+                        dupwargv[dupargc++] = xwcsdup(p);
+                        opts = 0;
+                        continue;
+                    }
                     return invalidarg(p);
-
+                }
                 switch (p[1]) {
                     case L'k':
                         clreenv  = 0;
@@ -1025,7 +1031,11 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                         return usage(0);
                     break;
                     default:
-                        return invalidarg(p);
+                        opts = 0;
+                        if (haspopt)
+                            dupwargv[dupargc++] = xwcsdup(p);
+                        else
+                            return invalidarg(p);
                     break;
                 }
                 continue;
