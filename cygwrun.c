@@ -284,8 +284,8 @@ static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
                 if (*wexp == L'\0')
                     return 0;
                 while (*wstr != L'\0') {
-                    int rv;
-                    if ((rv = xwcsmatch(wstr++, wexp)) != 1)
+                    int rv = xwcsmatch(wstr++, wexp);
+                    if (rv != 1)
                         return rv;
                 }
                 return -1;
@@ -675,10 +675,12 @@ static wchar_t *getposixroot(wchar_t *r)
     if (r == NULL) {
         const wchar_t **e = posixrenv;
 
-        if ((r = xgetenv(L"_CYGWRUN_POSIX_ROOT")) != NULL)
+        r = xgetenv(L"_CYGWRUN_POSIX_ROOT");
+        if (IS_VALID_WCS(r))
             return r;
         while (*e != NULL) {
-            if ((r = xgetenv(*e)) != NULL)
+            r =  xgetenv(*e);
+            if (IS_VALID_WCS(r))
                 break;
             e++;
         }
@@ -701,10 +703,8 @@ static wchar_t *getposixroot(wchar_t *r)
             return r;
         }
     }
-    if (r != NULL) {
-        rmtrailingpsep(r);
-        replacepathsep(r);
-    }
+    rmtrailingpsep(r);
+    replacepathsep(r);
     return r;
 }
 
@@ -1060,14 +1060,14 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         return usage(EINVAL);
     }
     cpp = xgetenv(L"PATH");
-    if (cpp == NULL) {
+    if (IS_EMPTY_WCS(cpp)) {
         if (xshowerr)
             fputs("Missing PATH environment variable\n", stderr);
         return ENOENT;
     }
     rmtrailingpsep(cpp);
     posixroot = getposixroot(crp);
-    if (posixroot == NULL) {
+    if (IS_EMPTY_WCS(posixroot)) {
         if (xshowerr)
             fputs("Cannot find valid POSIX_ROOT\n", stderr);
         return ENOENT;
