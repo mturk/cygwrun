@@ -903,24 +903,28 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     if (xdumpenv) {
         int x = 0;
         int m = 0;
-        for (i = 0; i < envc; i++) {
-            const wchar_t *v = NULL;
-            if (argc > 0) {
-                int n;
-                for (n = 0; n < argc; n++) {
+
+        if (argc > 0) {
+            int n;
+            for (n = 0; n < argc; n++) {
+                for (i = 0; i < envc; i++) {
+                    const wchar_t *v = NULL;
                     if (xwcsisenvvar(wenvp[i], wargv[n])) {
                         v = wenvp[i];
                         m++;
+                        if (x++ > 0)
+                            fputwc(L'\n', stdout);
+                        fputws(v, stdout);
                         break;
                     }
                 }
             }
-            else
-                v = wenvp[i];
-            if (v != NULL) {
+        }
+        else {
+            for (i = 0; i < envc; i++) {
                 if (x++ > 0)
                     fputwc(L'\n', stdout);
-                fputws(v, stdout);
+                fputws(wenvp[i], stdout);
             }
         }
         if ((argc != m) || (x == 0))
