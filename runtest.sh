@@ -59,46 +59,51 @@ test $rc -ne 0 && xbexit 1 "Failed #0: \`$rv'"
 export POSIX_ROOT="C:\\_not\\a/directory//"
 v=/tmp
 rv="`$_cygwrun -p $v`"
-test "x$rv" = "xC:\\_not\\a\\directory\\tmp" || xbexit 1 "Failed #1: \`$rv'"
+test "x$rv" = "xC:\\_not\\a\\directory\\tmp" || xbexit 1 "Failed #1.1: \`$rv'"
 export POSIX_ROOT=
 
 export FOO=bar
 rv="`$_cygwrun -e FOO`"
-test "x$rv" = "xFOO=bar" || xbexit 1 "Failed #2: \`$rv'"
+test "x$rv" = "xFOO=bar" || xbexit 1 "Failed #2.1: \`$rv'"
 
 export FOO=/Fo:/tmp:/usr
 rv="`$_cygwrun -e FOO`"
-test "x$rv" = "xFOO=/Fo:/tmp:/usr" || xbexit 1 "Failed #3: \`$rv'"
+test "x$rv" = "xFOO=/Fo:/tmp:/usr" || xbexit 1 "Failed #3.1: \`$rv'"
 
 tmpdir="`$_cygwrun -p /tmp`"
-test $? -ne 0 && xbexit 1 "Failed #4"
+test $? -ne 0 && xbexit 1 "Failed #4.1"
 
 usrdir="`$_cygwrun -p /usr`"
-test $? -ne 0 && xbexit 1 "Failed #5"
+test $? -ne 0 && xbexit 1 "Failed #4.2"
+
+rootdir="`$_cygwrun -p /`"
+test $? -ne 0 && xbexit 1 "Failed #4.3"
 
 export FOO="/tmp/foo/bar:/usr/local"
 rv="`$_cygwrun -e FOO`"
-test "x$rv" = "xFOO=$tmpdir\\foo\\bar;$usrdir\\local" || xbexit 1 "Failed #6: \`$rv'"
+test "x$rv" = "xFOO=$tmpdir\\foo\\bar;$usrdir\\local" || xbexit 1 "Failed #6.1: \`$rv'"
 
 export FOO="-unknown:/tmp/foo/bar:/usr/local"
 rv="`$_cygwrun -e FOO`"
-test "x$rv" = "xFOO=$FOO" || xbexit 1 "Failed #7: \`$rv'"
-export FOO="/tmp/foo/bar::unknown:/usr/local"
-rv="`$_cygwrun -e FOO`"
 test "x$rv" = "xFOO=$FOO" || xbexit 1 "Failed #7.1: \`$rv'"
+export FOO="/tmp/foo/bar::/unknown:/usr/local"
+rv="`$_cygwrun -e FOO`"
+test "x$rv" = "xFOO=$FOO" || xbexit 1 "Failed #7.2: \`$rv'"
+rv="`$_cygwrun -f -e FOO`"
+test "x$rv" = "xFOO=$tmpdir\\foo\\bar;$rootdir\\unknown;$usrdir\\local" || xbexit 1 "Failed #7.3: \`$rv'"
 rv="`$_cygwrun -p -I=/tmp/foo`"
-test "x$rv" = "x-I=$tmpdir\\foo" || xbexit 1 "Failed #7.2: \`$rv'"
+test "x$rv" = "x-I=$tmpdir\\foo" || xbexit 1 "Failed #7.4: \`$rv'"
 
 export FOO="/usr/a::/usr/b"
 rv="`$_cygwrun -e FOO`"
-test "x$rv" = "xFOO=$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #8: \`$rv'"
+test "x$rv" = "xFOO=$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #8.1: \`$rv'"
 
 export FOO="/usr/a:$abcd0123456789::/usr/b"
 rv="`$_cygwrun -e FOO`"
-test "x$rv" = "xFOO=$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #8.1: \`$rv'"
+test "x$rv" = "xFOO=$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #8.2: \`$rv'"
 
 rv="`$_cygwrun -p /libpath:./tmp/foo`"
-test "x$rv" = "x/libpath:.\\tmp\\foo" || xbexit 1 "Failed #9: \`$rv'"
+test "x$rv" = "x/libpath:.\\tmp\\foo" || xbexit 1 "Failed #9.1: \`$rv'"
 
 rv="`$_cygwrun -p ./tmp`"
 test "x$rv" = "x.\\tmp" || xbexit 1 "Failed #10.1: \`$rv'"
@@ -113,11 +118,11 @@ rv="`$_cygwrun -p .../tmp`"
 test "x$rv" = "x.../tmp" || xbexit 1 "Failed #10.4: \`$rv'"
 
 rv="`$_cygwrun $_dumpargs -f1=../tmp/foo`"
-test "x$rv" = "x-f1=..\\tmp\\foo" || xbexit 1 "Failed #11: \`$rv'"
+test "x$rv" = "x-f1=..\\tmp\\foo" || xbexit 1 "Failed #11.1: \`$rv'"
 
 export FOO="/usr/a::/usr/b"
 rv="`$_cygwrun $_dumpenvp FOO`"
-test "x$rv" = "xFOO=$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #12: \`$rv'"
+test "x$rv" = "xFOO=$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #12.1: \`$rv'"
 
 
 echo "All tests passed!"
