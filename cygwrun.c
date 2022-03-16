@@ -400,7 +400,7 @@ static int isposixpath(const wchar_t *str)
         if ((c != NULL) || (e != NULL))
             return 0;
 
-        while (mp[i] != 0) {
+        while (mp[i] != NULL) {
             if (wcscmp(str, mp[i]) == 0)
                 return i + 200;
             i++;
@@ -415,9 +415,9 @@ static int isposixpath(const wchar_t *str)
             return 0;
         if ((e != NULL) && (e < s))
             return 0;
-        if (wcschr(s, L':'))
+        if (wcspbrk(s, L":="))
             return 0;
-        while (mp[i] != 0) {
+        while (mp[i] != NULL) {
             if (xwcsmatch(str, mp[i]) == 0)
                 return i + 100;
             i++;
