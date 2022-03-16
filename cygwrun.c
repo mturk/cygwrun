@@ -914,6 +914,14 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                         break;
                     }
                 }
+                if (i == envc) {
+                    if (x > 0)
+                        fputwc(L'\n', stderr);
+                    fputws(L"Error: Environment variable '", stderr);
+                    fputws(wargv[n], stderr);
+                    fputws(L"' cannot be found", stderr);
+                    break;
+                }
             }
         }
         else {
@@ -923,10 +931,10 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 fputws(wenvp[i], stdout);
             }
         }
-        if (argc != x)
-            return ENOENT;
-        else
+        if (argc == x)
             return 0;
+        else
+            return ENOENT;
     }
     _flushall();
     rp = _wspawnvpe(_P_WAIT, wargv[0], wargv, wenvp);
