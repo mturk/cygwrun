@@ -49,7 +49,6 @@ static const wchar_t *pathmatches[] = {
     L"/media/*",
     L"/mnt/*",
     L"/opt/*",
-    L"/proc/*",
     L"/root/*",
     L"/run/*",
     L"/sbin/*",
