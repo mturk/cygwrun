@@ -376,21 +376,18 @@ static int isposixpath(const wchar_t *str)
 {
     int            i = 0;
     const wchar_t *s;
-    const wchar_t *c;
 
     if (str[0] != L'/')
         return isdotpath(str);
     if (str[1] == L'\0')
         return 301;
+    if (wcspbrk(str + 1, L":="))
+        return 0;
 
     s = wcschr( str + 1, L'/');
-    c = wcspbrk(str + 1, L":=");
-
     if (s == NULL) {
         const wchar_t **mp = pathfixed;
 
-        if (c != NULL)
-            return 0;
         while (mp[i] != NULL) {
             if (wcscmp(str, mp[i]) == 0)
                 return i + 200;
@@ -402,10 +399,6 @@ static int isposixpath(const wchar_t *str)
     else {
         const wchar_t **mp = pathmatches;
 
-        if ((c != NULL) && (c < s))
-            return 0;
-        if (wcspbrk(s, L":="))
-            return 0;
         while (mp[i] != NULL) {
             if (xwcsmatch(str, mp[i]) == 0)
                 return i + 100;
