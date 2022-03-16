@@ -397,7 +397,7 @@ static int isposixpath(const wchar_t *str)
          */
         const wchar_t **mp = pathfixed;
 
-        if (c != NULL)
+        if ((c != NULL) || (e != NULL))
             return 0;
 
         while (mp[i] != 0) {
@@ -405,9 +405,8 @@ static int isposixpath(const wchar_t *str)
                 return i + 200;
             i++;
         }
-        if (xforcewp) {
-            return 400;
-        }
+        if (xforcewp)
+            return 250;
     }
     else {
         const wchar_t **mp = pathmatches;
@@ -423,9 +422,9 @@ static int isposixpath(const wchar_t *str)
                 return i + 100;
             i++;
         }
-        if (xforcewp) {
-            return 400;
-        }
+        if (xforcewp)
+            return 150;
+
     }
     return 0;
 }
