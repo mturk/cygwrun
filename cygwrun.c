@@ -957,12 +957,12 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     int haspopt = 0;
 
 
-    if (argc < 2)
-        return usage(1);
     if (wenv == NULL) {
         fputs("\nMissing environment\n", stderr);
-        return usage(ENOENT);
+        return EBADF;
     }
+    if (argc < 2)
+        return usage(EINVAL);
     dupwargv = waalloc(argc);
     for (i = 1; i < argc; i++) {
         const wchar_t *p = wargv[i];
