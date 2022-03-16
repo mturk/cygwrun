@@ -952,6 +952,9 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     int clreenv = 1;
     int envc    = 0;
     int opts    = 1;
+    int haseopt = 0;
+    int haspopt = 0;
+
 
     if (argc < 2)
         return usage(1);
@@ -988,7 +991,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                     case L'e':
                         xdumpenv = 1;
                         xrunexec = 0;
-                        opts     = 0;
+                        haseopt  = 1;
                     break;
                     case L'f':
                         xforcewp = 1;
@@ -996,7 +999,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                     case L'p':
                         xrunexec = 0;
                         xdumpenv = 0;
-                        opts     = 0;
+                        haspopt  = 1;
                     break;
                     case L'r':
                         crp = nnp;
@@ -1040,6 +1043,11 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         if (xshowerr)
             fputs("Missing required parameter value\n", stderr);
         return usage(1);
+    }
+    if (haseopt && haspopt) {
+        if (xshowerr)
+            fputs("Cannot have both -p and -e options defined\n", stderr);
+        return usage(EINVAL);
     }
     if ((cpp = xgetenv(L"PATH")) == NULL) {
         if (xshowerr)

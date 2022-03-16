@@ -48,12 +48,9 @@ Options are:
  -h | -?   print this screen and exit.
  -p        print arguments instead executing PROGRAM.
  -e        print current environment block end exit.
-           if defined, only print variables that begin with ARGUMENTS.
+           if defined, only print variables that match ARGUMENTS.
 
 ```
-
-Note that `-p` or `-e` option terminate options processing,
-so make sure to define any other options before them.
 
 ## Posix root
 
@@ -105,7 +102,7 @@ posix to windows notation.
 
 Note that some environment variables are allways removed from the
 current environment variable list that is passed to child process,
-like `OLDPWD` or `PS1`.
+such as `OLDPWD` or `PS1`.
 
 The full list of variables that are allways removed is defined
 with `removeenv[]` array in [cygwrun.c](cygwrun.c) source file.
@@ -127,6 +124,15 @@ regardless if all other path elements can be translated.
     $ export FOO=/usr:/sbin:/unknown:../dir
     $ cygwrun -e FOO
     $ FOO=/usr:/sbin:/unknown:../dir
+```
+
+The `-f` command line option forces all absolute posix paths
+to be converted to it's windows format.
+
+```sh
+    $ export FOO=/usr:/sbin:/unknown:../dir
+    $ cygwrun -f -e FOO
+    $ FOO=C:\cygwin64\usr;C:\cygwin64\sbin;C:\cygwin64\unknown;..\dir
 ```
 
 
