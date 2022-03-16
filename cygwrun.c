@@ -344,11 +344,12 @@ static int xwcsisenvvar(const wchar_t *str, const wchar_t *var)
 
 static int iswinpath(const wchar_t *s)
 {
+    int x = 0;
     if (s[0] < 128) {
-        if (s[0] == L'\\')
-            return 1;
-        if (isalpha(s[0]) && s[1] == L':') {
-            if (IS_PSW(s[2]) || s[2] == L'\0')
+        if (s[0] == L'\\' && s[1] == L'\\' && s[2] == L'?' && s[3] == L'\\')
+            x = 4;
+        if (isalpha(s[x]) && s[x + 1] == L':') {
+            if (IS_PSW(s[x + 2]) || s[x + 2] == L'\0')
                 return 1;
         }
     }
