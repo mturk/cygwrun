@@ -901,13 +901,16 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     }
     qsort((void *)wenvp, envc, sizeof(wchar_t *), envsort);
     if (xdumpenv) {
-        int n, x;
-        for (i = 0, x = 0; i < envc; i++) {
+        int x = 0;
+        int m = 0;
+        for (i = 0; i < envc; i++) {
             const wchar_t *v = NULL;
             if (argc > 0) {
+                int n;
                 for (n = 0; n < argc; n++) {
                     if (xwcsisenvvar(wenvp[i], wargv[n])) {
                         v = wenvp[i];
+                        m++;
                         break;
                     }
                 }
@@ -920,7 +923,10 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 fputws(v, stdout);
             }
         }
-        return x ? 0 : ENOENT;
+        if ((argc != m) || (x == 0))
+            return ENOENT;
+        else
+            return 0;
     }
     _flushall();
     rp = _wspawnvpe(_P_WAIT, wargv[0], wargv, wenvp);
