@@ -377,6 +377,7 @@ static int isposixpath(const wchar_t *str)
     int            i = 0;
     const wchar_t *s;
     const wchar_t *c;
+    const wchar_t *e;
 
     if (str[0] != L'/') {
         /**
@@ -389,6 +390,7 @@ static int isposixpath(const wchar_t *str)
         return 301;
     s = wcschr(str + 1, L'/');
     c = wcschr(str + 1, L':');
+    e = wcschr(str + 1, L'=');
     if (s == NULL) {
         /**
          * No additional slashes
@@ -411,6 +413,8 @@ static int isposixpath(const wchar_t *str)
         const wchar_t **mp = pathmatches;
 
         if ((c != NULL) && (c < s))
+            return 0;
+        if ((e != NULL) && (e < s))
             return 0;
         if (wcschr(s, L':'))
             return 0;
@@ -823,13 +827,15 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                     if (iswinpath(v)) {
                         replacepathsep(v);
                     }
-                    else if (isposixpath(v)) {
-                        wchar_t *p = posixtowin(xwcsdup(v));
+                    else {
+                        if (isposixpath(v)) {
+                            wchar_t *p = posixtowin(xwcsdup(v));
 
-                        v[0] = L'\0';
-                        wargv[i] = xwcsconcat(a, p);
-                        xfree(p);
-                        xfree(a);
+                            v[0] = L'\0';
+                            wargv[i] = xwcsconcat(a, p);
+                            xfree(p);
+                            xfree(a);
+                        }
                     }
                 }
             }
