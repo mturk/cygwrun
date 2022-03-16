@@ -41,7 +41,6 @@ static const wchar_t *pathmatches[] = {
     L"/cygdrive/?/+*",
     L"/bin/*",
     L"/dev/*",
-    L"/dir/*",
     L"/etc/*",
     L"/home/*",
     L"/lib/*",
@@ -60,11 +59,13 @@ static const wchar_t *pathmatches[] = {
 
 static const wchar_t *pathfixed[] = {
     L"/bin",
+    L"/dev",
     L"/etc",
     L"/home",
     L"/lib",
     L"/lib64",
     L"/media",
+    L"/mnt",
     L"/opt",
     L"/root",
     L"/run",
@@ -387,8 +388,6 @@ static int isposixpath(const wchar_t *str)
 
     if (str[1] == L'\0')
         return 301;
-    if (wcscmp(str, L"/dev/null") == 0)
-        return 302;
     s = wcschr(str + 1, L'/');
     c = wcschr(str + 1, L':');
     if (s == NULL) {
@@ -605,15 +604,18 @@ static wchar_t *posixtowin(wchar_t *pp)
         rv = xwcsconcat(windrive, pp + 12);
         replacepathsep(rv + 3);
     }
+    else if (m == 102) {
+        /**
+         * For anything from /dev/* return \\.\NUL
+         */
+        rv = xwcsdup(L"\\\\.\\NUL");
+    }
     else if (m == 300) {
         replacepathsep(pp);
         return pp;
     }
     else if (m == 301) {
         rv = xwcsdup(posixroot);
-    }
-    else if (m == 302) {
-        rv = xwcsdup(L"NUL");
     }
     else {
         replacepathsep(pp);
