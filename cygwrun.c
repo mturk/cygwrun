@@ -160,7 +160,7 @@ static int version(int verbose)
 static int invalidarg(const wchar_t *arg)
 {
     if (xshowerr)
-        fwprintf(stderr, L"Unknown option: %s\n", arg);
+        fprintf(stderr, "Error: unknown command line option: '%S'\n", arg);
     return usage(EINVAL);
 }
 
@@ -949,8 +949,10 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
 
     if (argc < 2)
         return usage(1);
-    if (wenv == NULL)
-        return invalidarg(L"missing environment");
+    if (wenv == NULL) {
+        fputs("\nMissing environment\n", stderr);
+        return usage(ENOENT);
+    }
     dupwargv = waalloc(argc);
     for (i = 1; i < argc; i++) {
         const wchar_t *p = wargv[i];
@@ -969,19 +971,10 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             }
 
             if (p[0] == L'-') {
-                if (p[1] == L'\0') {
-                    /**
-                     * We have single '-' argument
-                     * Break arg processing
-                     */
-                    break;
-                }
-                if (p[2] != L'\0') {
-                    /**
-                     * We have something like -ab
-                     */
-                    break;
-                }
+
+                if ((p[1] == L'\0') || (p[2] != L'\0'))
+                    return invalidarg(p);
+
                 switch (p[1]) {
                     case L'k':
                         clreenv  = 0;
