@@ -38,6 +38,7 @@ static int      xshowerr  = 1;
 static int      xforcewp  = 0;
 
 static wchar_t *posixroot = NULL;
+static wchar_t *wsysdrive = NULL;
 
 static const wchar_t *pathmatches[] = {
     L"/cygdrive/?/+*",
@@ -345,8 +346,12 @@ static int xwcsisenvvar(const wchar_t *str, const wchar_t *var)
 static int iswinpath(const wchar_t *s)
 {
     if (s[0] < 128) {
-        if (s[0] == L'\\' && s[1] == L'\\' && s[2] == L'?' && s[3] == L'\\')
-            s += 4;
+        if (s[0] == L'\\') {
+            if (s[1] == L'\\' && s[2] == L'?' && s[3] == L'\\')
+                s += 4;
+            else
+                return 1;
+        }
         if (isalpha(s[0]) && s[1] == L':') {
             if (IS_PSW(s[2]) || s[2] == L'\0')
                 return 1;
@@ -568,15 +573,9 @@ static void rmtrailingpsep(wchar_t *s)
 static wchar_t *posixtowin(wchar_t *pp)
 {
     int m;
-    wchar_t *rv;
+    wchar_t *rv = NULL;
     wchar_t  windrive[] = { L'\0', L':', L'\\', L'\0'};
 
-    if (wcschr(pp, L'/') == NULL) {
-        /**
-         * Nothing to do.
-         */
-        return pp;
-    }
     m = isposixpath(pp);
     if (m == 0) {
         /**
@@ -673,9 +672,9 @@ static wchar_t *getposixroot(wchar_t *r)
             /**
              * Use default locations
              */
-            r = xwcsdup(L"C:\\cygwin64\\etc\\fstab");
+            r = xwcsconcat(wsysdrive, L"\\cygwin64\\etc\\fstab");
             if (_waccess(r, 0)) {
-                wcscpy(r, L"C:\\cygwin\\etc\\fstab");
+                wcscpy(r + 2, L"\\cygwin\\etc\\fstab");
                 if (_waccess(r, 0)) {
                     xfree(r);
                     return NULL;
@@ -783,12 +782,15 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                  */
             }
             else if (iswinpath(a)) {
-                /**
-                 * We have something like
-                 * \\ or C:[/...]
-                 * Replace to backward slashes inplace
-                 */
-                 replacepathsep(a);
+                replacepathsep(a);
+                if ((a[0] == L'\\') && (a[1] != L'\\')) {
+                    /**
+                     * We have \foo
+                     * Prepend with SYSTEMDRIVE
+                     */
+                    wargv[i] =  xwcsconcat(wsysdrive, a);
+                    xfree(a);
+                }
             }
             else if ((n < 4) || (wcschr(a, L'/') == 0)) {
                 /**
@@ -849,6 +851,19 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                  */
                 continue;
 
+            }
+            else if ((v[0] == L'\\') && (v[1] != L'\\')) {
+                /**
+                 * We have \foo
+                 * Prepend with SYSTEMDRIVE
+                 */
+                wchar_t *p = xwcsconcat(wsysdrive, v);
+
+                v[0] = L'\0';
+                wenvp[i] = xwcsconcat(e, p);
+                xfree(e);
+                xfree(p);
+                replacepathsep(wenvp[i]);
             }
             else if ((v[0] == L'/') && (v[1] == L'\0')) {
                 /**
@@ -1067,6 +1082,12 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         return ENOENT;
     }
     rmtrailingpsep(cpp);
+    wsysdrive = xgetenv(L"SYSTEMDRIVE");
+    if (IS_EMPTY_WCS(wsysdrive)) {
+        if (xshowerr)
+            fputs("Cannot find SYSTEMDRIVE environment variable\n", stderr);
+        return ENOENT;
+    }
     posixroot = getposixroot(crp);
     if (IS_EMPTY_WCS(posixroot)) {
         if (xshowerr)
