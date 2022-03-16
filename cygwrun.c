@@ -35,6 +35,8 @@ static int      xrunexec  = 1;
 static int      xdumpenv  = 0;
 static int      xskipenv  = 0;
 static int      xshowerr  = 1;
+static int      xforcewp  = 0;
+
 static wchar_t *posixroot = NULL;
 
 static const wchar_t *pathmatches[] = {
@@ -126,6 +128,7 @@ static int usage(int rv)
         fputs(" -r <DIR>  use DIR as posix root\n", os);
         fputs(" -w <DIR>  change working directory to DIR before calling PROGRAM\n", os);
         fputs(" -k        keep extra posix environment variables.\n", os);
+        fputs(" -f        convert all unknown posix absolute paths\n", os);
         fputs(" -s        do not translate environment variables.\n", os);
         fputs(" -q        do not print errors to stderr.\n", os);
         fputs(" -v        print version information and exit.\n", os);
@@ -400,6 +403,9 @@ static int isposixpath(const wchar_t *str)
                 return i + 200;
             i++;
         }
+        if (xforcewp) {
+            return 400;
+        }
     }
     else {
         const wchar_t **mp = pathmatches;
@@ -412,6 +418,9 @@ static int isposixpath(const wchar_t *str)
             if (xwcsmatch(str, mp[i]) == 0)
                 return i + 100;
             i++;
+        }
+        if (xforcewp) {
+            return 400;
         }
     }
     return 0;
@@ -980,6 +989,9 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                         xdumpenv = 1;
                         xrunexec = 0;
                         opts     = 0;
+                    break;
+                    case L'f':
+                        xforcewp = 1;
                     break;
                     case L'p':
                         xrunexec = 0;
