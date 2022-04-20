@@ -784,9 +784,9 @@ static int xresolvepaths(const wchar_t *p)
         if (cygwrunexec[i] == L'\\') {
             cygwrunexec[i] = L'\0';
             cygwrunpath = xwcsdup(cygwrunexec);
+            cygwrunname = xwcsdup(cygwrunexec + i + 1);
             cygwrunexec[i] = L'\\';
             if (d > 0) {
-                cygwrunname = xwcsdup(cygwrunexec + i + 1);
                 cygwrunexec[d] = L'.';
             }
             return 1;
