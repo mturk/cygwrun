@@ -24,7 +24,7 @@
 #include <process.h>
 #include <fcntl.h>
 #include <io.h>
-
+#include <shellapi.h>
 #include "cygwrun.h"
 
 #define IS_PSW(_c)        (((_c) == L'/') || ((_c)  == L'\\'))
@@ -37,8 +37,11 @@ static int      xskipenv  = 0;
 static int      xshowerr  = 1;
 static int      xforcewp  = 0;
 
-static wchar_t *posixroot = NULL;
-static wchar_t *wsysdrive = NULL;
+static wchar_t *posixroot   = NULL;
+static wchar_t *wsysdrive   = NULL;
+static wchar_t *cygwrunexec = NULL;
+static wchar_t *cygwrunpath = NULL;
+static wchar_t *cygwrunname = NULL;
 
 static const wchar_t *pathmatches[] = {
     L"/cygdrive/?/+*",
@@ -119,6 +122,8 @@ const char xisvarchar[128] =
     /** ` a b c d e f g h i j k l m n o  p q r s t u v w x y z { | } ~    */
         0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,1,3,0,3,3,0
 };
+
+static wchar_t zerostring[4] = { L'\0', L'\0', L'\0', L'\0' };
 
 static int usage(int rv)
 {
@@ -716,10 +721,90 @@ static wchar_t *getposixroot(wchar_t *r)
     return r;
 }
 
+static wchar_t *getrealpathname(const wchar_t *path, int isdir)
+{
+    wchar_t    *buf  = NULL;
+    DWORD       siz  = _MAX_FNAME;
+    DWORD       len  = 0;
+    HANDLE      fh;
+    DWORD       fa   = isdir ? FILE_FLAG_BACKUP_SEMANTICS : FILE_ATTRIBUTE_NORMAL;
+
+    if (IS_EMPTY_WCS(path))
+        return NULL;
+    fh = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL,
+                     OPEN_EXISTING, fa, NULL);
+    if (IS_INVALID_HANDLE(fh))
+        return NULL;
+
+    while (buf == NULL) {
+        buf = xwalloc(siz);
+        len = GetFinalPathNameByHandleW(fh, buf, siz, VOLUME_NAME_DOS);
+        if (len == 0) {
+            CloseHandle(fh);
+            xfree(buf);
+            return NULL;
+        }
+        if (len > siz) {
+            xfree(buf);
+            buf = NULL;
+            siz = len;
+        }
+    }
+    CloseHandle(fh);
+    if ((len > 5) && (len < _MAX_FNAME)) {
+        /**
+         * Strip leading \\?\ for short paths
+         * but not \\?\UNC\* paths
+         */
+        if ((buf[0] == L'\\') &&
+            (buf[1] == L'\\') &&
+            (buf[2] == L'?')  &&
+            (buf[3] == L'\\') &&
+            (buf[5] == L':')) {
+            wmemmove(buf, buf + 4, len - 3);
+        }
+    }
+    return buf;
+}
+
+static int xresolvepaths(void)
+{
+    LPWSTR     *caa = NULL;
+    int         i;
+    int         d = 0;
+
+    caa = CommandLineToArgvW(zerostring, &i);
+    if (caa == NULL)
+        return 0;
+    cygwrunexec = getrealpathname(caa[0], 0);
+    LocalFree(caa);
+    if (IS_EMPTY_WCS(cygwrunexec))
+        return 0;
+
+    i = (int)xwcslen(cygwrunexec);
+    while (--i > 5) {
+        if ((d == 0) && (cygwrunexec[i] == L'.')) {
+            d = i;
+            cygwrunexec[d] = L'\0';
+        }
+        if (cygwrunexec[i] == L'\\') {
+            cygwrunexec[i] = L'\0';
+            cygwrunpath = xwcsdup(cygwrunexec);
+            cygwrunexec[i] = L'\\';
+            if (d > 0) {
+                cygwrunname = xwcsdup(cygwrunexec + i + 1);
+                cygwrunexec[d] = L'.';
+            }
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static wchar_t *xsearchexe(const wchar_t *paths, const wchar_t *name)
 {
-    HANDLE    fh = NULL;
     wchar_t  *sp = NULL;
+    wchar_t  *rp = NULL;
     DWORD     ln = 0;
     DWORD     sz = _MAX_PATH;
 
@@ -727,7 +812,8 @@ static wchar_t *xsearchexe(const wchar_t *paths, const wchar_t *name)
         sp = xwalloc(sz);
         ln = SearchPathW(paths, name, L".exe", sz, sp, NULL);
         if (ln == 0) {
-            goto failed;
+            xfree(sp);
+            return NULL;
         }
         else if (ln > sz) {
             xfree(sp);
@@ -735,42 +821,9 @@ static wchar_t *xsearchexe(const wchar_t *paths, const wchar_t *name)
             sz = ln;
         }
     }
-    fh = CreateFileW(sp, GENERIC_READ, FILE_SHARE_READ, 0,
-                     OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-    if (IS_INVALID_HANDLE(fh))
-        goto failed;
-    do {
-        if (ln > sz) {
-            xfree(sp);
-            sz = ln;
-            sp = xwalloc(sz);
-        }
-        ln = GetFinalPathNameByHandleW(fh, sp, sz, VOLUME_NAME_DOS);
-        if (ln == 0) {
-            CloseHandle(fh);
-            goto failed;
-        }
-    } while (ln > sz);
-
-    CloseHandle(fh);
-    if ((ln > 5) && (ln < _MAX_FNAME)) {
-        /**
-         * Strip leading \\?\ for short paths
-         * but not \\?\UNC\* paths
-         */
-        if ((sp[0] == L'\\') &&
-            (sp[1] == L'\\') &&
-            (sp[2] == L'?')  &&
-            (sp[3] == L'\\') &&
-            (sp[5] == L':')) {
-            wmemmove(sp, sp + 4, ln - 3);
-            ln -= 4;
-        }
-    }
-    return sp;
-failed:
+    rp = getrealpathname(sp, 0);
     xfree(sp);
-    return NULL;
+    return rp;
 }
 
 
@@ -987,7 +1040,6 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     wchar_t *cwd       = NULL;
     wchar_t *cpp;
 
-    wchar_t  nnp[4]    = { L'\0', L'\0', L'\0', L'\0' };
     int dupenvc = 0;
     int dupargc = 0;
     int clreenv = 1;
@@ -1011,11 +1063,11 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             /**
              * Simple argument parsing
              */
-            if (cwd == nnp) {
+            if (cwd == zerostring) {
                 cwd = xwcsdup(p);
                 continue;
             }
-            if (crp == nnp) {
+            if (crp == zerostring) {
                 crp = xwcsdup(p);
                 continue;
             }
@@ -1048,7 +1100,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                         haspopt  = 1;
                     break;
                     case L'r':
-                        crp = nnp;
+                        crp = zerostring;
                     break;
                     case L's':
                         xskipenv = 1;
@@ -1057,7 +1109,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                         xshowerr = 0;
                     break;
                     case L'w':
-                        cwd = nnp;
+                        cwd = zerostring;
                     break;
                     case L'v':
                         return version(0);
@@ -1089,7 +1141,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             fputs("Missing PROGRAM argument\n", stderr);
         return usage(1);
     }
-    if ((cwd == nnp) || (crp == nnp)) {
+    if ((cwd == zerostring) || (crp == zerostring)) {
         if (xshowerr)
             fputs("Missing required parameter value\n", stderr);
         return usage(1);
@@ -1098,6 +1150,11 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         if (xshowerr)
             fputs("Cannot have both -p and -e options defined\n", stderr);
         return usage(EINVAL);
+    }
+    if (xresolvepaths() == 0) {
+        if (xshowerr)
+            fputs("Cannot resolve cygwrun.exe paths \n", stderr);
+        return EBADF;
     }
     cpp = xgetenv(L"PATH");
     if (IS_EMPTY_WCS(cpp)) {
@@ -1193,6 +1250,11 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
              */
             pps = xwcscpaths(cwd, cpp);
             sch = xsearchexe(pps, exe);
+            if (sch == NULL) {
+                xfree(pps);
+                pps = xwcscpaths(cygwrunpath, cpp);
+                sch = xsearchexe(pps, exe);
+            }
             if (sch == NULL) {
                 if (xshowerr)
                     fwprintf(stderr, L"Cannot find PROGRAM '%s' inside %s\n",
