@@ -1147,7 +1147,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     }
     if (xresolvepaths(wargv[0]) == 0) {
         if (xshowerr)
-            fputs("Cannot resolve cygwrun.exe paths \n", stderr);
+            fwprintf(stderr, L"Cannot resolve paths for: '%s'\n", wargv[0]);
         return EBADF;
     }
     cpp = xgetenv(L"PATH");
