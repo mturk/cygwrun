@@ -24,7 +24,6 @@
 #include <process.h>
 #include <fcntl.h>
 #include <io.h>
-#include <shellapi.h>
 #include "cygwrun.h"
 
 #define IS_PSW(_c)        (((_c) == L'/') || ((_c)  == L'\\'))
@@ -767,17 +766,12 @@ static wchar_t *getrealpathname(const wchar_t *path, int isdir)
     return buf;
 }
 
-static int xresolvepaths(void)
+static int xresolvepaths(const wchar_t *p)
 {
-    LPWSTR     *caa = NULL;
-    int         i;
-    int         d = 0;
+    int i;
+    int d = 0;
 
-    caa = CommandLineToArgvW(zerostring, &i);
-    if (caa == NULL)
-        return 0;
-    cygwrunexec = getrealpathname(caa[0], 0);
-    LocalFree(caa);
+    cygwrunexec = getrealpathname(p, 0);
     if (IS_EMPTY_WCS(cygwrunexec))
         return 0;
 
@@ -1151,7 +1145,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             fputs("Cannot have both -p and -e options defined\n", stderr);
         return usage(EINVAL);
     }
-    if (xresolvepaths() == 0) {
+    if (xresolvepaths(wargv[0]) == 0) {
         if (xshowerr)
             fputs("Cannot resolve cygwrun.exe paths \n", stderr);
         return EBADF;
