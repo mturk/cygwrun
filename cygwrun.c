@@ -261,6 +261,30 @@ static wchar_t *xwcsconcat(const wchar_t *s1, const wchar_t *s2)
     return rv;
 }
 
+static wchar_t *xwcscpaths(const wchar_t *s1, const wchar_t *s2)
+{
+    wchar_t *cp, *rv;
+    size_t l1;
+    size_t l2;
+
+    l1 = xwcslen(s1);
+    l2 = xwcslen(s2);
+
+    if ((l1 + l2) == 0)
+        return NULL;
+    cp = rv = xwalloc(l1 + l2 + 4);
+
+    if(l1 > 0)
+        wmemcpy(cp, s1, l1);
+    cp += l1;
+    if(l2 > 0) {
+        if (l1 > 0)
+            *(cp++) = L';';
+        wmemcpy(cp, s2, l2);
+    }
+    return rv;
+}
+
 /**
  * Match = 0, NoMatch = 1, Abort = -1
  * Based loosely on sections of wildmat.c by Rich Salz
@@ -1161,25 +1185,21 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         exe = posixtowin(dupwargv[0]);
         if (_waccess(exe, 0)) {
             wchar_t *sch;
-            wchar_t *pp1;
-            wchar_t *pp2;
+            wchar_t *pps;
             /**
              * PROGRAM is not an absolute path.
              * Add current directory as first PATH element
              * and search for PROGRAM[.exe]
              */
-            pp1 = xwcsconcat(cwd, L";");
-            pp2 = xwcsconcat(pp1, cpp);
-
-            sch = xsearchexe(pp2, exe);
+            pps = xwcscpaths(cwd, cpp);
+            sch = xsearchexe(pps, exe);
             if (sch == NULL) {
                 if (xshowerr)
                     fwprintf(stderr, L"Cannot find PROGRAM '%s' inside %s\n",
-                             exe, pp2);
+                             exe, pps);
                 return ENOENT;
             }
-            xfree(pp1);
-            xfree(pp2);
+            xfree(pps);
             xfree(exe);
             exe = sch;
         }
