@@ -1154,7 +1154,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         return ENOENT;
     }
     rmtrailingpsep(cpp);
-    i = GetWindowsDirectory(wsysdrive, 30);
+    i = GetWindowsDirectoryW(wsysdrive, 30);
     if ((i == 0) || (i > 30)) {
         if (xshowerr)
             fputs("Cannot find SYSTEMDRIVE environment variable\n", stderr);
