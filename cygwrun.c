@@ -102,7 +102,6 @@ static const wchar_t *removeenv[] = {
 };
 
 static const wchar_t *posixrenv[] = {
-    L"_CYGWRUN_POSIX_ROOT",
     L"CYGWIN_ROOT",
     L"POSIX_ROOT",
     NULL
@@ -683,7 +682,7 @@ static wchar_t *getposixroot(wchar_t *r)
         const wchar_t **e = posixrenv;
 
         while (*e != NULL) {
-            r =  xgetenv(*e);
+            r = xgetenv(*e);
             if (IS_VALID_WCS(r))
                 break;
             e++;
@@ -692,12 +691,15 @@ static wchar_t *getposixroot(wchar_t *r)
             /**
              * Use default locations
              */
-            r = xwcsconcat(wsysdrive, L"\\cygwin64");
-            if (_waccess(r, 0)) {
-                r[9] = L'\0';
+            r = xgetenv(L"_CYGWRUN_POSIX_ROOT");
+            if (r == NULL) {
+                r = xwcsconcat(wsysdrive, L"\\cygwin64");
                 if (_waccess(r, 0)) {
-                    xfree(r);
-                    r = NULL;
+                    r[9] = L'\0';
+                    if (_waccess(r, 0)) {
+                        xfree(r);
+                        r = NULL;
+                    }
                 }
             }
             return r;
@@ -1114,7 +1116,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     i = GetWindowsDirectoryW(wsysdrive, 30);
     if ((i == 0) || (i > 30)) {
         if (xshowerr)
-            fputs("Cannot find SYSTEMDRIVE environment variable\n", stderr);
+            fputs("Cannot find SYSTEMDRIVE\n", stderr);
         return ENOENT;
     }
     wsysdrive[2] = '\0';
