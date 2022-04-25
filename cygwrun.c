@@ -786,16 +786,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     if (xdumpenv == 0) {
         for (i = xrunexec; i < argc; i++) {
             wchar_t *a = wargv[i];
-            size_t   n = wcslen(a);
 
-            if ((a[0] == L'/') && (a[1] == L'/')) {
-                if (wcschr(a + 2, L'/')) {
-                    /**
-                     * Handle mingw double slash
-                     */
-                    wmemmove(a, a + 1, n--);
-                }
-            }
             if ((a[0] == L'/') && (a[1] == L'\0')) {
                 /**
                  * Special case for / (root)
@@ -820,11 +811,6 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                     xfree(a);
                 }
             }
-            else if ((n < 4) || (wcschr(a, L'/') == 0)) {
-                /**
-                 * Argument is too short or has no forward slashes
-                 */
-            }
             else if (isposixpath(a)) {
                 /**
                  * We have posix path
@@ -834,8 +820,11 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             else {
                 wchar_t *v = cmdoptionval(a);
 
-                if (IS_VALID_WCS(v) && (*v != L'\'')) {
-                    if (iswinpath(v)) {
+                if (IS_VALID_WCS(v)) {
+                    if (*v == L'\'') {
+                        
+                    }
+                    else if (iswinpath(v)) {
                         replacepathsep(v);
                     }
                     else {
