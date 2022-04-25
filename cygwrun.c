@@ -266,26 +266,29 @@ static wchar_t *xwcsconcat(const wchar_t *s1, const wchar_t *s2)
     return rv;
 }
 
-static wchar_t *xwcscpaths(const wchar_t *s1, const wchar_t *s2)
+static wchar_t *xwcscpaths(const wchar_t *s1, const wchar_t *s2, const wchar_t *s3)
 {
     wchar_t *cp, *rv;
-    size_t l1;
-    size_t l2;
+    size_t l1, l2, l3;
 
     l1 = xwcslen(s1);
     l2 = xwcslen(s2);
+    l3 = xwcslen(s3);
 
-    if ((l1 + l2) == 0)
+    if (l1 == 0)
         return NULL;
-    cp = rv = xwalloc(l1 + l2 + 4);
+    cp = rv = xwalloc(l1 + l2 + l3 + 4);
 
-    if(l1 > 0)
-        wmemcpy(cp, s1, l1);
+    wmemcpy(cp, s1, l1);
     cp += l1;
     if(l2 > 0) {
-        if (l1 > 0)
-            *(cp++) = L';';
+        *(cp++) = L';';
         wmemcpy(cp, s2, l2);
+        cp += l2;
+    }
+    if(l3 > 0) {
+        *(cp++) = L';';
+        wmemcpy(cp, s3, l3);
     }
     return rv;
 }
@@ -695,22 +698,18 @@ static wchar_t *getposixroot(wchar_t *r)
             e++;
         }
         if (r == NULL) {
-            DWORD a;
             /**
              * Use default locations
              */
             r = xwcsconcat(wsysdrive, L"\\cygwin64");
-            a = GetFileAttributesW(r);
-            if (a == INVALID_FILE_ATTRIBUTES) {
-                wcscpy(r + 2, L"\\cygwin");
-                a = GetFileAttributesW(r);
-                if (a == INVALID_FILE_ATTRIBUTES)
-                    return NULL;
+            if (_waccess(r, 0)) {
+                r[9] = L'\0';
+                if (_waccess(r, 0)) {
+                    xfree(r);
+                    r = NULL;
+                }
             }
-            if (a & FILE_ATTRIBUTE_DIRECTORY)
-                return r;
-            else
-                return NULL;
+            return r;
         }
     }
     rmtrailingpsep(r);
@@ -1240,13 +1239,8 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
              * Add current directory as first PATH element
              * and search for PROGRAM[.exe]
              */
-            pps = xwcscpaths(cwd, cpp);
+            pps = xwcscpaths(cwd, cpp, cygwrunpath);
             sch = xsearchexe(pps, exe);
-            if (sch == NULL) {
-                xfree(pps);
-                pps = xwcscpaths(cygwrunpath, cpp);
-                sch = xsearchexe(pps, exe);
-            }
             if (sch == NULL) {
                 if (xshowerr)
                     fwprintf(stderr, L"Cannot find PROGRAM '%s' inside %s\n",
