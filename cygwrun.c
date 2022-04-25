@@ -105,6 +105,7 @@ static const wchar_t *removeenv[] = {
 };
 
 static const wchar_t *posixrenv[] = {
+    L"_CYGWRUN_POSIX_ROOT",
     L"CYGWIN_ROOT",
     L"POSIX_ROOT",
     NULL
@@ -687,9 +688,6 @@ static wchar_t *getposixroot(wchar_t *r)
     if (r == NULL) {
         const wchar_t **e = posixrenv;
 
-        r = xgetenv(L"_CYGWRUN_POSIX_ROOT");
-        if (IS_VALID_WCS(r))
-            return r;
         while (*e != NULL) {
             r =  xgetenv(*e);
             if (IS_VALID_WCS(r))
@@ -697,22 +695,22 @@ static wchar_t *getposixroot(wchar_t *r)
             e++;
         }
         if (r == NULL) {
+            DWORD a;
             /**
              * Use default locations
              */
-            r = xwcsconcat(wsysdrive, L"\\cygwin64\\etc\\fstab");
-            if (_waccess(r, 0)) {
-                wcscpy(r + 2, L"\\cygwin\\etc\\fstab");
-                if (_waccess(r, 0)) {
-                    xfree(r);
+            r = xwcsconcat(wsysdrive, L"\\cygwin64");
+            a = GetFileAttributesW(r);
+            if (a == INVALID_FILE_ATTRIBUTES) {
+                wcscpy(r + 2, L"\\cygwin");
+                a = GetFileAttributesW(r);
+                if (a == INVALID_FILE_ATTRIBUTES)
                     return NULL;
-                }
-                r[9]  = L'\0';
             }
-            else {
-                r[11] = L'\0';
-            }
-            return r;
+            if (a & FILE_ATTRIBUTE_DIRECTORY)
+                return r;
+            else
+                return NULL;
         }
     }
     rmtrailingpsep(r);
