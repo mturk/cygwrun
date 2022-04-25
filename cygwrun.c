@@ -38,6 +38,7 @@ static int      xforcewp  = 0;
 
 static wchar_t *posixroot = NULL;
 static wchar_t  wsysdrive[32];
+static wchar_t  wcurdrive[32];
 
 static const wchar_t *pathmatches[] = {
     L"/cygdrive/?/+*",
@@ -813,9 +814,9 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 if ((a[0] == L'\\') && (a[1] != L'\\')) {
                     /**
                      * We have \foo
-                     * Prepend with SYSTEMDRIVE
+                     * Prepend with Current drive
                      */
-                    wargv[i] =  xwcsconcat(wsysdrive, a);
+                    wargv[i] =  xwcsconcat(wcurdrive, a);
                     xfree(a);
                 }
             }
@@ -883,13 +884,13 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             else if (v[0] == L'\\') {
                 /**
                  * We have \foo
-                 * Prepend with SYSTEMDRIVE
+                 * Prepend with current drive
                  * unless we have \\foo
                  */
                 if (v[1] == L'\\') {
                     continue;
                 }
-                p = xwcsconcat(wsysdrive, v);
+                p = xwcsconcat(wcurdrive, v);
 
                 v[0] = L'\0';
                 wenvp[i] = xwcsconcat(e, p);
@@ -1108,8 +1109,8 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         return ENOENT;
     }
     rmtrailingpsep(cpp);
-    i = GetWindowsDirectoryW(wsysdrive, 30);
-    if ((i == 0) || (i > 30)) {
+    i = GetWindowsDirectoryW(wsysdrive, 32);
+    if ((i == 0) || (i >= 32)) {
         if (xshowerr)
             fputs("Cannot find SYSTEMDRIVE\n", stderr);
         return ENOENT;
@@ -1136,6 +1137,14 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         if (xshowerr)
             fputs("Cannot get current working directory\n", stderr);
         return ENOENT;
+    }
+    else {
+        for(i = 0; i < 8; i++) {
+            wcurdrive[i] = cwd[i];
+            if (cwd[i] == L'\0' || cwd[i] == L':')
+                break;
+        }
+        wcurdrive[i+1] = L'\0';
     }
     while (wenv[envc] != NULL) {
         ++envc;
