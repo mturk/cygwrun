@@ -908,22 +908,17 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 wenvp[i] = xwcsconcat(e, posixroot);
                 xfree(e);
             }
-            else if (wcschr(v, L'/') != NULL) {
-                if (wcschr(v, L':') != NULL) {
+            else {
+                p = wcschr(v, L'/');
+                if (p == NULL)
+                    continue;
+                if (wcschr(p + 1, L':') != NULL) {
                     p = towinpath(v);
 
                     v[0] = L'\0';
                     wenvp[i] = xwcsconcat(e, p);
                     xfree(e);
                     xfree(p);
-                }
-                else if (isdotpath(v)) {
-                    /**
-                     * We have something like
-                     * VARIABLE=./ or VARIABLE=../
-                     * Replace value to backward slashes inplace
-                     */
-                     replacepathsep(v);
                 }
                 else {
                     p = posixtowin(xwcsdup(v));
