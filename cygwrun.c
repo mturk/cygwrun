@@ -821,21 +821,16 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 wchar_t *v = cmdoptionval(a);
 
                 if (IS_VALID_WCS(v)) {
-                    if (*v == L'\'') {
-                        
-                    }
-                    else if (iswinpath(v)) {
+                    if (iswinpath(v)) {
                         replacepathsep(v);
                     }
-                    else {
-                        if (isposixpath(v)) {
-                            wchar_t *p = posixtowin(xwcsdup(v));
+                    else if (isposixpath(v)) {
+                        wchar_t *p = posixtowin(xwcsdup(v));
 
-                            v[0] = L'\0';
-                            wargv[i] = xwcsconcat(a, p);
-                            xfree(p);
-                            xfree(a);
-                        }
+                        v[0] = L'\0';
+                        wargv[i] = xwcsconcat(a, p);
+                        xfree(p);
+                        xfree(a);
                     }
                 }
             }
