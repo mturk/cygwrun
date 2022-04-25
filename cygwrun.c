@@ -449,11 +449,15 @@ static wchar_t *cmdoptionval(wchar_t *v)
 
     if (*s == L'/') {
         s++;
+        if (*s == L'/')
+            return NULL;
     }
     else if (*s == L'-') {
         if (*(++s) == L'-')
             s++;
     }
+    if (*s == L'-')
+        return NULL;
     while (*s != L'\0') {
         int c = *(s++);
         if (c >= 127)

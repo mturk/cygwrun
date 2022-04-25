@@ -119,6 +119,8 @@ test "x$rv" = "x.../tmp" || xbexit 1 "Failed #8.4: \`$rv'"
 
 rv="`$_cygwrun $_dumpargs -f1=../tmp/foo`"
 test "x$rv" = "x-f1=..\\tmp\\foo" || xbexit 1 "Failed #9.1: \`$rv'"
+rv="`$_cygwrun $_dumpargs --f=../tmp/foo`"
+test "x$rv" = "x--f=..\\tmp\\foo" || xbexit 1 "Failed #9.2: \`$rv'"
 
 export FOO="/usr/a::/usr/b"
 rv="`$_cygwrun $_dumpenvp FOO`"
