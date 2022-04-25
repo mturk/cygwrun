@@ -865,6 +865,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     if (xskipenv == 0) {
         for (i = 0; i < (envc - xrunexec - 1); i++) {
             wchar_t *v;
+            wchar_t *p;
             wchar_t *e = wenvp[i];
 
             v = wcschr(e, L'=');
@@ -882,12 +883,16 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 continue;
 
             }
-            else if ((v[0] == L'\\') && (v[1] != L'\\')) {
+            else if (v[0] == L'\\') {
                 /**
                  * We have \foo
                  * Prepend with SYSTEMDRIVE
+                 * unless we have \\foo
                  */
-                wchar_t *p = xwcsconcat(wsysdrive, v);
+                if (v[1] == L'\\') {
+                    continue;
+                }
+                p = xwcsconcat(wsysdrive, v);
 
                 v[0] = L'\0';
                 wenvp[i] = xwcsconcat(e, p);
@@ -905,7 +910,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             }
             else if (wcschr(v, L'/') != NULL) {
                 if (wcschr(v, L':') != NULL) {
-                    wchar_t *p = towinpath(v);
+                    p = towinpath(v);
 
                     v[0] = L'\0';
                     wenvp[i] = xwcsconcat(e, p);
@@ -921,7 +926,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                      replacepathsep(v);
                 }
                 else {
-                    wchar_t *p = posixtowin(xwcsdup(v));
+                    p = posixtowin(xwcsdup(v));
 
                     v[0] = L'\0';
                     wenvp[i] = xwcsconcat(e, p);
