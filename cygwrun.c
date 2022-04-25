@@ -590,13 +590,13 @@ static void rmtrailingpsep(wchar_t *s)
     }
 }
 
-static wchar_t *posixtowin(wchar_t *pp)
+static wchar_t *posixtowin(wchar_t *pp, int m)
 {
-    int m;
     wchar_t *rv = NULL;
     wchar_t  windrive[] = { L'\0', L':', L'\\', L'\0'};
 
-    m = isposixpath(pp);
+    if (m == 0)
+        m = isposixpath(pp);
     if (m == 0) {
         /**
          * Not a posix path
@@ -656,7 +656,7 @@ static wchar_t *towinpath(const wchar_t *str)
 
         if (pa != NULL) {
             for (i = 0; i < n; i++) {
-                pa[i] = posixtowin(pa[i]);
+                pa[i] = posixtowin(pa[i], 0);
                 rmtrailingpsep(pa[i]);
             }
             wp = mergepath(pa);
@@ -668,7 +668,7 @@ static wchar_t *towinpath(const wchar_t *str)
     }
     else {
         wp = xwcsdup(str);
-        wp = posixtowin(wp);
+        wp = posixtowin(wp, 0);
     }
     return wp;
 }
@@ -787,20 +787,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         for (i = xrunexec; i < argc; i++) {
             wchar_t *a = wargv[i];
 
-            if ((a[0] == L'/') && (a[1] == L'\0')) {
-                /**
-                 * Special case for / (root)
-                 */
-                xfree(a);
-                wargv[i] = xwcsdup(posixroot);
-            }
-            else if (a[0] == L'\'') {
-                /**
-                 * Do not convert arguments enclosed
-                 * in single qoutes.
-                 */
-            }
-            else if (iswinpath(a)) {
+            if (iswinpath(a)) {
                 replacepathsep(a);
                 if ((a[0] == L'\\') && (a[1] != L'\\')) {
                     /**
@@ -811,26 +798,33 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                     xfree(a);
                 }
             }
-            else if (isposixpath(a)) {
-                /**
-                 * We have posix path
-                 */
-                 wargv[i] = posixtowin(a);
-            }
             else {
-                wchar_t *v = cmdoptionval(a);
+                int m = isposixpath(a);
 
-                if (IS_VALID_WCS(v)) {
-                    if (iswinpath(v)) {
-                        replacepathsep(v);
-                    }
-                    else if (isposixpath(v)) {
-                        wchar_t *p = posixtowin(xwcsdup(v));
+                if (m != 0) {
+                    /**
+                     * We have posix path
+                     */
+                     wargv[i] = posixtowin(a, m);
+                }
+                else {
+                    wchar_t *v = cmdoptionval(a);
 
-                        v[0] = L'\0';
-                        wargv[i] = xwcsconcat(a, p);
-                        xfree(p);
-                        xfree(a);
+                    if (IS_VALID_WCS(v)) {
+                        if (iswinpath(v)) {
+                            replacepathsep(v);
+                        }
+                        else {
+                            m = isposixpath(v);
+                            if (m != 0) {
+                                wchar_t *p = posixtowin(xwcsdup(v), m);
+
+                                v[0] = L'\0';
+                                wargv[i] = xwcsconcat(a, p);
+                                xfree(p);
+                                xfree(a);
+                            }
+                        }
                     }
                 }
             }
@@ -903,7 +897,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                     xfree(p);
                 }
                 else {
-                    p = posixtowin(xwcsdup(v));
+                    p = posixtowin(xwcsdup(v), 0);
 
                     v[0] = L'\0';
                     wenvp[i] = xwcsconcat(e, p);
@@ -1108,7 +1102,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     }
     if (cwd != NULL) {
         rmtrailingpsep(cwd);
-        cwd = posixtowin(cwd);
+        cwd = posixtowin(cwd, 0);
         if (_wchdir(cwd) != 0) {
             if (xshowerr)
                 fwprintf(stderr, L"Invalid working directory: '%s'\n", cwd);
@@ -1178,7 +1172,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     if (xrunexec) {
         wchar_t *exe;
 
-        exe = posixtowin(dupwargv[0]);
+        exe = posixtowin(dupwargv[0], 0);
         if (_waccess(exe, 0)) {
             wchar_t *sch;
             wchar_t *pps;
