@@ -37,10 +37,10 @@ static int      xshowerr  = 1;
 static int      xforcewp  = 0;
 
 static wchar_t *posixroot   = NULL;
-static wchar_t *wsysdrive   = NULL;
 static wchar_t *cygwrunexec = NULL;
 static wchar_t *cygwrunpath = NULL;
 static wchar_t *cygwrunname = NULL;
+static wchar_t  wsysdrive[32];
 
 static const wchar_t *pathmatches[] = {
     L"/cygdrive/?/+*",
@@ -1154,12 +1154,13 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         return ENOENT;
     }
     rmtrailingpsep(cpp);
-    wsysdrive = xgetenv(L"SYSTEMDRIVE");
-    if (IS_EMPTY_WCS(wsysdrive)) {
+    i = GetWindowsDirectory(wsysdrive, 30);
+    if ((i == 0) || (i > 30)) {
         if (xshowerr)
             fputs("Cannot find SYSTEMDRIVE environment variable\n", stderr);
         return ENOENT;
     }
+    wsysdrive[2] = '\0';
     posixroot = getposixroot(crp);
     if (IS_EMPTY_WCS(posixroot)) {
         if (xshowerr)
