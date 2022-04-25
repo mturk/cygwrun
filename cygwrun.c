@@ -704,6 +704,7 @@ static wchar_t *getposixroot(wchar_t *r)
     }
     rmtrailingpsep(r);
     replacepathsep(r);
+    r[0] = towupper(r[0]);
     return r;
 }
 

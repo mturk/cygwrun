@@ -51,7 +51,11 @@ export POSIX_ROOT="C:\\_not\\a/directory//"
 v=/tmp
 rv="`$_cygwrun -p $v`"
 test "x$rv" = "xC:\\_not\\a\\directory\\tmp" || xbexit 1 "Failed #1.1: \`$rv'"
-export POSIX_ROOT=
+unset POSIX_ROOT
+
+rr="`$_cygwrun -r c:/cygwin64 -p /`"
+rv="`$_cygwrun -p /`"
+test "x$rv" = "x$rr" || xbexit 1 "Failed #1.2: \`$rv -- $rr'"
 
 tmpdir="`$_cygwrun -p /tmp`"
 test $? -ne 0 && xbexit 1 "Failed #2.1"
