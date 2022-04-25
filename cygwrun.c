@@ -438,7 +438,7 @@ static int isposixpath(const wchar_t *str)
 /**
  * Check if the argument is command line option
  * containing a posix path as value.
- * Eg. [/]name[:value] or [--]name[=value] will try to
+ * Eg. /name[:value] or [-|--]name[=value] will try to
  * convert value part to Windows paths unless the
  * name part itself is a path
  */
@@ -461,11 +461,8 @@ static wchar_t *cmdoptionval(wchar_t *v)
         int c = *(s++);
         if (c >= 127)
             return NULL;
-        if (c == L':') {
-            if (*v != L'/' || n == 0)
-                return NULL;
-            else
-                return s;
+        if ((c == L':') && (*v == L'/')) {
+            return n ? s : NULL;
         }
         else if (c == L'=') {
             return n ? s : NULL;
