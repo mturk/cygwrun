@@ -369,10 +369,7 @@ static int iswinpath(const wchar_t *s)
 {
     if (s[0] < 128) {
         if (s[0] == L'\\') {
-            if (s[1] == L'\\' && s[2] == L'?' && s[3] == L'\\')
-                s += 4;
-            else
-                return 1;
+            return 1;
         }
         if (isalpha(s[0]) && s[1] == L':') {
             if (IS_PSW(s[2]) || s[2] == L'\0')
