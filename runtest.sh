@@ -47,15 +47,6 @@ test -x "$_dumpenvp" || xbexit 1 "Cannot find dumpenvp.exe in \`$srcdir/x64'"
 
 echo "Running cygwrun test suite on: $phost"
 
-# Test for working directory
-rm -rf $srcdir/x64/.test 2>/dev/null
-mkdir $srcdir/x64/.test 2>/dev/null
-cp -f $_cygwrun $srcdir/x64/.test/cygwrun_test.exe
-rv="`$_cygwrun -w $srcdir/x64/.test cygwrun_test -e _CYGWRUN_POSIX_ROOT`"
-rc=$?
-rm -rf $srcdir/x64/.test 2>/dev/null
-test $rc -ne 0 && xbexit 1 "Failed #0: \`$rv'"
-
 export POSIX_ROOT="C:\\_not\\a/directory//"
 v=/tmp
 rv="`$_cygwrun -p $v`"

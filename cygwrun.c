@@ -691,15 +691,12 @@ static wchar_t *getposixroot(wchar_t *r)
             /**
              * Use default locations
              */
-            r = xgetenv(L"_CYGWRUN_POSIX_ROOT");
-            if (r == NULL) {
-                r = xwcsconcat(wsysdrive, L"\\cygwin64");
+            r = xwcsconcat(wsysdrive, L"\\cygwin64");
+            if (_waccess(r, 0)) {
+                r[9] = L'\0';
                 if (_waccess(r, 0)) {
-                    r[9] = L'\0';
-                    if (_waccess(r, 0)) {
-                        xfree(r);
-                        r = NULL;
-                    }
+                    xfree(r);
+                    r = NULL;
                 }
             }
             return r;
@@ -1212,7 +1209,6 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             exe = sch;
         }
         dupwargv[0] = exe;
-        dupwenvp[dupenvc++] = xwcsconcat(L"_CYGWRUN_POSIX_ROOT=", posixroot);
     }
     /**
      * Add back environment variables
