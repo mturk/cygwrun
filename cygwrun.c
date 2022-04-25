@@ -579,7 +579,7 @@ static void rmtrailingpsep(wchar_t *s)
     int i = (int)xwcslen(s) - 1;
 
     while (i > 2) {
-        if (s[i] == L';')
+        if ((s[i] == L';') || (s[i] == L' '))
             s[i--] = L'\0';
         else
             break;

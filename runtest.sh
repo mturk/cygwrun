@@ -53,18 +53,19 @@ rv="`$_cygwrun -p $v`"
 test "x$rv" = "xC:\\_not\\a\\directory\\tmp" || xbexit 1 "Failed #1.1: \`$rv'"
 unset POSIX_ROOT
 
-rr="`$_cygwrun -r c:/cygwin64 -p /`"
-rv="`$_cygwrun -p /`"
-test "x$rv" = "x$rr" || xbexit 1 "Failed #1.2: \`$rv -- $rr'"
-
-tmpdir="`$_cygwrun -p /tmp`"
-test $? -ne 0 && xbexit 1 "Failed #2.1"
-
-usrdir="`$_cygwrun -p /usr`"
-test $? -ne 0 && xbexit 1 "Failed #2.2"
-
 rootdir="`$_cygwrun -p /`"
-test $? -ne 0 && xbexit 1 "Failed #2.3"
+test $? -ne 0 && xbexit 1 "Failed #1.2"
+tmpdir="`$_cygwrun -p /tmp`"
+test $? -ne 0 && xbexit 1 "Failed #1.3"
+usrdir="`$_cygwrun -p /usr`"
+test $? -ne 0 && xbexit 1 "Failed #1.4"
+
+rv="`$_cygwrun -r c:/cygwin64/ -p /`"
+test "x$rv" = "x$rootdir" || xbexit 1 "Failed #2.1: \`$rv'"
+export CYGWIN_ROOT="C:/cygwin64//; ;"
+rv="`$_cygwrun -p /`"
+test "x$rv" = "x$rootdir" || xbexit 1 "Failed #2.2: \`$rv'"
+unset CYGWIN_ROOT
 
 export FOO=bar
 rv="`$_cygwrun -e FOO`"
@@ -100,6 +101,9 @@ test "x$rv" = "xFOO=$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #6.2: \`$rv'"
 
 rv="`$_cygwrun -p /libpath:./tmp/foo`"
 test "x$rv" = "x/libpath:.\\tmp\\foo" || xbexit 1 "Failed #7.1: \`$rv'"
+
+rv="`$_cygwrun -p /libpath:/tmp/foo`"
+test "x$rv" = "x/libpath:$tmpdir\\foo" || xbexit 1 "Failed #7.2: \`$rv'"
 
 rv="`$_cygwrun -p ./tmp`"
 test "x$rv" = "x.\\tmp" || xbexit 1 "Failed #8.1: \`$rv'"
