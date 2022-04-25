@@ -585,7 +585,7 @@ static void rmtrailingpsep(wchar_t *s)
             break;
     }
     while (i > 1) {
-        if (IS_PSW(s[i]))
+        if (IS_PSW(s[i]) && (s[i-1] != L'.'))
             s[i--] = L'\0';
         else
             break;
