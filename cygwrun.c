@@ -448,8 +448,7 @@ static wchar_t *cmdoptionval(wchar_t *v)
     wchar_t *s = v;
 
     if (*s == L'/') {
-        s++;
-        if (*s == L'/')
+        if (*(++s) == L'/')
             return NULL;
     }
     else if (*s == L'-') {
