@@ -36,10 +36,7 @@ static int      xskipenv  = 0;
 static int      xshowerr  = 1;
 static int      xforcewp  = 0;
 
-static wchar_t *posixroot   = NULL;
-static wchar_t *cygwrunexec = NULL;
-static wchar_t *cygwrunpath = NULL;
-static wchar_t *cygwrunname = NULL;
+static wchar_t *posixroot = NULL;
 static wchar_t  wsysdrive[32];
 
 static const wchar_t *pathmatches[] = {
@@ -757,35 +754,6 @@ static wchar_t *getrealpathname(const wchar_t *path, int isdir)
     return buf;
 }
 
-static int xresolvepaths(const wchar_t *p)
-{
-    int i;
-    int d = 0;
-
-    cygwrunexec = getrealpathname(p, 0);
-    if (IS_EMPTY_WCS(cygwrunexec))
-        return 0;
-
-    i = (int)xwcslen(cygwrunexec);
-    while (--i > 5) {
-        if ((d == 0) && (cygwrunexec[i] == L'.')) {
-            d = i;
-            cygwrunexec[d] = L'\0';
-        }
-        if (cygwrunexec[i] == L'\\') {
-            cygwrunexec[i] = L'\0';
-            cygwrunpath = xwcsdup(cygwrunexec);
-            cygwrunname = xwcsdup(cygwrunexec + i + 1);
-            cygwrunexec[i] = L'\\';
-            if (d > 0) {
-                cygwrunexec[d] = L'.';
-            }
-            return 1;
-        }
-    }
-    return 0;
-}
-
 static wchar_t *xsearchexe(const wchar_t *paths, const wchar_t *name)
 {
     wchar_t  *sp = NULL;
@@ -1135,11 +1103,6 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         if (xshowerr)
             fputs("Cannot have both -p and -e options defined\n", stderr);
         return usage(EINVAL);
-    }
-    if (xresolvepaths(wargv[0]) == 0) {
-        if (xshowerr)
-            fwprintf(stderr, L"Cannot resolve paths for: '%s'\n", wargv[0]);
-        return EBADF;
     }
     cpp = xgetenv(L"PATH");
     if (IS_EMPTY_WCS(cpp)) {
