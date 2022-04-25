@@ -266,29 +266,23 @@ static wchar_t *xwcsconcat(const wchar_t *s1, const wchar_t *s2)
     return rv;
 }
 
-static wchar_t *xwcscpaths(const wchar_t *s1, const wchar_t *s2, const wchar_t *s3)
+static wchar_t *xwcscpaths(const wchar_t *s1, const wchar_t *s2)
 {
     wchar_t *cp, *rv;
-    size_t l1, l2, l3;
+    size_t l1, l2;
 
     l1 = xwcslen(s1);
     l2 = xwcslen(s2);
-    l3 = xwcslen(s3);
 
     if (l1 == 0)
         return NULL;
-    cp = rv = xwalloc(l1 + l2 + l3 + 4);
+    cp = rv = xwalloc(l1 + l2 + 4);
 
     wmemcpy(cp, s1, l1);
     cp += l1;
     if(l2 > 0) {
         *(cp++) = L';';
         wmemcpy(cp, s2, l2);
-        cp += l2;
-    }
-    if(l3 > 0) {
-        *(cp++) = L';';
-        wmemcpy(cp, s3, l3);
     }
     return rv;
 }
@@ -1240,7 +1234,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
              * Add current directory as first PATH element
              * and search for PROGRAM[.exe]
              */
-            pps = xwcscpaths(cwd, cpp, cygwrunpath);
+            pps = xwcscpaths(cwd, cpp);
             sch = xsearchexe(pps, exe);
             if (sch == NULL) {
                 if (xshowerr)
