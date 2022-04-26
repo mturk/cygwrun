@@ -75,7 +75,6 @@ export FOO=/Fo:/tmp:/usr
 rv="`$_cygwrun -e FOO`"
 test "x$rv" = "xFOO=/Fo:/tmp:/usr" || xbexit 1 "Failed #3.2: \`$rv'"
 
-
 export FOO="/tmp/foo/bar:/usr/local"
 rv="`$_cygwrun -e FOO`"
 test "x$rv" = "xFOO=$tmpdir\\foo\\bar;$usrdir\\local" || xbexit 1 "Failed #4.1: \`$rv'"
@@ -88,13 +87,10 @@ rv="`$_cygwrun -e FOO`"
 test "x$rv" = "xFOO=$FOO" || xbexit 1 "Failed #5.2: \`$rv'"
 rv="`$_cygwrun -f -e FOO`"
 test "x$rv" = "xFOO=$tmpdir\\foo\\bar;$rootdir\\unknown;$usrdir\\local" || xbexit 1 "Failed #5.3: \`$rv'"
-rv="`$_cygwrun -p -I=/tmp/foo`"
-test "x$rv" = "x-I=$tmpdir\\foo" || xbexit 1 "Failed #5.4: \`$rv'"
 
 export FOO="/usr/a::/usr/b"
 rv="`$_cygwrun -e FOO`"
 test "x$rv" = "xFOO=$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #6.1: \`$rv'"
-
 export FOO="/usr/a:$abcd0123456789::/usr/b"
 rv="`$_cygwrun -e FOO`"
 test "x$rv" = "xFOO=$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #6.2: \`$rv'"
@@ -107,16 +103,15 @@ rv="`$_cygwrun -p /libpath=/tmp/foo`"
 test "x$rv" = "x/libpath=/tmp/foo" || xbexit 1 "Failed #7.3: \`$rv'"
 rv="`$_cygwrun -p -libpath:/tmp/foo`"
 test "x$rv" = "x-libpath:/tmp/foo" || xbexit 1 "Failed #7.4: \`$rv'"
+rv="`$_cygwrun -p -I=/tmp/foo`"
+test "x$rv" = "x-I=$tmpdir\\foo" || xbexit 1 "Failed #7.5: \`$rv'"
 
 rv="`$_cygwrun -p ./tmp`"
 test "x$rv" = "x.\\tmp" || xbexit 1 "Failed #8.1: \`$rv'"
-
 rv="`$_cygwrun -p ../tmp/foo`"
 test "x$rv" = "x..\\tmp\\foo" || xbexit 1 "Failed #8.2: \`$rv'"
-
 rv="`$_cygwrun -p ../tmp:/foo`"
 test "x$rv" = "x../tmp:/foo" || xbexit 1 "Failed #8.3: \`$rv'"
-
 rv="`$_cygwrun -p .../tmp`"
 test "x$rv" = "x.../tmp" || xbexit 1 "Failed #8.4: \`$rv'"
 
