@@ -41,6 +41,7 @@ Options are:
  -r <DIR>  use DIR as posix root
  -w <DIR>  change working directory to DIR before calling PROGRAM
  -k        keep extra posix environment variables.
+ -f        convert all unknown posix absolute paths
  -s        do not translate environment variables.
  -q        do not print errors to stderr.
  -v        print version information and exit.
@@ -48,7 +49,7 @@ Options are:
  -h | -?   print this screen and exit.
  -p        print arguments instead executing PROGRAM.
  -e        print current environment block end exit.
-           if defined, only print variables that match ARGUMENTS.
+           if defined, only print variables that begin with ARGUMENTS.
 
 ```
 
@@ -61,12 +62,11 @@ Use `-r <directory>` command line option to setup the install location
 of the current posix subsystem.
 
 In case the `-r <directory>` was not specified, the program will
-check the following environment variables;
+check the following environment variables:
 
-First it will check private environment variable `_CYGWRUN_POSIX_ROOT`.
-Then it will check `CYGWIN_ROOT` and then `POSIX_ROOT` variable.
+First it will check `CYGWIN_ROOT` and then `POSIX_ROOT` variable.
 If none of them were defined, the `C:\cygwin64` or `C:\cygwin`
-will be used, if there is `C:\cygwin64\etc\fstab` or `C:\cygwin\etc\fstab` file present.
+will be used, if those directories exists.
 
 Make sure that you provide a correct posix root since it will
 be used as prefix to `/usr, /bin, /tmp` constructing an actual
@@ -135,6 +135,25 @@ to be converted to it's windows format.
     $ FOO=C:\cygwin64\usr;C:\cygwin64\sbin;C:\cygwin64\unknown;..\dir
 ```
 
+## Command line arguments
+
+Arguments passed to program that cygwrun is about to execute are
+converted to windows path. However unlike environment variables, they
+cannot have multiple paths.
+
+If argument starts with `-` or `--` followed by valid variable name
+and equal `=` character, data after this equal character
+will be tried to translate to windows path. If translation fails,
+the original argument will be preserved.
+
+The variable does not have to start with `-` or `--`. Cygwrun will try
+to convert any argument starting with valid variable characters,
+followed by `=`, to windows path.
+
+```sh
+    $ cygwrun -p A=/tmp
+    $ A=C:\cygwin64\tmp
+```
 
 
 ## License
