@@ -101,9 +101,12 @@ test "x$rv" = "xFOO=$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #6.2: \`$rv'"
 
 rv="`$_cygwrun -p /libpath:./tmp/foo`"
 test "x$rv" = "x/libpath:.\\tmp\\foo" || xbexit 1 "Failed #7.1: \`$rv'"
-
 rv="`$_cygwrun -p /libpath:/tmp/foo`"
 test "x$rv" = "x/libpath:$tmpdir\\foo" || xbexit 1 "Failed #7.2: \`$rv'"
+rv="`$_cygwrun -p /libpath=/tmp/foo`"
+test "x$rv" = "x/libpath=/tmp/foo" || xbexit 1 "Failed #7.3: \`$rv'"
+rv="`$_cygwrun -p -libpath:/tmp/foo`"
+test "x$rv" = "x-libpath:/tmp/foo" || xbexit 1 "Failed #7.4: \`$rv'"
 
 rv="`$_cygwrun -p ./tmp`"
 test "x$rv" = "x.\\tmp" || xbexit 1 "Failed #8.1: \`$rv'"
