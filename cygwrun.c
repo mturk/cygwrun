@@ -78,6 +78,10 @@ static const wchar_t *pathfixed[] = {
 static const wchar_t *removeext[] = {
     L"INFOPATH",
     L"MANPATH",
+    L"OLDPWD",
+    L"ORIGINAL_PATH",
+    L"ORIGINAL_TEMP",
+    L"ORIGINAL_TMP",
     L"PROFILEREAD",
     L"SHELL",
     L"SHLVL",
@@ -90,10 +94,6 @@ static const wchar_t *removeenv[] = {
     L"!::",
     L"!;",
     L"CYGWIN_ROOT",
-    L"OLDPWD",
-    L"ORIGINAL_PATH",
-    L"ORIGINAL_TEMP",
-    L"ORIGINAL_TMP",
     L"PATH",
     L"POSIX_ROOT",
     L"PS1",
@@ -406,7 +406,7 @@ static int isposixpath(const wchar_t *str)
         return isdotpath(str);
     if (str[1] == L'\0')
         return 301;
-    if (wcspbrk(str + 1, L":="))
+    if (wcspbrk(str + 1, L":;="))
         return 0;
 
     s = wcschr( str + 1, L'/');
@@ -599,8 +599,6 @@ static wchar_t *posixtowin(wchar_t *pp, int m)
         /**
          * Not a posix path
          */
-        if (iswinpath(pp))
-            replacepathsep(pp);
         return pp;
     }
     else if (m == 100) {
@@ -867,12 +865,12 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                     continue;
                 }
                 p = xwcsconcat(wcurdrive, v);
+                replacepathsep(p);
 
                 v[0] = L'\0';
                 wenvp[i] = xwcsconcat(e, p);
                 xfree(e);
                 xfree(p);
-                replacepathsep(wenvp[i]);
             }
             else if ((v[0] == L'/') && (v[1] == L'\0')) {
                 /**
@@ -883,19 +881,8 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 xfree(e);
             }
             else {
-                p = wcschr(v, L'/');
-                if (p == NULL)
-                    continue;
-                if (wcschr(p + 1, L':') != NULL) {
+                if (wcschr(v, L'/')) {
                     p = towinpath(v);
-
-                    v[0] = L'\0';
-                    wenvp[i] = xwcsconcat(e, p);
-                    xfree(e);
-                    xfree(p);
-                }
-                else {
-                    p = posixtowin(xwcsdup(v), 0);
 
                     v[0] = L'\0';
                     wenvp[i] = xwcsconcat(e, p);
@@ -1100,7 +1087,10 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     }
     if (cwd != NULL) {
         rmtrailingpsep(cwd);
-        cwd = posixtowin(cwd, 0);
+        if (iswinpath(cwd))
+            replacepathsep(cwd);
+        else
+            cwd = posixtowin(cwd, 0);
         if (_wchdir(cwd) != 0) {
             if (xshowerr)
                 fwprintf(stderr, L"Invalid working directory: '%s'\n", cwd);
@@ -1168,9 +1158,12 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         }
     }
     if (xrunexec) {
-        wchar_t *exe;
+        wchar_t *exe = dupwargv[0];
 
-        exe = posixtowin(dupwargv[0], 0);
+        if (iswinpath(exe))
+            replacepathsep(exe);
+        else
+            exe = posixtowin(exe, 0);
         if (_waccess(exe, 0)) {
             wchar_t *sch;
             wchar_t *pps;
