@@ -448,25 +448,23 @@ static wchar_t *cmdoptionval(wchar_t *v)
     int n      = 0;
     wchar_t *s = v;
 
-    if (*s == L'/') {
-        if (*(++s) == L'/')
-            return NULL;
-    }
-    else if (*s == L'-') {
+    if (*s == L'-') {
         if (*(++s) == L'-')
             s++;
     }
-    if (*s == L'-')
+    else if (*s == L'/') {
+        s++;
+    }
+    if ((*s == L'-') || (*s == L'/'))
         return NULL;
     while (*s != L'\0') {
         int c = *(s++);
         if (c >= 127)
             return NULL;
-        if ((c == L':') && (*v == L'/')) {
-            return n ? s : NULL;
-        }
-        else if (c == L'=') {
-            return n ? s : NULL;
+        if (n > 0) {
+            if (((c == L'=') && (*v != L'/')) ||
+                ((c == L':') && (*v == L'/')))
+                return s;
         }
         if (xisvarchar[c] == 0)
             return NULL;
