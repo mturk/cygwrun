@@ -460,7 +460,7 @@ static wchar_t *cmdoptionval(wchar_t *s)
 
     if ((s[0] == L'-') && (s[1] == L'-'))
         s += 2;
-    if (*s == L'-')
+    if ((s[0] == L'-'))
         return NULL;
     while (*s != L'\0') {
         int c = *(s++);
@@ -827,12 +827,14 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                     if (IS_VALID_WCS(v) && isanypath(v)) {
                         if (iswinpath(v)) {
                             replacepathsep(v);
+                            rmtrailingpsep(v);
                         }
                         else {
                             m = isposixpath(v);
                             if (m != 0) {
                                 wchar_t *p = posixtowin(xwcsdup(v), m);
 
+                                rmtrailingpsep(p);
                                 v[0] = L'\0';
                                 wargv[i] = xwcsconcat(a, p);
                                 xfree(p);
