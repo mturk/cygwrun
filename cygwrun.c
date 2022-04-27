@@ -870,17 +870,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 return EBADF;
             }
             v++;
-            if (v[0] == L'"') {
-                /**
-                 * Unquote environment variable
-                 */
-                int n = (int)xwcslen(v) - 1;
-                if (n > 1 && v[n] == L'"') {
-                    v[n] = L'\0';
-                    wmemmove(v, v + 1, n);
-                }
-            }
-            else if (isanypath(v)) {
+            if (isanypath(v)) {
                 p = towinpath(v);
 
                 v[0] = L'\0';
