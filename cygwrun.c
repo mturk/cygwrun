@@ -515,19 +515,16 @@ static wchar_t **splitpath(const wchar_t *s, int *tokens)
             /**
              * Handle multiple collons
              */
-            if (c == 0) {
-                waafree(sa);
-                return NULL;
-            }
-            else {
-                s = e + 1;
-                continue;
-            }
+            s = e + 1;
+            continue;
         }
         p = xwalloc(n + 2);
         wmemcpy(p, s, n);
         sa[c++] = p;
-        if (isposixpath(p) == 0) {
+        if (isposixpath(p)) {
+            s = e + 1;
+        }
+        else {
             /**
              * Token before ':' was not a posix path.
              * Return original str regerdless if some
@@ -536,7 +533,6 @@ static wchar_t **splitpath(const wchar_t *s, int *tokens)
             waafree(sa);
             return NULL;
         }
-        s = e + 1;
     }
     if (*s != L'\0') {
         if (isposixpath(s)) {
