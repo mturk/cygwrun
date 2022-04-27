@@ -101,7 +101,7 @@ static const wchar_t *posixrenv[] = {
     NULL
 };
 
-const char xisvarchar[128] =
+const char xvalidvarname[128] =
 {
     /** Reject all ctrl codes...                                          */
         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -359,6 +359,15 @@ static int xwcsisenvvar(const wchar_t *str, const wchar_t *var)
     return 0;
 }
 
+static int xisvarchar(int c)
+{
+    if (c >= 127)
+        return 0;
+    else
+        return xvalidvarname[c];
+
+}
+
 static int iswinpath(const wchar_t *s)
 {
     if (s[0] == L'\\') {
@@ -460,13 +469,11 @@ static wchar_t *cmdoptionval(wchar_t *v)
         return NULL;
     while (*s != L'\0') {
         int c = *(s++);
-        if (c >= 127)
-            break;
         if (n > 0) {
             if (c == L'=')
                 return s;
         }
-        if (xisvarchar[c])
+        if (xisvarchar(c))
             n++;
         else
             break;
