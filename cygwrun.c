@@ -451,13 +451,19 @@ static int isanypath(const wchar_t *s)
 }
 
 /**
- * If argument starts with '[-|--]name=' the
+ * If argument starts with '[--]name=' the
  * function will return the string after '='.
  */
 static wchar_t *cmdoptionval(wchar_t *s)
 {
     int n = 0;
 
+    if (s[0] == L'-') {
+        if (s[1] == L'-')
+            s += 2;
+        else
+            return NULL;
+    }
     while (*s != L'\0') {
         int c = *(s++);
         if (n > 0) {

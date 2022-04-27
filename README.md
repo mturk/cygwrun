@@ -79,16 +79,16 @@ can set either environment variable
 ```sh
     $ export CYGWIN_ROOT=C:/cygwin64
     ...
-    $ cygwrun ... -f1=/usr/local
+    $ cygwrun ... --f1=/usr/local
 ```
 
 ... or declare it on command line
 
 ```sh
-    $ cygwrun -r C:/cygwin64 ... -f1=/usr/local
+    $ cygwrun -r C:/cygwin64 ... --f1=/usr/local
 ```
 
-In both cases `-f1 parameter` will evaluate to `-f1=C:\cygwin64\usr\local`
+In both cases `--f1 parameter` will evaluate to `--f1=C:\cygwin64\usr\local`
 
 ## Environment variables
 
@@ -142,7 +142,7 @@ Arguments passed to program are converted to windows format.
 However unlike environment variables, they
 cannot have multiple paths.
 
-If argument is not path, or it starts with `-` or `--` followed
+If argument is not a path, or it starts with `--` followed
 by valid variable name and equal `=` character, data after the
 equal character will be translated to windows path.
 If translation fails, the original argument will be preserved.
