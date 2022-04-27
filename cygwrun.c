@@ -1137,17 +1137,16 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         sch = getrealpathname(exe, 0);
         if (sch == NULL) {
             wchar_t *pps;
-            wchar_t *prg = exe;
             /**
              * PROGRAM is not an absolute path.
              * Add current directory as first PATH element
              * and search for PROGRAM[.exe]
              */
-            if (isdotpath(prg))
+            if (isdotpath(exe))
                 pps = xwcscpaths(cwd, cpp);
             else
                 pps = cpp;
-            sch = xsearchexe(pps, prg);
+            sch = xsearchexe(pps, exe);
             if (sch == NULL) {
                 if (xshowerr)
                     fwprintf(stderr, L"Cannot find PROGRAM '%s' inside %s\n",
