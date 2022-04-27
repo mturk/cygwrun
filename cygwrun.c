@@ -451,11 +451,8 @@ static int isanypath(const wchar_t *s)
 }
 
 /**
- * Check if the argument is command line option
- * containing a posix path as value.
- * Eg. [-|--]name[=value] will try to
- * convert value part to Windows paths unless the
- * name part itself is a path
+ * If argument starts with '[-|--]name=' the
+ * function will return the string after '='.
  */
 static wchar_t *cmdoptionval(wchar_t *v)
 {
