@@ -100,13 +100,6 @@ Cygwrun presumes that it's called from some Cygwin process,
 and it will try to translate all environment variables from
 posix to windows notation.
 
-Note that some environment variables are allways removed from the
-current environment variable list that is passed to child process,
-such as `OLDPWD` or `PS1`.
-
-The full list of variables that are allways removed is defined
-with `removeenv[]` array in [cygwrun.c](cygwrun.c) source file.
-
 For example, if environment variable contains valid posix path(s)
 it will be translated to windows path(s).
 
@@ -135,20 +128,25 @@ to be converted to it's windows format.
     $ FOO=C:\cygwin64\usr;C:\cygwin64\sbin;C:\cygwin64\unknown;..\dir
 ```
 
+Note that some environment variables are allways removed from the
+current environment variable list that is passed to child process,
+such as `CYGWIN_ROOT` or `PS1`.
+
+The full list of variables that are allways removed is defined
+with `removeenv[]` array in [cygwrun.c](cygwrun.c) source file.
+
+
 ## Command line arguments
 
-Arguments passed to program that cygwrun is about to execute are
-converted to windows path. However unlike environment variables, they
+Arguments passed to program are converted to windows format.
+However unlike environment variables, they
 cannot have multiple paths.
 
-If argument starts with `-` or `--` followed by valid variable name
-and equal `=` character, data after this equal character
-will be tried to translate to windows path. If translation fails,
-the original argument will be preserved.
+If argument is not path, or it starts with `-` or `--` followed
+by valid variable name and equal `=` character, data after the
+equal character will be translated to windows path.
+If translation fails, the original argument will be preserved.
 
-The variable does not have to start with `-` or `--`. Cygwrun will try
-to convert any argument starting with valid variable characters,
-followed by `=`, to windows path.
 
 ```sh
     $ cygwrun -p A=/tmp
