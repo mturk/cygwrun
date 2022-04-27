@@ -41,9 +41,9 @@ xbexit()
 _cygwrun=$srcdir/x64/cygwrun.exe
 test -x "$_cygwrun" || xbexit 1 "Cannot find cygwrun.exe in \`$srcdir/x64'"
 _dumpargs=./x64/dumpargs
-test -x "$_dumpargs" || xbexit 1 "Cannot find dumpargs.exe in \`$srcdir/x64'"
+test -x "$_dumpargs" || xbexit 1 "Cannot find dumpargs.exe in \`./x64'"
 _dumpenvp=./x64/dumpenvp
-test -x "$_dumpenvp" || xbexit 1 "Cannot find dumpenvp.exe in \`$srcdir/x64'"
+test -x "$_dumpenvp" || xbexit 1 "Cannot find dumpenvp.exe in \`./x64'"
 
 echo "Running cygwrun test suite on: $phost"
 

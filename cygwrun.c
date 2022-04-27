@@ -74,16 +74,10 @@ static const wchar_t *pathfixed[] = {
 };
 
 static const wchar_t *removeext[] = {
-    L"INFOPATH",
-    L"MANPATH",
     L"OLDPWD",
     L"ORIGINAL_PATH",
     L"ORIGINAL_TEMP",
     L"ORIGINAL_TMP",
-    L"PROFILEREAD",
-    L"SHELL",
-    L"SHLVL",
-    L"TERM",
     NULL
 };
 
@@ -854,7 +848,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         }
     }
     if (xskipenv == 0) {
-        for (i = 0; i < (envc - 2); i++) {
+        for (i = 0; i < (envc - 3); i++) {
             wchar_t *v;
             wchar_t *p;
             wchar_t *e = wenvp[i];
@@ -1094,7 +1088,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         ++envc;
     }
 
-    dupwenvp = waalloc(envc + 2);
+    dupwenvp = waalloc(envc + 4);
     for (i = 0; i < envc; i++) {
         const wchar_t **e;
         const wchar_t  *p = wenv[i];
@@ -1160,6 +1154,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
      */
     dupwenvp[dupenvc++] = xwcsconcat(L"PATH=", cpp);
     dupwenvp[dupenvc++] = xwcsconcat(L"PWD=",  cwd);
+    dupwenvp[dupenvc++] = xwcsconcat(L"POSIX_ROOT=", posixroot);
     xfree(cpp);
     xfree(cwd);
     return posixmain(dupargc, dupwargv, dupenvc, dupwenvp);
