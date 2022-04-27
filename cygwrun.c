@@ -400,37 +400,34 @@ static int isdotpath(const wchar_t *s)
 
 static int isposixpath(const wchar_t *str)
 {
-    int            i = 0;
-    const wchar_t *s;
+    int i = 0;
 
     if (str[0] != L'/')
         return isdotpath(str);
     if (str[1] == L'\0')
         return 301;
-    s = wcspbrk(str + 1, L":/");
+    if (wcschr(str + 1, L':'))
+        return 0;
 
-    if (s == NULL) {
-        const wchar_t **mp = pathfixed;
+    if (wcschr(str + 1, L'/')) {
 
-        while (mp[i] != NULL) {
-            if (wcscmp(str, mp[i]) == 0)
-                return i + 200;
-            i++;
-        }
-        if (xforcewp)
-            return 250;
-    }
-    else if (*s == L'/') {
-        const wchar_t **mp = pathmatches;
-
-        while (mp[i] != NULL) {
-            if (xwcsmatch(str, mp[i]) == 0)
+        while (pathmatches[i] != NULL) {
+            if (xwcsmatch(str, pathmatches[i]) == 0)
                 return i + 100;
             i++;
         }
         if (xforcewp)
             return 150;
+    }
+    else {
 
+        while (pathfixed[i] != NULL) {
+            if (wcscmp(str, pathfixed[i]) == 0)
+                return i + 200;
+            i++;
+        }
+        if (xforcewp)
+            return 250;
     }
     return 0;
 }
@@ -454,7 +451,7 @@ static int isanypath(const wchar_t *s)
 /**
  * Check if the argument is command line option
  * containing a posix path as value.
- * Eg. /name[:value] or [-|--]name[=value] will try to
+ * Eg. [-|--]name[=value] will try to
  * convert value part to Windows paths unless the
  * name part itself is a path
  */
@@ -463,20 +460,19 @@ static wchar_t *cmdoptionval(wchar_t *v)
     int n      = 0;
     wchar_t *s = v;
 
-    if ((*s == L'-') || (*s == L'/')) {
+    if (*s == L'-') {
         s++;
-        if ((*s == L'-') && (*v != L'/'))
+        if (*s == L'-')
             s++;
     }
-    if ((*s == L'-') || (*s == L'/'))
+    if (*s == L'-')
         return NULL;
     while (*s != L'\0') {
         int c = *(s++);
         if (c >= 127)
             break;
         if (n > 0) {
-            if (((c == L'=') && (*v != L'/')) ||
-                ((c == L':') && (*v == L'/')))
+            if (c == L'=')
                 return s;
         }
         if (xisvarchar[c] != 1)
