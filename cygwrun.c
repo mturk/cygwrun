@@ -579,7 +579,7 @@ static void rmtrailingpsep(wchar_t *s)
 {
     int i = (int)xwcslen(s) - 1;
 
-    while (i > 2) {
+    while (i > 1) {
         if ((s[i] == L';') || (s[i] == L' '))
             s[i--] = L'\0';
         else
@@ -814,6 +814,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             }
             else if (iswinpath(a)) {
                 replacepathsep(a);
+                rmtrailingpsep(a);
             }
             else {
                 int m = isposixpath(a);
@@ -823,6 +824,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                      * We have posix path
                      */
                      wargv[i] = posixtowin(a, m);
+                     rmtrailingpsep(wargv[i]);
                 }
                 else {
                     wchar_t *v = cmdoptionval(a);
