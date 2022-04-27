@@ -390,9 +390,9 @@ static int isdotpath(const wchar_t *s)
 {
 
     if (s[0] == L'.') {
-        if ((s[1] == L'\0') || IS_PSW(s[1]))
+        if (IS_PSW(s[1]))
             return 300;
-        if ((s[1] == L'.') && ((s[2] == L'\0') || IS_PSW(s[2])))
+        if ((s[1] == L'.') && (IS_PSW(s[2])))
             return 300;
     }
 
@@ -407,8 +407,6 @@ static int isposixpath(const wchar_t *str)
         return isdotpath(str);
     if (str[1] == L'\0')
         return 301;
-    if (wcschr(str + 1, L':'))
-        return 0;
 
     if (wcschr(str + 1, L'/')) {
 
@@ -437,9 +435,7 @@ static int isanypath(const wchar_t *s)
 {
     int r;
 
-    if (s[0] == L'\\')
-        r = iswinpath(s);
-    else if (s[0] == L'/')
+    if (s[0] == L'/')
         r = 1;
     else if (s[0] == L'.')
         r = isdotpath(s);
