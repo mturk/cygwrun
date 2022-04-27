@@ -138,11 +138,9 @@ with `removeenv[]` array in [cygwrun.c](cygwrun.c) source file.
 
 ## Command line arguments
 
-Arguments passed to program are converted to windows format.
-However unlike environment variables, they
-cannot have multiple paths.
+All arguments passed to `PROGRAM` are converted to windows format.
 
-If argument is not a path, or it starts with `--` followed
+If argument is not a path, or it starts with `--`, and then followed
 by valid variable name and equal `=` character, data after the
 equal character will be translated to windows path.
 If translation fails, the original argument will be preserved.
