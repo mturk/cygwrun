@@ -388,10 +388,11 @@ static int iswinpath(const wchar_t *s)
 
 static int isdotpath(const wchar_t *s)
 {
-    int dots = 0;
 
-    while ((*(s++) == L'.') && (++dots < 3)) {
-        if ((*s == L'\0') || IS_PSW(*s))
+    if (s[0] == L'.') {
+        if ((s[1] == L'\0') || IS_PSW(s[1]))
+            return 300;
+        if ((s[1] == L'.') && ((s[2] == L'\0') || IS_PSW(s[2])))
             return 300;
     }
 
