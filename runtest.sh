@@ -40,9 +40,9 @@ xbexit()
 
 _cygwrun=$srcdir/x64/cygwrun.exe
 test -x "$_cygwrun" || xbexit 1 "Cannot find cygwrun.exe in \`$srcdir/x64'"
-_dumpargs=$srcdir/x64/dumpargs.exe
+_dumpargs=./x64/dumpargs
 test -x "$_dumpargs" || xbexit 1 "Cannot find dumpargs.exe in \`$srcdir/x64'"
-_dumpenvp=$srcdir/x64/dumpenvp.exe
+_dumpenvp=./x64/dumpenvp
 test -x "$_dumpenvp" || xbexit 1 "Cannot find dumpenvp.exe in \`$srcdir/x64'"
 
 echo "Running cygwrun test suite on: $phost"
@@ -110,10 +110,10 @@ rv="`$_cygwrun -p ./tmp`"
 test "x$rv" = "x.\\tmp" || xbexit 1 "Failed #8.1: \`$rv'"
 rv="`$_cygwrun -p ../tmp/foo`"
 test "x$rv" = "x..\\tmp\\foo" || xbexit 1 "Failed #8.2: \`$rv'"
-rv="`$_cygwrun -p ../tmp:/foo`"
-test "x$rv" = "x../tmp:/foo" || xbexit 1 "Failed #8.3: \`$rv'"
 rv="`$_cygwrun -p .../tmp`"
-test "x$rv" = "x.../tmp" || xbexit 1 "Failed #8.4: \`$rv'"
+test "x$rv" = "x.../tmp" || xbexit 1 "Failed #8.3: \`$rv'"
+rv="`$_cygwrun -p \"\\\"./tmp\"\\\"`"
+test "x$rv" = "x./tmp" || xbexit 1 "Failed #8.4: \`$rv'"
 
 rv="`$_cygwrun $_dumpargs -f1=../tmp/foo`"
 test "x$rv" = "x-f1=..\\tmp\\foo" || xbexit 1 "Failed #9.1: \`$rv'"

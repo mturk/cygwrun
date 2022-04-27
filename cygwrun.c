@@ -37,8 +37,6 @@ static int      xshowerr  = 1;
 static int      xforcewp  = 0;
 
 static wchar_t *posixroot = NULL;
-static wchar_t  wsysdrive[32];
-static wchar_t  wcurdrive[32];
 
 static const wchar_t *pathmatches[] = {
     L"/cygdrive/?/+*",
@@ -96,6 +94,7 @@ static const wchar_t *removeenv[] = {
     L"CYGWIN_ROOT",
     L"PATH",
     L"POSIX_ROOT",
+    L"PWD",
     L"PS1",
     L"temp",
     L"tmp",
@@ -368,10 +367,17 @@ static int xwcsisenvvar(const wchar_t *str, const wchar_t *var)
 
 static int iswinpath(const wchar_t *s)
 {
-    if (s[0] < 128) {
-        if (s[0] == L'\\') {
-            return 1;
+    if (s[0] == L'\\') {
+        if ((s[1] == L'\\') &&
+            (s[2] != L'\\')) {
+            s += 2;
+            while (*s != L'\0') {
+                if (*(s++) == L'\\')
+                    return *s != L'\0';
+            }
         }
+    }
+    else if (s[0] < 128) {
         if (isalpha(s[0]) && s[1] == L':') {
             if (IS_PSW(s[2]) || s[2] == L'\0')
                 return 1;
@@ -385,15 +391,10 @@ static int isdotpath(const wchar_t *s)
     int dots = 0;
 
     while ((*(s++) == L'.') && (++dots < 3)) {
-        if (*s == L'\0')
+        if ((*s == L'\0') || IS_PSW(*s))
             return 300;
-        if (IS_PSW(*s)) {
-            if (wcschr(s + 1, L':'))
-                return 0;
-            else
-                return 300;
-        }
     }
+
     return 0;
 }
 
@@ -406,10 +407,8 @@ static int isposixpath(const wchar_t *str)
         return isdotpath(str);
     if (str[1] == L'\0')
         return 301;
-    if (wcspbrk(str + 1, L":;="))
-        return 0;
+    s = wcspbrk(str + 1, L":/");
 
-    s = wcschr( str + 1, L'/');
     if (s == NULL) {
         const wchar_t **mp = pathfixed;
 
@@ -421,7 +420,7 @@ static int isposixpath(const wchar_t *str)
         if (xforcewp)
             return 250;
     }
-    else {
+    else if (*s == L'/') {
         const wchar_t **mp = pathmatches;
 
         while (mp[i] != NULL) {
@@ -434,6 +433,22 @@ static int isposixpath(const wchar_t *str)
 
     }
     return 0;
+}
+
+static int isanypath(const wchar_t *s)
+{
+    int r;
+
+    if (s[0] == L'\\')
+        r = iswinpath(s);
+    else if (s[0] == L'/')
+        r = 1;
+    else if (s[0] == L'.')
+        r = isdotpath(s);
+    else
+        r = iswinpath(s);
+
+    return r;
 }
 
 /**
@@ -449,7 +464,8 @@ static wchar_t *cmdoptionval(wchar_t *v)
     wchar_t *s = v;
 
     if (*s == L'-') {
-        if (*(++s) == L'-')
+        s++;
+        if (*s == L'-')
             s++;
     }
     else if (*s == L'/') {
@@ -460,14 +476,14 @@ static wchar_t *cmdoptionval(wchar_t *v)
     while (*s != L'\0') {
         int c = *(s++);
         if (c >= 127)
-            return NULL;
+            break;
         if (n > 0) {
             if (((c == L'=') && (*v != L'/')) ||
                 ((c == L':') && (*v == L'/')))
                 return s;
         }
         if (xisvarchar[c] == 0)
-            return NULL;
+            break;
         n++;
     }
     return NULL;
@@ -500,6 +516,7 @@ static wchar_t **splitpath(const wchar_t *s, int *tokens)
             x++;
     }
     sa = waalloc(x + 1);
+    *tokens = 0;
     while ((e = wcschr(s, L':')) != NULL) {
         wchar_t *p;
         size_t   n = (size_t)(e - s);
@@ -630,9 +647,21 @@ static wchar_t *posixtowin(wchar_t *pp, int m)
     return rv;
 }
 
+static wchar_t *pathtowin(wchar_t *pp)
+{
+    wchar_t *rv = pp;
+
+    if (iswinpath(pp))
+        replacepathsep(pp);
+    else
+        rv = posixtowin(pp, 0);
+
+    return rv;
+}
+
 static wchar_t *towinpath(const wchar_t *str)
 {
-    wchar_t *wp;
+    wchar_t *wp = NULL;
 
     if (iswinpath(str)) {
         wp = xwcsdup(str);
@@ -665,6 +694,7 @@ static wchar_t *towinpath(const wchar_t *str)
     else {
         wp = xwcsdup(str);
         wp = posixtowin(wp, 0);
+        rmtrailingpsep(wp);
     }
     return wp;
 }
@@ -685,7 +715,7 @@ static wchar_t *getposixroot(wchar_t *r)
             /**
              * Use default locations
              */
-            r = xwcsconcat(wsysdrive, L"\\cygwin64");
+            r = xwcsdup(L"C:\\cygwin64");
             if (_waccess(r, 0)) {
                 r[9] = L'\0';
                 if (_waccess(r, 0)) {
@@ -783,16 +813,19 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         for (i = xrunexec; i < argc; i++) {
             wchar_t *a = wargv[i];
 
-            if (iswinpath(a)) {
-                replacepathsep(a);
-                if ((a[0] == L'\\') && (a[1] != L'\\')) {
-                    /**
-                     * We have \foo
-                     * Prepend with Current drive
-                     */
-                    wargv[i] =  xwcsconcat(wcurdrive, a);
+            if (a[0] == L'"') {
+                /**
+                 * Unquote argument
+                 */
+                int n = (int)xwcslen(a) - 1;
+                if (n > 1 && a[n] == L'"') {
+                    a[n] = L'\0';
+                    wargv[i] = xwcsdup(a + 1);
                     xfree(a);
                 }
+            }
+            else if (iswinpath(a)) {
+                replacepathsep(a);
             }
             else {
                 int m = isposixpath(a);
@@ -806,7 +839,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 else {
                     wchar_t *v = cmdoptionval(a);
 
-                    if (IS_VALID_WCS(v)) {
+                    if (IS_VALID_WCS(v) && isanypath(v)) {
                         if (iswinpath(v)) {
                             replacepathsep(v);
                         }
@@ -835,7 +868,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         }
     }
     if (xskipenv == 0) {
-        for (i = 0; i < (envc - xrunexec - 1); i++) {
+        for (i = 0; i < (envc - xrunexec - 2); i++) {
             wchar_t *v;
             wchar_t *p;
             wchar_t *e = wenvp[i];
@@ -848,47 +881,23 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 return EBADF;
             }
             v++;
-            if (v[0] == L'\'') {
+            if (v[0] == L'"') {
                 /**
-                 * Do not process single quoted variables
+                 * Unquote environment variable
                  */
-                continue;
-
-            }
-            else if (v[0] == L'\\') {
-                /**
-                 * We have \foo
-                 * Prepend with current drive
-                 * unless we have \\foo
-                 */
-                if (v[1] == L'\\') {
-                    continue;
+                int n = (int)xwcslen(v) - 1;
+                if (n > 1 && v[n] == L'"') {
+                    v[n] = L'\0';
+                    wmemmove(v, v + 1, n);
                 }
-                p = xwcsconcat(wcurdrive, v);
-                replacepathsep(p);
+            }
+            else if (isanypath(v)) {
+                p = towinpath(v);
 
                 v[0] = L'\0';
                 wenvp[i] = xwcsconcat(e, p);
                 xfree(e);
                 xfree(p);
-            }
-            else if ((v[0] == L'/') && (v[1] == L'\0')) {
-                /**
-                 * Special case for / (root)
-                 */
-                v[0] = L'\0';
-                wenvp[i] = xwcsconcat(e, posixroot);
-                xfree(e);
-            }
-            else {
-                if (wcschr(v, L'/')) {
-                    p = towinpath(v);
-
-                    v[0] = L'\0';
-                    wenvp[i] = xwcsconcat(e, p);
-                    xfree(e);
-                    xfree(p);
-                }
             }
         }
     }
@@ -1072,13 +1081,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         return ENOENT;
     }
     rmtrailingpsep(cpp);
-    i = GetWindowsDirectoryW(wsysdrive, 32);
-    if ((i == 0) || (i >= 32)) {
-        if (xshowerr)
-            fputs("Cannot find SYSTEMDRIVE\n", stderr);
-        return ENOENT;
-    }
-    wsysdrive[2] = '\0';
+
     posixroot = getposixroot(crp);
     if (IS_EMPTY_WCS(posixroot)) {
         if (xshowerr)
@@ -1086,11 +1089,8 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         return ENOENT;
     }
     if (cwd != NULL) {
+        cwd = pathtowin(cwd);
         rmtrailingpsep(cwd);
-        if (iswinpath(cwd))
-            replacepathsep(cwd);
-        else
-            cwd = posixtowin(cwd, 0);
         if (_wchdir(cwd) != 0) {
             if (xshowerr)
                 fwprintf(stderr, L"Invalid working directory: '%s'\n", cwd);
@@ -1103,14 +1103,6 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         if (xshowerr)
             fputs("Cannot get current working directory\n", stderr);
         return ENOENT;
-    }
-    else {
-        for(i = 0; i < 8; i++) {
-            wcurdrive[i] = cwd[i];
-            if (cwd[i] == L'\0' || cwd[i] == L':')
-                break;
-        }
-        wcurdrive[i+1] = L'\0';
     }
     while (wenv[envc] != NULL) {
         ++envc;
@@ -1145,51 +1137,44 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             }
         }
         if (p != NULL) {
-            const wchar_t *v;
-
-            v = wcschr(p, L'=');
-            if ((v == NULL) || (v[1] == L'\0')) {
-                /**
-                 * Bad environment
-                 */
-                return EBADF;
-            }
             dupwenvp[dupenvc++] = xwcsdup(p);
         }
     }
     if (xrunexec) {
-        wchar_t *exe = dupwargv[0];
+        wchar_t *sch;
+        wchar_t *exe = pathtowin(dupwargv[0]);
 
-        if (iswinpath(exe))
-            replacepathsep(exe);
-        else
-            exe = posixtowin(exe, 0);
-        if (_waccess(exe, 0)) {
-            wchar_t *sch;
-            wchar_t *pps;
+        sch = getrealpathname(exe, 0);
+        if (sch == NULL) {
+            wchar_t *pps = cpp;
+            wchar_t *prg = exe;
             /**
              * PROGRAM is not an absolute path.
              * Add current directory as first PATH element
              * and search for PROGRAM[.exe]
              */
-            pps = xwcscpaths(cwd, cpp);
-            sch = xsearchexe(pps, exe);
+            if (prg[0] == L'.' && prg[1] == '\\') {
+                pps = xwcscpaths(cwd, cpp);
+                prg += 2;
+            }
+            sch = xsearchexe(pps, prg);
             if (sch == NULL) {
                 if (xshowerr)
                     fwprintf(stderr, L"Cannot find PROGRAM '%s' inside %s\n",
                              exe, pps);
                 return ENOENT;
             }
-            xfree(pps);
-            xfree(exe);
-            exe = sch;
+            if (pps != cpp)
+                xfree(pps);
         }
-        dupwargv[0] = exe;
+        xfree(exe);
+        dupwargv[0] = sch;
     }
     /**
      * Add back environment variables
      */
     dupwenvp[dupenvc++] = xwcsconcat(L"PATH=", cpp);
+    dupwenvp[dupenvc++] = xwcsconcat(L"PWD=",  cwd);
     xfree(cpp);
     xfree(cwd);
     return posixmain(dupargc, dupwargv, dupenvc, dupwenvp);
