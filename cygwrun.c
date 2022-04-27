@@ -1049,6 +1049,11 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         }
         dupwargv[dupargc++] = xwcsdup(p);
     }
+    if (haseopt && haspopt) {
+        if (xshowerr)
+            fputs("Cannot have both -p and -e options defined\n", stderr);
+        return usage(EINVAL);
+    }
     if ((dupargc == 0) && (xdumpenv == 0)) {
         if (xshowerr)
             fputs("Missing PROGRAM argument\n", stderr);
@@ -1058,11 +1063,6 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         if (xshowerr)
             fputs("Missing required parameter value\n", stderr);
         return usage(1);
-    }
-    if (haseopt && haspopt) {
-        if (xshowerr)
-            fputs("Cannot have both -p and -e options defined\n", stderr);
-        return usage(EINVAL);
     }
     cpp = xgetenv(L"PATH");
     if (IS_EMPTY_WCS(cpp)) {
