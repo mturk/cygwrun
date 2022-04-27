@@ -65,9 +65,9 @@ test "x$rv" = "x$rootdir" || xbexit 1 "Failed #2.1: \`$rv'"
 export CYGWIN_ROOT="C:/cygwin64//; ;"
 rv="`$_cygwrun -p /`"
 test "x$rv" = "x$rootdir" || xbexit 1 "Failed #2.2: \`$rv'"
-unset CYGWIN_ROOT
 rv="`$_cygwrun -p \"./. ;\"`"
 test "x$rv" = "x.\\" || xbexit 1 "Failed #2.3: \`$rv'"
+unset CYGWIN_ROOT
 
 export FOO=bar
 rv="`$_cygwrun -e FOO`"
@@ -93,7 +93,7 @@ test "x$rv" = "xFOO=$tmpdir\\foo\\bar;$rootdir\\unknown;$usrdir\\local" || xbexi
 export FOO="/usr/a::/usr/b"
 rv="`$_cygwrun -e FOO`"
 test "x$rv" = "xFOO=$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #6.1: \`$rv'"
-export FOO="/usr/a:$abcd0123456789::/usr/b"
+export FOO="/usr/a:$abcd0123456789::/usr/b::"
 rv="`$_cygwrun -e FOO`"
 test "x$rv" = "xFOO=$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #6.2: \`$rv'"
 

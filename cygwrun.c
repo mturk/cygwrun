@@ -411,8 +411,10 @@ static int isposixpath(const wchar_t *str)
         return isdotpath(str);
     if (str[1] == L'\0')
         return 301;
+    if (wcspbrk(str + 1, L":="))
+        return 0;
 
-    s = wcspbrk(str + 1, L":=/");
+    s = wcschr(str + 1, L'/');
     if (s == NULL) {
         while (pathfixed[i] != NULL) {
             if (wcscmp(str, pathfixed[i]) == 0)
@@ -422,7 +424,7 @@ static int isposixpath(const wchar_t *str)
         if (xforcewp)
             return 250;
     }
-    else if (*s == L'/') {
+    else {
         while (pathmatches[i] != NULL) {
             if (xwcsmatch(str, pathmatches[i]) == 0)
                 return i + 100;
