@@ -638,11 +638,13 @@ static wchar_t *pathtowin(wchar_t *pp)
 {
     wchar_t *rv = pp;
 
-    if (iswinpath(pp))
+    if (iswinpath(pp)) {
         replacepathsep(pp);
-    else
+        rmtrailingpsep(pp);
+    }
+    else {
         rv = posixtowin(pp, 0);
-
+    }
     return rv;
 }
 
@@ -1077,7 +1079,6 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     }
     if (cwd != NULL) {
         cwd = pathtowin(cwd);
-        rmtrailingpsep(cwd);
         if (_wchdir(cwd) != 0) {
             if (xshowerr)
                 fwprintf(stderr, L"Invalid working directory: '%s'\n", cwd);
