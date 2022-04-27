@@ -151,6 +151,9 @@ If translation fails, the original argument will be preserved.
 ```sh
     $ cygwrun -p A=/tmp
     $ A=C:\cygwin64\tmp
+    $
+    $ cygwrun -p --A=/tmp
+    $ --A=C:\cygwin64\tmp
 ```
 
 

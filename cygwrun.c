@@ -464,6 +464,8 @@ static wchar_t *cmdoptionval(wchar_t *s)
         else
             return NULL;
     }
+    if (*s == L'-')
+        return NULL;
     while (*s != L'\0') {
         int c = *(s++);
         if (n > 0) {
