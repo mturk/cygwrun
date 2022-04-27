@@ -458,12 +458,8 @@ static wchar_t *cmdoptionval(wchar_t *s)
 {
     int n = 0;
 
-    if (s[0] == L'-') {
-        if (s[1] == L'-')
-            s += 2;
-        else
-            return NULL;
-    }
+    if ((s[0] == L'-') && (s[1] == L'-'))
+        s += 2;
     if (*s == L'-')
         return NULL;
     while (*s != L'\0') {
