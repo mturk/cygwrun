@@ -717,18 +717,17 @@ static wchar_t *getposixroot(wchar_t *r)
     return r;
 }
 
-static wchar_t *getrealpathname(const wchar_t *path, int isdir)
+static wchar_t *getrealpathname(const wchar_t *path)
 {
     wchar_t    *buf  = NULL;
     DWORD       siz  = _MAX_FNAME;
     DWORD       len  = 0;
     HANDLE      fh;
-    DWORD       fa   = isdir ? FILE_FLAG_BACKUP_SEMANTICS : FILE_ATTRIBUTE_NORMAL;
 
     if (IS_EMPTY_WCS(path))
         return NULL;
     fh = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL,
-                     OPEN_EXISTING, fa, NULL);
+                     OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (IS_INVALID_HANDLE(fh))
         return NULL;
 
@@ -783,7 +782,7 @@ static wchar_t *xsearchexe(const wchar_t *paths, const wchar_t *name)
             sz = ln;
         }
     }
-    rp = getrealpathname(sp, 0);
+    rp = getrealpathname(sp);
     xfree(sp);
     return rp;
 }
@@ -1120,7 +1119,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         wchar_t *sch;
         wchar_t *exe = pathtowin(dupwargv[0]);
 
-        sch = getrealpathname(exe, 0);
+        sch = getrealpathname(exe);
         if (sch == NULL) {
             wchar_t *pps;
             /**
