@@ -94,8 +94,8 @@ static const wchar_t *removeenv[] = {
     L"CYGWIN_ROOT",
     L"PATH",
     L"POSIX_ROOT",
-    L"PWD",
     L"PS1",
+    L"PWD",
     L"temp",
     L"tmp",
     NULL
@@ -463,16 +463,11 @@ static wchar_t *cmdoptionval(wchar_t *v)
     int n      = 0;
     wchar_t *s = v;
 
-    if (*s == L'-') {
+    if ((*s == L'-') || (*s == L'/')) {
         s++;
-        if (*s == L'-')
+        if ((*s == L'-') && (*v != L'/'))
             s++;
     }
-    else if (*s == L'/') {
-        s++;
-    }
-    if ((*s == L'-') || (*s == L'/'))
-        return NULL;
     while (*s != L'\0') {
         int c = *(s++);
         if (c >= 127)
@@ -482,7 +477,7 @@ static wchar_t *cmdoptionval(wchar_t *v)
                 ((c == L':') && (*v == L'/')))
                 return s;
         }
-        if (xisvarchar[c] == 0)
+        if (xisvarchar[c] != 1)
             break;
         n++;
     }
@@ -868,7 +863,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         }
     }
     if (xskipenv == 0) {
-        for (i = 0; i < (envc - xrunexec - 2); i++) {
+        for (i = 0; i < (envc - 2); i++) {
             wchar_t *v;
             wchar_t *p;
             wchar_t *e = wenvp[i];
