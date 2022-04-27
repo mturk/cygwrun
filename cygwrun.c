@@ -652,8 +652,8 @@ static wchar_t *towinpath(const wchar_t *str)
 
     if (iswinpath(str)) {
         wp = xwcsdup(str);
-        rmtrailingpsep(wp);
         replacepathsep(wp);
+        rmtrailingpsep(wp);
     }
     else if (xwcsmatch(str, L"*/+*:*/+*") == 0) {
         /**
@@ -711,8 +711,8 @@ static wchar_t *getposixroot(wchar_t *r)
             return r;
         }
     }
-    rmtrailingpsep(r);
     replacepathsep(r);
+    rmtrailingpsep(r);
     r[0] = towupper(r[0]);
     return r;
 }
