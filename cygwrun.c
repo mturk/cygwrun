@@ -378,8 +378,8 @@ static int iswinpath(const wchar_t *s)
         }
     }
     else if (s[0] < 128) {
-        if (isalpha(s[0]) && s[1] == L':') {
-            if (IS_PSW(s[2]) || s[2] == L'\0')
+        if (isalpha(s[0]) && (s[1] == L':')) {
+            if (IS_PSW(s[2]) || (s[2] == L'\0'))
                 return 1;
         }
     }
@@ -392,7 +392,7 @@ static int isdotpath(const wchar_t *s)
     if (s[0] == L'.') {
         if (IS_PSW(s[1]))
             return 300;
-        if ((s[1] == L'.') && (IS_PSW(s[2])))
+        if ((s[1] == L'.') && IS_PSW(s[2]))
             return 300;
     }
 
