@@ -613,20 +613,24 @@ static wchar_t *posixtowin(wchar_t *pp, int m)
         /**
          * For anything from /dev/* return \\.\NUL
          */
-        rv = xwcsdup(L"\\\\.\\NUL");
+        xfree(pp);
+        return xwcsdup(L"\\\\.\\NUL");
     }
     else if (m == 300) {
         replacepathsep(pp);
+        rmtrailingpsep(pp);
         return pp;
     }
     else if (m == 301) {
-        rv = xwcsdup(posixroot);
+        xfree(pp);
+        return xwcsdup(posixroot);
     }
     else {
         replacepathsep(pp);
         rv = xwcsconcat(posixroot, pp);
     }
     xfree(pp);
+    rmtrailingpsep(rv);
     return rv;
 }
 
@@ -665,7 +669,6 @@ static wchar_t *towinpath(const wchar_t *str)
         if (pa != NULL) {
             for (i = 0; i < n; i++) {
                 pa[i] = posixtowin(pa[i], 0);
-                rmtrailingpsep(pa[i]);
             }
             wp = mergepath(pa);
             waafree(pa);
@@ -677,7 +680,6 @@ static wchar_t *towinpath(const wchar_t *str)
     else {
         wp = xwcsdup(str);
         wp = posixtowin(wp, 0);
-        rmtrailingpsep(wp);
     }
     return wp;
 }
@@ -819,7 +821,6 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                      * We have posix path
                      */
                      wargv[i] = posixtowin(a, m);
-                     rmtrailingpsep(wargv[i]);
                 }
                 else {
                     wchar_t *v = cmdoptionval(a);
@@ -834,7 +835,6 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                             if (m != 0) {
                                 wchar_t *p = posixtowin(xwcsdup(v), m);
 
-                                rmtrailingpsep(p);
                                 v[0] = L'\0';
                                 wargv[i] = xwcsconcat(a, p);
                                 xfree(p);
