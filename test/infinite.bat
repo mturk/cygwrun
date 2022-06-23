@@ -21,6 +21,7 @@ rem ./x64/cygwrun.exe cmd.exe /D /C ./test/infinite.bat
 rem
 setlocal
 rem
+echo %~nx0 %*
 echo Press CTRL+C to stop
 echo Hit Y when prompted for "Terminate batch job (Y/N)?"
 echo.
