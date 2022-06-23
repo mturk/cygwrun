@@ -16,10 +16,13 @@ rem limitations under the License.
 rem
 rem --------------------------------------------------
 rem
+rem Example usage:
+rem ./x64/cygwrun.exe cmd.exe /D /C ./test/infinite.bat
 rem
 setlocal
 rem
-echo Press CTRL+C to stop.
+echo Press CTRL+C to stop
+echo Hit Y when prompted for "Terminate batch job (Y/N)?"
 echo.
 :doRepeat
 rem
