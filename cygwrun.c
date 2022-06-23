@@ -697,6 +697,20 @@ static wchar_t *getposixroot(wchar_t *r)
             e++;
         }
         if (r == NULL) {
+            r = xgetenv(L"HOME");
+            if (IS_VALID_WCS(r)) {
+                wchar_t *p = wcsstr(r, L"\\home\\");
+                if (IS_EMPTY_WCS(p)) {
+                    xfree(r);
+                    r = NULL;
+                }
+                else {
+                    *p = L'\0';
+                    return r;
+                }
+            }
+        }
+        if (r == NULL) {
             /**
              * Use default locations
              */
