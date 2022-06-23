@@ -787,6 +787,10 @@ static wchar_t *xsearchexe(const wchar_t *paths, const wchar_t *name)
     return rp;
 }
 
+static BOOL WINAPI consolehandler(DWORD ctrl)
+{
+    return TRUE;
+}
 
 static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
 {
@@ -915,7 +919,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             return ENOENT;
     }
     _flushall();
-    rp = _wspawnvpe(_P_WAIT, wargv[0], wargv, wenvp);
+    rp = _wspawnvpe(_P_NOWAIT, wargv[0], wargv, wenvp);
     if (rp == (intptr_t)-1) {
         rc = errno;
         if (xshowerr)
@@ -923,9 +927,17 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     }
     else {
         /**
-         * return the child exit code
+         * wait for child to exit
          */
-        rc = (int)rp;
+        SetConsoleCtrlHandler(consolehandler, TRUE);
+        if (_cwait(&rc, rp, 0) == (intptr_t)-1) {
+            rc = errno;
+            if (xshowerr) {
+                fwprintf(stderr, L"Execute failed: %s\nFatal error: %s\n\n",
+                         wargv[0], _wcserror(rc));
+            }
+        }
+        SetConsoleCtrlHandler(consolehandler, FALSE);
     }
     return rc;
 }
