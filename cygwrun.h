@@ -61,7 +61,7 @@
 /**
  * Set to zero for non dev versions
  */
-#define PROJECT_ISDEV_VERSION   3
+#define PROJECT_ISDEV_VERSION   0
 
 #if PROJECT_ISDEV_VERSION
 # define PROJECT_VERSION_SFX    PROJECT_VENDOR_SFX "-dev"
