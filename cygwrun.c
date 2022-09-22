@@ -438,13 +438,23 @@ static int isanypath(const wchar_t *s)
 {
     int r;
 
-    if (s[0] == L'/')
-        r = 1;
-    else if (s[0] == L'.')
-        r = isdotpath(s);
-    else
-        r = iswinpath(s);
-
+    if (IS_EMPTY_WCS(s))
+        return 0;
+    switch (s[0]) {
+        case L'"':
+        case L'\'':
+            r = 0;
+        break;
+        case L'/':
+            r = 1;
+        break;
+        case L'.':
+            r = isdotpath(s);
+        break;
+        default:
+            r = iswinpath(s);
+        break;
+    }
     return r;
 }
 
@@ -855,7 +865,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 else {
                     wchar_t *v = cmdoptionval(a);
 
-                    if (IS_VALID_WCS(v) && isanypath(v)) {
+                    if (isanypath(v)) {
                         if (iswinpath(v)) {
                             replacepathsep(v);
                             rmtrailingpsep(v);
