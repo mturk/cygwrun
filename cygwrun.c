@@ -410,6 +410,8 @@ static int isposixpath(const wchar_t *str)
         return isdotpath(str);
     if (str[1] == L'\0')
         return 301;
+    if (str[1] == L'/')
+        return 0;
     if (wcspbrk(str + 1, L":="))
         return 0;
 
@@ -658,14 +660,13 @@ static wchar_t *pathtowin(wchar_t *pp)
 
 static wchar_t *towinpath(const wchar_t *str)
 {
-    wchar_t *wp = NULL;
+    wchar_t *wp = xwcsdup(str);
 
-    if (iswinpath(str)) {
-        wp = xwcsdup(str);
+    if (iswinpath(wp)) {
         replacepathsep(wp);
         rmtrailingpsep(wp);
     }
-    else if (xwcsmatch(str, L"*/+*:*/+*") == 0) {
+    else if (xwcsmatch(wp, L"*/+*:*/+*") == 0) {
         /**
          * We have [...]/x[...]:[...]/x[...]
          * which can be eventually converted
@@ -674,21 +675,18 @@ static wchar_t *towinpath(const wchar_t *str)
          * return original string.
          */
         int i, n;
-        wchar_t **pa = splitpath(str, &n);
+        wchar_t **pa = splitpath(wp, &n);
 
         if (pa != NULL) {
             for (i = 0; i < n; i++) {
                 pa[i] = posixtowin(pa[i], 0);
             }
+            xfree(wp);
             wp = mergepath(pa);
             waafree(pa);
         }
-        else {
-            wp = xwcsdup(str);
-        }
     }
     else {
-        wp = xwcsdup(str);
         wp = posixtowin(wp, 0);
     }
     return wp;
