@@ -66,7 +66,7 @@ export CYGWIN_ROOT="C:/cygwin64//; ;"
 rv="`$_cygwrun -p /`"
 test "x$rv" = "x$rootdir" || xbexit 1 "Failed #2.2: \`$rv'"
 rv="`$_cygwrun -p \"./. ;\"`"
-test "x$rv" = "x.\\" || xbexit 1 "Failed #2.3: \`$rv'"
+test "x$rv" = "x.\\." || xbexit 1 "Failed #2.3: \`$rv'"
 unset CYGWIN_ROOT
 
 export FOO=bar

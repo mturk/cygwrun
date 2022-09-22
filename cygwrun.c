@@ -501,6 +501,29 @@ static void replacepathsep(wchar_t *s)
     }
 }
 
+/**
+ * Remove trailing backslash and path separator(s)
+ * so that we don't have problems with quoting
+ * or appending
+ */
+static void rmtrailingpsep(wchar_t *s)
+{
+    int i = (int)xwcslen(s) - 1;
+
+    while (i > 1) {
+        if ((s[i] == L';') || (s[i] == L' '))
+            s[i--] = L'\0';
+        else
+            break;
+    }
+    while (i > 1) {
+        if (IS_PSW(s[i]) && (s[i-1] != L'.'))
+            s[i--] = L'\0';
+        else
+            break;
+    }
+}
+
 static wchar_t **splitpath(const wchar_t *s, int *tokens)
 {
     int c = 0;
@@ -574,29 +597,6 @@ static wchar_t *mergepath(const wchar_t **pp)
         p += len;
     }
     return r;
-}
-
-/**
- * Remove trailing backslash and path separator(s)
- * so that we don't have problems with quoting
- * or appending
- */
-static void rmtrailingpsep(wchar_t *s)
-{
-    int i = (int)xwcslen(s) - 1;
-
-    while (i > 1) {
-        if ((s[i] == L';') || (s[i] == L' ') || (s[i] == L'.'))
-            s[i--] = L'\0';
-        else
-            break;
-    }
-    while (i > 1) {
-        if (IS_PSW(s[i]) && (s[i-1] != L'.'))
-            s[i--] = L'\0';
-        else
-            break;
-    }
 }
 
 static wchar_t *posixtowin(wchar_t *pp, int m)
