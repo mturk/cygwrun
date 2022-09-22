@@ -372,12 +372,13 @@ static int iswinpath(const wchar_t *s)
 {
     if (s[0] == L'\\') {
         if ((s[1] == L'\\') &&
-            (s[2] != L'\\')) {
-            s += 2;
-            while (*s != L'\0') {
-                if (*(s++) == L'\\')
-                    return *s != L'\0';
-            }
+            (s[2] == L'?' ) &&
+            (s[3] == L'\\') &&
+            (s[4] != L'\0')) {
+            /**
+             * We have \\?\* path
+             */
+            return 1;
         }
     }
     else if (xisvarchar(s[0]) == 2) {
@@ -871,8 +872,9 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                         else {
                             m = isposixpath(v);
                             if (m != 0) {
-                                wchar_t *p = posixtowin(xwcsdup(v), m);
+                                wchar_t *p = xwcsdup(v);
 
+                                p = posixtowin(p, m);
                                 v[0] = L'\0';
                                 wargv[i] = xwcsconcat(a, p);
                                 xfree(p);
