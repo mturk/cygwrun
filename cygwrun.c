@@ -1182,15 +1182,18 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     else {
         wchar_t **pa = splitpath(cpp, &n, L';');
 
-        if (pa != NULL) {
-            for (i = 0; i < n; i++) {
-                replacepathsep(pa[i]);
-                rmtrailingpsep(pa[i]);
-            }
-            xfree(cpp);
-            cpp = mergepath(pa);
-            waafree(pa);
+        if (pa == NULL) {
+            if (xshowerr)
+                fputs("Error splitting PATH environment variable\n", stderr);
+            return EINVAL;
         }
+        for (i = 0; i < n; i++) {
+            replacepathsep(pa[i]);
+            rmtrailingpsep(pa[i]);
+        }
+        xfree(cpp);
+        cpp = mergepath(pa);
+        waafree(pa);
     }
 
     posixroot = getposixroot(crp);
