@@ -750,6 +750,7 @@ static wchar_t *towinpath(const wchar_t *str)
         if (pa != NULL) {
             for (i = 0; i < n; i++) {
                 pa[i] = posixtowin(pa[i], 0);
+                rmtrailingpsep(pa[i]);
             }
             xfree(wp);
             wp = mergepath(pa);
@@ -1050,7 +1051,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
 
 int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
 {
-    int i;
+    int i, n;
     wchar_t **dupwargv = NULL;
     wchar_t **dupwenvp = NULL;
     wchar_t *crp       = NULL;
@@ -1178,7 +1179,19 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             fputs("Missing PATH environment variable\n", stderr);
         return ENOENT;
     }
-    rmtrailingpsep(cpp);
+    else {
+        wchar_t **pa = splitpath(cpp, &n, L';');
+
+        if (pa != NULL) {
+            for (i = 0; i < n; i++) {
+                replacepathsep(pa[i]);
+                rmtrailingpsep(pa[i]);
+            }
+            xfree(cpp);
+            cpp = mergepath(pa);
+            waafree(pa);
+        }
+    }
 
     posixroot = getposixroot(crp);
     if (IS_EMPTY_WCS(posixroot)) {
