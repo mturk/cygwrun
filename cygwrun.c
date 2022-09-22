@@ -361,7 +361,7 @@ static int xwcsisenvvar(const wchar_t *str, const wchar_t *var)
 
 static int xisvarchar(int c)
 {
-    if ((c < L'-') || (c > L'z'))
+    if ((c < 32) || (c > 127))
         return 0;
     else
         return xvalidvarname[c];
