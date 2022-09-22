@@ -126,6 +126,11 @@ export FOO="/usr/a::/usr/b:"
 rv="`$_cygwrun $_dumpenvp FOO`"
 test "x$rv" = "xFOO=$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #10.1: \`$rv'"
 
+pushd $srcdir/x64 >/dev/null
+cp cygwrun.exe __dumpenvp.exe
+rv="`./__dumpenvp FOO`"
+test "x$rv" = "xFOO=$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #11.1: \`$rv'"
+popd >/dev/null
 
 echo "All tests passed!"
 exit 0

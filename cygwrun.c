@@ -801,6 +801,25 @@ static wchar_t *xsearchexe(const wchar_t *paths, const wchar_t *name)
     return rp;
 }
 
+static wchar_t *realappname(const wchar_t *path)
+{
+    int i;
+    const wchar_t *p = path;
+
+    i = (int)xwcslen(path);
+    while (--i > 0) {
+        if ((path[i] == L'\\') || (path[i] == L'/')) {
+            /** Found path separator */
+            p = path + i + 1;
+            break;
+        }
+    }
+    if ((p[0] == L'_') && (p[1] == L'_'))
+        return xwcsdup(p + 2);
+    else
+        return NULL;
+}
+
 static BOOL WINAPI consolehandler(DWORD ctrl)
 {
     return TRUE;
@@ -978,9 +997,13 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         fputs("\nMissing environment\n", stderr);
         return EBADF;
     }
-    if (argc < 2)
-        return usage(EINVAL);
     dupwargv = waalloc(argc);
+    dupwargv[0] = realappname(wargv[0]);
+
+    if (dupwargv[0] != NULL) {
+        dupargc = 1;
+        opts    = 0;
+    }
     for (i = 1; i < argc; i++) {
         const wchar_t *p = wargv[i];
 
