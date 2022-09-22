@@ -113,7 +113,7 @@ test "x$rv" = "x..\\tmp\\foo" || xbexit 1 "Failed #8.2: \`$rv'"
 rv="`$_cygwrun -p .../tmp`"
 test "x$rv" = "x.../tmp" || xbexit 1 "Failed #8.3: \`$rv'"
 rv="`$_cygwrun -p \"\\\"./tmp\"\\\"`"
-test "x$rv" = "x./tmp" || xbexit 1 "Failed #8.4: \`$rv'"
+test "x$rv" = "x\"./tmp\"" || xbexit 1 "Failed #8.4: \`$rv'"
 rv="`$_cygwrun -p ..`"
 test "x$rv" = "x.." || xbexit 1 "Failed #8.5: \`$rv'"
 

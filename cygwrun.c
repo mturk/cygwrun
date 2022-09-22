@@ -834,16 +834,10 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         for (i = xrunexec; i < argc; i++) {
             wchar_t *a = wargv[i];
 
-            if (a[0] == L'"') {
+            if ((a[0] == L'"') || (a[0] == L'\'')) {
                 /**
-                 * Unquote argument
+                 * Skip quoted argument
                  */
-                int n = (int)xwcslen(a) - 1;
-                if (n > 1 && a[n] == L'"') {
-                    a[n] = L'\0';
-                    wargv[i] = xwcsdup(a + 1);
-                    xfree(a);
-                }
             }
             else if (iswinpath(a)) {
                 replacepathsep(a);
