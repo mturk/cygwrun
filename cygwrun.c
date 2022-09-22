@@ -569,21 +569,22 @@ static void rmtrailingpsep(wchar_t *s)
     }
 }
 
-static wchar_t **splitpath(const wchar_t *s, int *tokens)
+static wchar_t **splitpath(const wchar_t *s, int *tokens, wchar_t ps)
 {
     int c = 0;
     int x = 0;
+    int m;
     wchar_t **sa;
     const wchar_t *e;
 
     e = s;
     while (*e != L'\0') {
-        if (*(e++) == L':')
+        if (*(e++) == ps)
             x++;
     }
     sa = waalloc(x + 1);
     *tokens = 0;
-    while ((e = wcschr(s, L':')) != NULL) {
+    while ((e = wcschr(s, ps)) != NULL) {
         wchar_t *p;
         size_t   n = (size_t)(e - s);
 
@@ -597,10 +598,12 @@ static wchar_t **splitpath(const wchar_t *s, int *tokens)
         p = xwalloc(n + 2);
         wmemcpy(p, s, n);
         sa[c++] = p;
-        if (isposixpath(p)) {
-            s = e + 1;
-        }
-        else {
+        if (ps == L':')
+            m = isposixpath(p);
+        else
+            m = iswinpath(p);
+
+        if (m == 0) {
             /**
              * Token before ':' was not a posix path.
              * Return original str regerdless if some
@@ -609,14 +612,21 @@ static wchar_t **splitpath(const wchar_t *s, int *tokens)
             waafree(sa);
             return NULL;
         }
+        else {
+            s = e + 1;
+        }
     }
     if (*s != L'\0') {
-        if (isposixpath(s)) {
-            sa[c++] = xwcsdup(s);
-        }
-        else {
+        if (ps == L':')
+            m = isposixpath(s);
+        else
+            m = iswinpath(s);
+        if (m == 0) {
             waafree(sa);
             return NULL;
+        }
+        else {
+            sa[c++] = xwcsdup(s);
         }
     }
 
@@ -705,11 +715,27 @@ static wchar_t *pathtowin(wchar_t *pp)
 
 static wchar_t *towinpath(const wchar_t *str)
 {
+    int i, n;
     wchar_t *wp = xwcsdup(str);
 
     if (iswinpath(wp)) {
-        rmendingspaces(wp);
-        replacepathsep(wp);
+        if (wcschr(wp, L';')) {
+            wchar_t **pa = splitpath(wp, &n, L';');
+
+            if (pa != NULL) {
+                for (i = 0; i < n; i++) {
+                    replacepathsep(pa[i]);
+                    rmtrailingpsep(pa[i]);
+                }
+                xfree(wp);
+                wp = mergepath(pa);
+                waafree(pa);
+            }
+        }
+        else {
+            rmendingspaces(wp);
+            replacepathsep(wp);
+        }
     }
     else if (xwcsmatch(wp, L"*/+*:*/+*") == 0) {
         /**
@@ -719,8 +745,7 @@ static wchar_t *towinpath(const wchar_t *str)
          * If any of tokens is not a posix path
          * return original string.
          */
-        int i, n;
-        wchar_t **pa = splitpath(wp, &n);
+        wchar_t **pa = splitpath(wp, &n, L':');
 
         if (pa != NULL) {
             for (i = 0; i < n; i++) {
