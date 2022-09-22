@@ -619,13 +619,13 @@ static wchar_t *posixtowin(wchar_t *pp, int m)
         windrive[0] = towupper(pp[10]);
         rv = xwcsconcat(windrive, pp + 12);
         replacepathsep(rv + 3);
+        rmtrailingpsep(rv + 3);
     }
     else if (m == 102) {
         /**
          * For anything from /dev/* return \\.\NUL
          */
-        xfree(pp);
-        return xwcsdup(L"\\\\.\\NUL");
+        rv = xwcsdup(L"\\\\.\\NUL");
     }
     else if (m == 300) {
         replacepathsep(pp);
@@ -633,15 +633,14 @@ static wchar_t *posixtowin(wchar_t *pp, int m)
         return pp;
     }
     else if (m == 301) {
-        xfree(pp);
-        return xwcsdup(posixroot);
+        rv = xwcsdup(posixroot);
     }
     else {
         replacepathsep(pp);
+        rmtrailingpsep(pp);
         rv = xwcsconcat(posixroot, pp);
     }
     xfree(pp);
-    rmtrailingpsep(rv);
     return rv;
 }
 
