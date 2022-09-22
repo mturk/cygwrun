@@ -370,6 +370,8 @@ static int xisvarchar(int c)
 
 static int iswinpath(const wchar_t *s)
 {
+    int i = 0;
+
     if (s[0] == L'\\') {
         if ((s[1] == L'\\') &&
             (s[2] == L'?' ) &&
@@ -378,16 +380,19 @@ static int iswinpath(const wchar_t *s)
             /**
              * We have \\?\* path
              */
-            return 1;
+            i  = 4;
+            s += 4;
         }
     }
-    else if (xisvarchar(s[0]) == 2) {
+    if (xisvarchar(s[0]) == 2) {
         if (s[1] == L':') {
-            if (IS_PSW(s[2]) || (s[2] == L'\0'))
-                return 1;
+            if (s[2] == L'\0')
+                i += 2;
+            else if (IS_PSW(s[2]))
+                i += 3;
         }
     }
-    return 0;
+    return i;
 }
 
 static int isdotpath(const wchar_t *s)
@@ -501,6 +506,42 @@ static void replacepathsep(wchar_t *s)
     }
 }
 
+static void rmendingspaces(wchar_t *s)
+{
+    int i = (int)xwcslen(s) - 1;
+
+    while (i > 1) {
+        if ((s[i] == L' ') || (s[i] == L'\t'))
+            s[i--] = L'\0';
+        else
+            break;
+    }
+    if (i > 1) {
+        if ((s[i] == L'.') && IS_PSW(s[i-1]))
+            s[i] = L'\0';
+    }
+}
+
+static void collapsefwpsep(wchar_t *s)
+{
+    int n;
+    int c;
+    int i = (int)xwcslen(s);
+
+    for (n = 1, c = 1; n < i; n++) {
+        if (s[n] == L'/')  {
+            if (s[n + 1] == L'/') {
+                continue;
+            }
+        }
+
+        s[c++] = s[n];
+    }
+    if (c < n)
+        s[c] = L'\0';
+    rmendingspaces(s);
+}
+
 /**
  * Remove trailing backslash and path separator(s)
  * so that we don't have problems with quoting
@@ -511,7 +552,7 @@ static void rmtrailingpsep(wchar_t *s)
     int i = (int)xwcslen(s) - 1;
 
     while (i > 1) {
-        if ((s[i] == L';') || (s[i] == L' '))
+        if ((s[i] == L';') || (s[i] == L' ') || (s[i] == L'\t'))
             s[i--] = L'\0';
         else
             break;
@@ -521,6 +562,10 @@ static void rmtrailingpsep(wchar_t *s)
             s[i--] = L'\0';
         else
             break;
+    }
+    if (i > 1) {
+        if ((s[i] == L'.') && IS_PSW(s[i-1]))
+            s[i] = L'\0';
     }
 }
 
@@ -618,8 +663,8 @@ static wchar_t *posixtowin(wchar_t *pp, int m)
          */
         windrive[0] = towupper(pp[10]);
         rv = xwcsconcat(windrive, pp + 12);
+        collapsefwpsep(rv + 3);
         replacepathsep(rv + 3);
-        rmtrailingpsep(rv + 3);
     }
     else if (m == 102) {
         /**
@@ -628,16 +673,16 @@ static wchar_t *posixtowin(wchar_t *pp, int m)
         rv = xwcsdup(L"\\\\.\\NUL");
     }
     else if (m == 300) {
+        collapsefwpsep(pp);
         replacepathsep(pp);
-        rmtrailingpsep(pp);
         return pp;
     }
     else if (m == 301) {
         rv = xwcsdup(posixroot);
     }
     else {
+        collapsefwpsep(pp);
         replacepathsep(pp);
-        rmtrailingpsep(pp);
         rv = xwcsconcat(posixroot, pp);
     }
     xfree(pp);
@@ -649,8 +694,8 @@ static wchar_t *pathtowin(wchar_t *pp)
     wchar_t *rv = pp;
 
     if (iswinpath(pp)) {
+        rmendingspaces(pp);
         replacepathsep(pp);
-        rmtrailingpsep(pp);
     }
     else {
         rv = posixtowin(pp, 0);
@@ -663,8 +708,8 @@ static wchar_t *towinpath(const wchar_t *str)
     wchar_t *wp = xwcsdup(str);
 
     if (iswinpath(wp)) {
+        rmendingspaces(wp);
         replacepathsep(wp);
-        rmtrailingpsep(wp);
     }
     else if (xwcsmatch(wp, L"*/+*:*/+*") == 0) {
         /**
@@ -816,7 +861,7 @@ static wchar_t *realappname(const wchar_t *path)
 
     i = (int)xwcslen(path);
     while (--i > 0) {
-        if ((path[i] == L'\\') || (path[i] == L'/')) {
+        if (IS_PSW(path[i])) {
             /** Found path separator */
             p = path + i + 1;
             break;
@@ -848,8 +893,8 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                  */
             }
             else if (iswinpath(a)) {
+                rmendingspaces(a);
                 replacepathsep(a);
-                rmtrailingpsep(a);
             }
             else {
                 int m = isposixpath(a);
@@ -865,8 +910,8 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
 
                     if (isanypath(v)) {
                         if (iswinpath(v)) {
+                            rmendingspaces(v);
                             replacepathsep(v);
-                            rmtrailingpsep(v);
                         }
                         else {
                             m = isposixpath(v);
