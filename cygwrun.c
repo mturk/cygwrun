@@ -160,11 +160,22 @@ static int invalidarg(const wchar_t *arg)
     return usage(EINVAL);
 }
 
-static wchar_t *xwalloc(size_t size)
+static wchar_t *xwmalloc(size_t size)
+{
+    wchar_t *p = (wchar_t *)malloc((size + 1) * sizeof(wchar_t));
+    if (p == NULL) {
+        _wperror(L"xwmalloc");
+        _exit(1);
+    }
+    p[size] = L'\0';
+    return p;
+}
+
+static wchar_t *xwcalloc(size_t size)
 {
     wchar_t *p = (wchar_t *)calloc(size, sizeof(wchar_t));
     if (p == NULL) {
-        _wperror(L"xwalloc");
+        _wperror(L"xwcalloc");
         _exit(1);
     }
     return p;
@@ -253,7 +264,7 @@ static size_t xwcslen(const wchar_t *s)
 
 static wchar_t *xwcsconcat(const wchar_t *s1, const wchar_t *s2)
 {
-    wchar_t *cp, *rv;
+    wchar_t *rv;
     size_t l1;
     size_t l2;
 
@@ -262,19 +273,19 @@ static wchar_t *xwcsconcat(const wchar_t *s1, const wchar_t *s2)
 
     if ((l1 + l2) == 0)
         return NULL;
-    cp = rv = xwalloc(l1 + l2 + 2);
+    rv = xwmalloc(l1 + l2 + 1);
 
     if(l1 > 0)
-        wmemcpy(cp, s1, l1);
-    cp += l1;
+        wmemcpy(rv, s1, l1);
     if(l2 > 0)
-        wmemcpy(cp, s2, l2);
+        wmemcpy(rv + l1, s2, l2);
+    rv[l1 + l2] = L'\0';
     return rv;
 }
 
 static wchar_t *xwcscpaths(const wchar_t *s1, const wchar_t *s2)
 {
-    wchar_t *cp, *rv;
+    wchar_t *rv;
     size_t l1, l2;
 
     l1 = xwcslen(s1);
@@ -282,14 +293,14 @@ static wchar_t *xwcscpaths(const wchar_t *s1, const wchar_t *s2)
 
     if (l1 == 0)
         return NULL;
-    cp = rv = xwalloc(l1 + l2 + 4);
+    rv = xwmalloc(l1 + l2 + 2);
 
-    wmemcpy(cp, s1, l1);
-    cp += l1;
+    wmemcpy(rv, s1, l1);
     if(l2 > 0) {
-        *(cp++) = L';';
-        wmemcpy(cp, s2, l2);
+        rv[l1++] = L';';
+        wmemcpy(rv + l1 , s2, l2);
     }
+    rv[l1 + l2] = L'\0';
     return rv;
 }
 
@@ -620,7 +631,7 @@ static wchar_t *mergepath(const wchar_t **pp)
     for (i = 0; pp[i] != NULL; i++) {
         len += wcslen(pp[i]) + 1;
     }
-    r = p = xwalloc(len + 2);
+    r = p = xwmalloc(len + 2);
     for (i = 0; pp[i] != NULL; i++) {
         len = wcslen(pp[i]);
         if (i > 0)
@@ -628,6 +639,7 @@ static wchar_t *mergepath(const wchar_t **pp)
         wmemcpy(p, pp[i], len);
         p += len;
     }
+    *p = L'\0';
     return r;
 }
 
@@ -747,7 +759,7 @@ static wchar_t *getrealpathname(const wchar_t *path, int isdir)
         return NULL;
 
     while (buf == NULL) {
-        buf = xwalloc(siz);
+        buf = xwmalloc(siz);
         len = GetFinalPathNameByHandleW(fh, buf, siz, VOLUME_NAME_DOS);
         if (len == 0) {
             CloseHandle(fh);
@@ -837,7 +849,7 @@ static wchar_t *xsearchexe(const wchar_t *paths, const wchar_t *name)
     DWORD     sz = _MAX_PATH;
 
     while (sp == NULL) {
-        sp = xwalloc(sz);
+        sp = xwmalloc(sz);
         ln = SearchPathW(paths, name, L".exe", sz, sp, NULL);
         if (ln == 0) {
             xfree(sp);
@@ -1052,15 +1064,15 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                 crp = xwcsdup(p);
                 continue;
             }
+            if (haspopt) {
+                dupwargv[dupargc++] = xwcsdup(p);
+                opts = 0;
+                continue;
+            }
 
             if (p[0] == L'-') {
 
                 if ((p[1] == L'\0') || (p[2] != L'\0')) {
-                    if (haspopt) {
-                        dupwargv[dupargc++] = xwcsdup(p);
-                        opts = 0;
-                        continue;
-                    }
                     return invalidarg(p);
                 }
                 switch (p[1]) {
@@ -1107,11 +1119,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                         return usage(0);
                     break;
                     default:
-                        opts = 0;
-                        if (haspopt)
-                            dupwargv[dupargc++] = xwcsdup(p);
-                        else
-                            return invalidarg(p);
+                        return invalidarg(p);
                     break;
                 }
                 continue;
