@@ -47,10 +47,10 @@ test -x "$_dumpenvp" || xbexit 1 "Cannot find dumpenvp.exe in \`./x64'"
 
 echo "Running cygwrun test suite on: $phost"
 
-export POSIX_ROOT="C:\\_not\\a/directory//"
+export POSIX_ROOT="c:\\windows/"
 v=/tmp
 rv="`$_cygwrun -p $v`"
-test "x$rv" = "xC:\\_not\\a\\directory\\tmp" || xbexit 1 "Failed #1.1: \`$rv'"
+test "x$rv" = "xC:\\Windows\\tmp" || xbexit 1 "Failed #1.1: \`$rv'"
 unset POSIX_ROOT
 
 rootdir="`$_cygwrun -p /`"
@@ -97,14 +97,16 @@ export FOO="/usr/a:$abcd0123456789::/usr/b::"
 rv="`$_cygwrun -e FOO`"
 test "x$rv" = "xFOO=$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #6.2: \`$rv'"
 
-rv="`$_cygwrun -f -p /bin=/tmp/foo`"
-test "x$rv" = "x/bin=/tmp/foo" || xbexit 1 "Failed #7.1: \`$rv'"
+rv="`$_cygwrun -f -p /usr=/tmp/foo`"
+test "x$rv" = "x$usrdir=\\tmp\\foo" || xbexit 1 "Failed #7.1: \`$rv'"
 rv="`$_cygwrun -f -p /usr:/tmp/foo`"
-test "x$rv" = "x/usr:/tmp/foo" || xbexit 1 "Failed #7.2: \`$rv'"
+test "x$rv" = "x$usrdir;$tmpdir\\foo" || xbexit 1 "Failed #7.2: \`$rv'"
 rv="`$_cygwrun -p --I=/tmp/foo`"
 test "x$rv" = "x--I=$tmpdir\\foo" || xbexit 1 "Failed #7.3: \`$rv'"
 rv="`$_cygwrun -p I=/tmp/foo`"
 test "x$rv" = "xI=$tmpdir\\foo" || xbexit 1 "Failed #7.4: \`$rv'"
+rv="`$_cygwrun -p I=/tmp/foo:/tmp/bar`"
+test "x$rv" = "xI=$tmpdir\\foo;$tmpdir\\bar" || xbexit 1 "Failed #7.4: \`$rv'"
 
 rv="`$_cygwrun -p ./tmp`"
 test "x$rv" = "x.\\tmp" || xbexit 1 "Failed #8.1: \`$rv'"

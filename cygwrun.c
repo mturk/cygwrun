@@ -35,6 +35,7 @@ static int      xdumpenv  = 0;
 static int      xskipenv  = 0;
 static int      xshowerr  = 1;
 static int      xforcewp  = 0;
+static int      xrmendps  = 1;
 
 static wchar_t *posixroot = NULL;
 
@@ -81,6 +82,7 @@ static const wchar_t *removeext[] = {
     L"ORIGINAL_PATH",
     L"ORIGINAL_TEMP",
     L"ORIGINAL_TMP",
+    L"PS1",
     L"temp",
     L"tmp",
     NULL
@@ -90,7 +92,6 @@ static const wchar_t *removeenv[] = {
     L"CYGWIN_ROOT",
     L"PATH",
     L"POSIX_ROOT",
-    L"PS1",
     L"PWD",
     NULL
 };
@@ -159,16 +160,6 @@ static int invalidarg(const wchar_t *arg)
     return usage(EINVAL);
 }
 
-static void *xmalloc(size_t size)
-{
-    void *p = calloc(size, 1);
-    if (p == NULL) {
-        _wperror(L"xmalloc");
-        _exit(1);
-    }
-    return p;
-}
-
 static wchar_t *xwalloc(size_t size)
 {
     wchar_t *p = (wchar_t *)calloc(size, sizeof(wchar_t));
@@ -181,7 +172,12 @@ static wchar_t *xwalloc(size_t size)
 
 static wchar_t **waalloc(size_t size)
 {
-    return (wchar_t **)xmalloc((size + 1) * sizeof(wchar_t *));
+    wchar_t **p = (wchar_t **)calloc(size + 1, sizeof(wchar_t *));
+    if (p == NULL) {
+        _wperror(L"waalloc");
+        _exit(1);
+    }
+    return p;
 }
 
 static void xfree(void *m)
@@ -208,10 +204,30 @@ static wchar_t *xwcsdup(const wchar_t *s)
 
     if (IS_EMPTY_WCS(s))
         return NULL;
-    n = wcslen(s);
-    p = xwalloc(n + 2);
-    wmemcpy(p, s, n);
-    return p;
+    n = wcslen(s) + 1;
+    p = (wchar_t *)malloc((n + 1) * sizeof(wchar_t));
+    if (p == NULL) {
+        _wperror(L"xwcsdup");
+        _exit(1);
+    }
+    return wmemcpy(p, s, n);
+}
+
+static wchar_t *xwcsndup(const wchar_t *s, size_t len)
+{
+    wchar_t *p;
+    size_t   n;
+
+    if (IS_EMPTY_WCS(s) || (len == 0))
+        return NULL;
+    n = wcsnlen(s, len);
+    p = (wchar_t *)malloc((n + 2) * sizeof(wchar_t));
+    if (p == NULL) {
+        _wperror(L"xwcsdup");
+        _exit(1);
+    }
+    p[n] = L'\0';
+    return wmemcpy(p, s, n);
 }
 
 static wchar_t *xgetenv(const wchar_t *s)
@@ -375,16 +391,19 @@ static int iswinpath(const wchar_t *s)
 {
     int i = 0;
 
-    if (s[0] == L'\\') {
-        if ((s[1] == L'\\') &&
-            (s[2] == L'?' ) &&
-            (s[3] == L'\\') &&
-            (s[4] != L'\0')) {
-            /**
-             * We have \\?\* path
-             */
-            i  = 4;
-            s += 4;
+    if (IS_PSW(s[0])) {
+        if (IS_PSW(s[1]) && (s[2] != L'\0')) {
+            i  = 2;
+            s += 2;
+            if ((s[0] == L'?' ) &&
+                (IS_PSW(s[1]) ) &&
+                (s[2] != L'\0')) {
+                /**
+                 * We have \\?\* path
+                 */
+                i += 2;
+                s += 2;
+            }
         }
     }
     if (xisvarchar(s[0]) == 2) {
@@ -420,10 +439,7 @@ static int isposixpath(const wchar_t *str)
     if (str[1] == L'\0')
         return 301;
     if (str[1] == L'/')
-        return 0;
-    if (wcspbrk(str + 1, L":="))
-        return 0;
-
+        return iswinpath(str);
     if (wcschr(str + 1, L'/')) {
         while (pathmatches[i] != NULL) {
             if (xwcsmatch(str, pathmatches[i]) == 0)
@@ -457,7 +473,7 @@ static int isanypath(const wchar_t *s)
             r = 0;
         break;
         case L'/':
-            r = 1;
+            r = isposixpath(s);
         break;
         case L'.':
             r = isdotpath(s);
@@ -476,6 +492,9 @@ static int isanypath(const wchar_t *s)
 static wchar_t *cmdoptionval(wchar_t *s)
 {
     int n = 0;
+
+    if (IS_EMPTY_WCS(s))
+        return NULL;
 
     if ((s[0] == L'-') && (s[1] == L'-'))
         s += 2;
@@ -500,75 +519,40 @@ static int envsort(const void *arg1, const void *arg2)
     return _wcsicoll(*((wchar_t **)arg1), *((wchar_t **)arg2));
 }
 
-static void replacepathsep(wchar_t *s)
-{
-    while (*s != L'\0') {
-        if (*s == L'/')
-            *s = L'\\';
-        s++;
-    }
-}
-
-static void rmendingspaces(wchar_t *s)
-{
-    int i = (int)xwcslen(s) - 1;
-
-    while (i > 1) {
-        if ((s[i] == L' ') || (s[i] == L'\t'))
-            s[i--] = L'\0';
-        else
-            break;
-    }
-    if (i > 1) {
-        if ((s[i] == L'.') && IS_PSW(s[i-1]))
-            s[i] = L'\0';
-    }
-}
-
-static void collapsefwpsep(wchar_t *s)
+static void cleanpath(wchar_t *s)
 {
     int n;
     int c;
     int i = (int)xwcslen(s);
 
-    for (n = 1, c = 1; n < i; n++) {
-        if (s[n] == L'/')  {
-            if (s[n + 1] == L'/') {
+    for (n = 0, c = 0; n < i; n++) {
+        if (IS_PSW(s[n]))  {
+            if ((n > 0) && IS_PSW(s[n + 1])) {
                 continue;
             }
+            s[n] = L'\\';
         }
 
         s[c++] = s[n];
     }
-    if (c < n)
-        s[c] = L'\0';
-    rmendingspaces(s);
-}
-
-/**
- * Remove trailing backslash and path separator(s)
- * so that we don't have problems with quoting
- * or appending
- */
-static void rmtrailingpsep(wchar_t *s)
-{
-    int i = (int)xwcslen(s) - 1;
-
-    while (i > 1) {
-        if ((s[i] == L';') || (s[i] == L' ') || (s[i] == L'\t'))
-            s[i--] = L'\0';
+    s[c--] = L'\0';
+    while (c > 0) {
+        if ((s[c] == L';') || (s[c] < L'!'))
+            s[c--] = L'\0';
         else
             break;
     }
-    while (i > 1) {
-        if (IS_PSW(s[i]) && (s[i-1] != L'.'))
-            s[i--] = L'\0';
-        else
-            break;
+    if (xrmendps) {
+        while (c > 1) {
+            if ((s[c] == L'\\') && (s[c - 1] != L'.'))
+                s[c--] = L'\0';
+            else
+                break;
+        }
     }
-    if (i > 1) {
-        if ((s[i] == L'.') && IS_PSW(s[i-1]))
-            s[i] = L'\0';
+    if (c > 1) {
+        if ((s[c] == L'.') && (s[c - 1] == L'\\'))
+            s[c] = L'\0';
     }
 }
 
@@ -576,7 +560,6 @@ static wchar_t **splitpath(const wchar_t *s, int *tokens, wchar_t ps)
 {
     int c = 0;
     int x = 0;
-    int m;
     wchar_t **sa;
     const wchar_t *e;
 
@@ -598,15 +581,10 @@ static wchar_t **splitpath(const wchar_t *s, int *tokens, wchar_t ps)
             s = e + 1;
             continue;
         }
-        p = xwalloc(n + 2);
-        wmemcpy(p, s, n);
+        p = xwcsndup(s, n);
         sa[c++] = p;
-        if (ps == L':')
-            m = isposixpath(p);
-        else
-            m = iswinpath(p);
 
-        if (m == 0) {
+        if (isanypath(p) == 0) {
             /**
              * Token before ':' was not a posix path.
              * Return original str regerdless if some
@@ -620,11 +598,7 @@ static wchar_t **splitpath(const wchar_t *s, int *tokens, wchar_t ps)
         }
     }
     if (*s != L'\0') {
-        if (ps == L':')
-            m = isposixpath(s);
-        else
-            m = iswinpath(s);
-        if (m == 0) {
+        if (isanypath(s) == 0) {
             waafree(sa);
             return NULL;
         }
@@ -676,8 +650,7 @@ static wchar_t *posixtowin(wchar_t *pp, int m)
          */
         windrive[0] = towupper(pp[10]);
         rv = xwcsconcat(windrive, pp + 12);
-        collapsefwpsep(rv + 3);
-        replacepathsep(rv + 3);
+        cleanpath(rv + 3);
     }
     else if (m == 102) {
         /**
@@ -686,16 +659,14 @@ static wchar_t *posixtowin(wchar_t *pp, int m)
         rv = xwcsdup(L"\\\\.\\NUL");
     }
     else if (m == 300) {
-        collapsefwpsep(pp);
-        replacepathsep(pp);
+        cleanpath(pp);
         return pp;
     }
     else if (m == 301) {
         rv = xwcsdup(posixroot);
     }
     else {
-        collapsefwpsep(pp);
-        replacepathsep(pp);
+        cleanpath(pp);
         rv = xwcsconcat(posixroot, pp);
     }
     xfree(pp);
@@ -704,31 +675,31 @@ static wchar_t *posixtowin(wchar_t *pp, int m)
 
 static wchar_t *pathtowin(wchar_t *pp)
 {
+    int m;
     wchar_t *rv = pp;
 
-    if (iswinpath(pp)) {
-        rmendingspaces(pp);
-        replacepathsep(pp);
+    m = isanypath(pp);
+    if (m < 100) {
+        cleanpath(pp);
     }
     else {
-        rv = posixtowin(pp, 0);
+        rv = posixtowin(pp, m);
     }
     return rv;
 }
 
-static wchar_t *towinpath(const wchar_t *str)
+static wchar_t *towinpath(const wchar_t *str, int m)
 {
     int i, n;
     wchar_t *wp = xwcsdup(str);
 
-    if (iswinpath(wp)) {
+    if (m < 100) {
         if (wcschr(wp, L';')) {
             wchar_t **pa = splitpath(wp, &n, L';');
 
             if (pa != NULL) {
                 for (i = 0; i < n; i++) {
-                    replacepathsep(pa[i]);
-                    rmtrailingpsep(pa[i]);
+                    cleanpath(pa[i]);
                 }
                 xfree(wp);
                 wp = mergepath(pa);
@@ -736,40 +707,82 @@ static wchar_t *towinpath(const wchar_t *str)
             }
         }
         else {
-            rmendingspaces(wp);
-            replacepathsep(wp);
-        }
-    }
-    else if (xwcsmatch(wp, L"*/+*:*/+*") == 0) {
-        /**
-         * We have [...]/x[...]:[...]/x[...]
-         * which can be eventually converted
-         * to token1;token2[;tokenN...]
-         * If any of tokens is not a posix path
-         * return original string.
-         */
-        wchar_t **pa = splitpath(wp, &n, L':');
-
-        if (pa != NULL) {
-            for (i = 0; i < n; i++) {
-                pa[i] = posixtowin(pa[i], 0);
-                rmtrailingpsep(pa[i]);
-            }
-            xfree(wp);
-            wp = mergepath(pa);
-            waafree(pa);
+            cleanpath(wp);
         }
     }
     else {
-        wp = posixtowin(wp, 0);
+        if (wcschr(wp, L':')) {
+            wchar_t **pa = splitpath(wp, &n, L':');
+
+            if (pa != NULL) {
+                for (i = 0; i < n; i++) {
+                    pa[i] = posixtowin(pa[i], 0);
+                }
+                xfree(wp);
+                wp = mergepath(pa);
+                waafree(pa);
+            }
+        }
+        else {
+            wp = posixtowin(wp, m);
+        }
     }
     return wp;
 }
 
-static wchar_t *getposixroot(wchar_t *r)
-{
 
-    if (r == NULL) {
+static wchar_t *getrealpathname(const wchar_t *path, int isdir)
+{
+    wchar_t    *buf  = NULL;
+    DWORD       siz  = _MAX_FNAME;
+    DWORD       len  = 0;
+    HANDLE      fh;
+    DWORD       fa   = isdir ? FILE_FLAG_BACKUP_SEMANTICS : FILE_ATTRIBUTE_NORMAL;
+
+    if (IS_EMPTY_WCS(path))
+        return NULL;
+    fh = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL,
+                     OPEN_EXISTING, fa, NULL);
+    if (IS_INVALID_HANDLE(fh))
+        return NULL;
+
+    while (buf == NULL) {
+        buf = xwalloc(siz);
+        len = GetFinalPathNameByHandleW(fh, buf, siz, VOLUME_NAME_DOS);
+        if (len == 0) {
+            CloseHandle(fh);
+            xfree(buf);
+            return NULL;
+        }
+        if (len > siz) {
+            xfree(buf);
+            buf = NULL;
+            siz = len;
+        }
+    }
+    CloseHandle(fh);
+    if ((len > 5) && (len < _MAX_FNAME)) {
+        /**
+         * Strip leading \\?\ for short paths
+         * but not \\?\UNC\* paths
+         */
+        if ((buf[0] == L'\\') &&
+            (buf[1] == L'\\') &&
+            (buf[2] == L'?')  &&
+            (buf[3] == L'\\') &&
+            (buf[5] == L':')) {
+            wmemmove(buf, buf + 4, len - 3);
+        }
+    }
+    return buf;
+}
+
+static wchar_t *getposixroot(const wchar_t *rp)
+{
+    wchar_t *r = NULL;
+    wchar_t *d;
+
+    if (rp == NULL) {
         const wchar_t **e = posixrenv;
 
         while (*e != NULL) {
@@ -807,55 +820,13 @@ static wchar_t *getposixroot(wchar_t *r)
             return r;
         }
     }
-    replacepathsep(r);
-    rmtrailingpsep(r);
-    r[0] = towupper(r[0]);
-    return r;
-}
-
-static wchar_t *getrealpathname(const wchar_t *path)
-{
-    wchar_t    *buf  = NULL;
-    DWORD       siz  = _MAX_FNAME;
-    DWORD       len  = 0;
-    HANDLE      fh;
-
-    if (IS_EMPTY_WCS(path))
-        return NULL;
-    fh = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL,
-                     OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (IS_INVALID_HANDLE(fh))
-        return NULL;
-
-    while (buf == NULL) {
-        buf = xwalloc(siz);
-        len = GetFinalPathNameByHandleW(fh, buf, siz, VOLUME_NAME_DOS);
-        if (len == 0) {
-            CloseHandle(fh);
-            xfree(buf);
-            return NULL;
-        }
-        if (len > siz) {
-            xfree(buf);
-            buf = NULL;
-            siz = len;
-        }
+    else {
+        r = xwcsdup(rp);
     }
-    CloseHandle(fh);
-    if ((len > 5) && (len < _MAX_FNAME)) {
-        /**
-         * Strip leading \\?\ for short paths
-         * but not \\?\UNC\* paths
-         */
-        if ((buf[0] == L'\\') &&
-            (buf[1] == L'\\') &&
-            (buf[2] == L'?')  &&
-            (buf[3] == L'\\') &&
-            (buf[5] == L':')) {
-            wmemmove(buf, buf + 4, len - 3);
-        }
-    }
-    return buf;
+    cleanpath(r);
+    d = getrealpathname(r, 1);
+    xfree(r);
+    return d;
 }
 
 static wchar_t *xsearchexe(const wchar_t *paths, const wchar_t *name)
@@ -878,7 +849,7 @@ static wchar_t *xsearchexe(const wchar_t *paths, const wchar_t *name)
             sz = ln;
         }
     }
-    rp = getrealpathname(sp);
+    rp = getrealpathname(sp, 0);
     xfree(sp);
     return rp;
 }
@@ -909,52 +880,36 @@ static BOOL WINAPI consolehandler(DWORD ctrl)
 
 static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
 {
-    int i, rc = 0;
+    int i, m, rc = 0;
     intptr_t rp;
 
     if (xdumpenv == 0) {
         for (i = xrunexec; i < argc; i++) {
+            wchar_t *v = NULL;
             wchar_t *a = wargv[i];
 
-            if ((a[0] == L'"') || (a[0] == L'\'')) {
+            m = isanypath(a);
+            if (m == 0) {
+                v = cmdoptionval(a);
+                m = isanypath(v);
+            }
+            if (m == 0) {
                 /**
                  * Skip quoted argument
                  */
             }
-            else if (iswinpath(a)) {
-                rmendingspaces(a);
-                replacepathsep(a);
-            }
             else {
-                int m = isposixpath(a);
-
-                if (m != 0) {
-                    /**
-                     * We have posix path
-                     */
-                     wargv[i] = posixtowin(a, m);
+                if (v == NULL) {
+                    wargv[i] = towinpath(a, m);
+                    xfree(a);
                 }
                 else {
-                    wchar_t *v = cmdoptionval(a);
+                    wchar_t *p = towinpath(v, m);
 
-                    if (isanypath(v)) {
-                        if (iswinpath(v)) {
-                            rmendingspaces(v);
-                            replacepathsep(v);
-                        }
-                        else {
-                            m = isposixpath(v);
-                            if (m != 0) {
-                                wchar_t *p = xwcsdup(v);
-
-                                p = posixtowin(p, m);
-                                v[0] = L'\0';
-                                wargv[i] = xwcsconcat(a, p);
-                                xfree(p);
-                                xfree(a);
-                            }
-                        }
-                    }
+                    v[0] = L'\0';
+                    wargv[i] = xwcsconcat(a, p);
+                    xfree(p);
+                    xfree(a);
                 }
             }
             if (xrunexec == 0) {
@@ -981,8 +936,9 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 return EBADF;
             }
             v++;
-            if (isanypath(v)) {
-                p = towinpath(v);
+            m = isanypath(v);
+            if (m != 0) {
+                p = towinpath(v, m);
 
                 v[0] = L'\0';
                 wenvp[i] = xwcsconcat(e, p);
@@ -1108,6 +1064,9 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                     return invalidarg(p);
                 }
                 switch (p[1]) {
+                    case L'K':
+                        xrmendps = 0;
+                    break;
                     case L'k':
                         clreenv  = 0;
                     break;
@@ -1191,8 +1150,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             return EINVAL;
         }
         for (i = 0; i < n; i++) {
-            replacepathsep(pa[i]);
-            rmtrailingpsep(pa[i]);
+            cleanpath(pa[i]);
         }
         xfree(cpp);
         cpp = mergepath(pa);
@@ -1263,7 +1221,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         wchar_t *sch;
         wchar_t *exe = pathtowin(dupwargv[0]);
 
-        sch = getrealpathname(exe);
+        sch = getrealpathname(exe, 0);
         if (sch == NULL) {
             wchar_t *pps;
             /**
