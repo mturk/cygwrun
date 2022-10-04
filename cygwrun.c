@@ -74,24 +74,24 @@ static const wchar_t *pathfixed[] = {
 };
 
 static const wchar_t *removeext[] = {
+    L"_",
+    L"!::",
+    L"!;",
     L"OLDPWD",
     L"ORIGINAL_PATH",
     L"ORIGINAL_TEMP",
     L"ORIGINAL_TMP",
+    L"temp",
+    L"tmp",
     NULL
 };
 
 static const wchar_t *removeenv[] = {
-    L"_",
-    L"!::",
-    L"!;",
     L"CYGWIN_ROOT",
     L"PATH",
     L"POSIX_ROOT",
     L"PS1",
     L"PWD",
-    L"temp",
-    L"tmp",
     NULL
 };
 
@@ -346,10 +346,13 @@ static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
     return (*wstr != L'\0');
 }
 
-static int xwcsisenvvar(const wchar_t *str, const wchar_t *var)
+static int xwcsisenvvar(const wchar_t *str, const wchar_t *var, int icase)
 {
     while (*str != L'\0') {
-        if (*str != *var)
+        wchar_t cs = icase ? tolower(*str) : *str;
+        wchar_t cv = icase ? tolower(*var) : *var;
+
+        if (cs != cv)
             break;
         str++;
         var++;
@@ -970,7 +973,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             wchar_t *p;
             wchar_t *e = wenvp[i];
 
-            v = wcschr(e, L'=');
+            v = wcschr(e + 1, L'=');
             if ((v == NULL) || (v[1] == L'\0')) {
                 /**
                  * Bad environment
@@ -996,7 +999,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             int n;
             for (n = 0; n < argc; n++) {
                 for (i = 0; i < envc; i++) {
-                    if (xwcsisenvvar(wenvp[i], wargv[n])) {
+                    if (xwcsisenvvar(wenvp[i], wargv[n], 0)) {
                         if (x++ > 0)
                             fputwc(L'\n', stdout);
                         fputws(wenvp[i], stdout);
@@ -1229,7 +1232,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         if (clreenv) {
             e = removeext;
             while (*e != NULL) {
-                if (xwcsisenvvar(p, *e)) {
+                if (xwcsisenvvar(p, *e, 0)) {
                     /**
                      * Skip private environment variable
                      */
@@ -1242,7 +1245,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         if (p != NULL) {
             e = removeenv;
             while (*e != NULL) {
-                if (xwcsisenvvar(p, *e)) {
+                if (xwcsisenvvar(p, *e, 1)) {
                     p = NULL;
                     break;
                 }
@@ -1250,7 +1253,10 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             }
         }
         if (p != NULL) {
-            dupwenvp[dupenvc++] = xwcsdup(p);
+            const wchar_t *v = wcschr(p + 1, L'=');
+            if ((v != NULL) && (v[1] != L'\0')) {
+                dupwenvp[dupenvc++] = xwcsdup(p);
+            }
         }
     }
     if (xrunexec) {
