@@ -216,11 +216,7 @@ static wchar_t *xwcsdup(const wchar_t *s)
     if (IS_EMPTY_WCS(s))
         return NULL;
     n = wcslen(s) + 1;
-    p = (wchar_t *)malloc((n + 1) * sizeof(wchar_t));
-    if (p == NULL) {
-        _wperror(L"xwcsdup");
-        _exit(1);
-    }
+    p = xwmalloc(n);
     return wmemcpy(p, s, n);
 }
 
@@ -232,11 +228,7 @@ static wchar_t *xwcsndup(const wchar_t *s, size_t len)
     if (IS_EMPTY_WCS(s) || (len == 0))
         return NULL;
     n = wcsnlen(s, len);
-    p = (wchar_t *)malloc((n + 2) * sizeof(wchar_t));
-    if (p == NULL) {
-        _wperror(L"xwcsdup");
-        _exit(1);
-    }
+    p = xwmalloc(n + 1);
     p[n] = L'\0';
     return wmemcpy(p, s, n);
 }
