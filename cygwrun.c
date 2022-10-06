@@ -37,6 +37,10 @@ static int      xshowerr  = 1;
 static int      xforcewp  = 0;
 static int      xrmendps  = 1;
 
+static int      xwoptind  = 1;   /* Index into parent argv vector */
+static int      xwoption  = 0;   /* Character checked for validity */
+static const wchar_t  *xwoptarg = NULL;
+
 static wchar_t *posixroot = NULL;
 
 static const wchar_t *pathmatches[] = {
@@ -153,10 +157,10 @@ static int version(int verbose)
     return 0;
 }
 
-static int invalidarg(const wchar_t *arg)
+static int invalidarg(int arg)
 {
     if (xshowerr)
-        fprintf(stderr, "Error: unknown command line option: '%S'\n", arg);
+        fprintf(stderr, "Error: Invalid command line option: '%C'\n", arg);
     return usage(EINVAL);
 }
 
@@ -363,6 +367,76 @@ static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
         }
     }
     return (*wstr != L'\0');
+}
+
+int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
+{
+    const wchar_t *oli = NULL;
+    static const wchar_t *place = zerostring;
+
+    xwoptarg = NULL;
+    if (*place == L'\0') {
+
+        if (xwoptind >= nargc) {
+            /* No more arguments */
+            place = zerostring;
+            return EOF;
+        }
+        place = nargv[xwoptind];
+        if ((place[0] != L'-') || (place[1] == L'-')) {
+            /* Argument is not an option */
+            place = zerostring;
+            return EOF;
+        }
+        place++;
+    }
+
+    xwoption = *(place++);
+    if (xwoption == L'\0') {
+        ++xwoptind;
+        place = zerostring;
+        return EOF;
+    }
+    if (xwoption != L':') {
+        oli = wcschr(opts, (wchar_t)xwoption);
+    }
+    if (oli == NULL) {
+        if (*place == L'\0') {
+            ++xwoptind;
+            place = zerostring;
+        }
+        return L'!';
+    }
+
+    /* Does this option need an argument? */
+    if (oli[1] == L':') {
+        /*
+         * Option-argument is either the rest of this argument
+         * or the entire next argument.
+         */
+        if (*place != L'\0') {
+            xwoptarg = place;
+        }
+        else if (oli[2] != L':') {
+            if (nargc > ++xwoptind) {
+                xwoptarg = nargv[xwoptind];
+            }
+        }
+        ++xwoptind;
+        place = zerostring;
+        if ((xwoptarg == NULL) || (*xwoptarg == L'\0')) {
+            /* Option-argument is absent or empty */
+            return L':';
+        }
+    }
+    else {
+        /* Don't need argument */
+        if (*place == L'\0') {
+            ++xwoptind;
+            place = zerostring;
+        }
+    }
+    return oli[0];
 }
 
 static int xwcsisenvvar(const wchar_t *str, const wchar_t *var, int icase)
@@ -1025,9 +1099,8 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     int dupargc = 0;
     int clreenv = 1;
     int envc    = 0;
-    int opts    = 1;
+    int opt     = 0;
     int haseopt = 0;
-    int haspopt = 0;
 
 
     if (wenv == NULL) {
@@ -1039,100 +1112,74 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
 
     if (dupwargv[0] != NULL) {
         dupargc = 1;
-        opts    = 0;
     }
-    for (i = 1; i < argc; i++) {
-        const wchar_t *p = wargv[i];
+    else {
+        while ((opt = xwgetopt(argc, wargv, L"fkKepsqw:r:vVh?")) != EOF) {
+            switch (opt) {
+                case L'f':
+                    xforcewp = 1;
+                break;
+                case L'K':
+                    xrmendps = 0;
+                break;
+                case L'k':
+                    clreenv  = 0;
+                break;
+                case L'e':
+                    xdumpenv = 1;
+                    xrunexec = 0;
+                    haseopt += 1;
+                break;
+                case L'p':
+                    xrunexec = 0;
+                    xdumpenv = 0;
+                    haseopt += 1;
+                break;
+                case L'r':
+                    crp = xwcsdup(xwoptarg);
+                break;
+                case L's':
+                    xskipenv = 1;
+                break;
+                case L'q':
+                    xshowerr = 0;
+                break;
+                case L'w':
+                    cwd = xwcsdup(xwoptarg);
+                break;
+                case L'v':
+                    return version(0);
+                break;
+                case L'V':
+                    return version(1);
+                break;
+                case L'h':
+                case L'?':
+                    xshowerr = 1;
+                    return usage(0);
+                break;
+                default:
+                    xshowerr = 1;
+                    return invalidarg(opt);
+                break;
 
-        if (opts) {
-            /**
-             * Simple argument parsing
-             */
-            if (cwd == zerostring) {
-                cwd = xwcsdup(p);
-                continue;
             }
-            if (crp == zerostring) {
-                crp = xwcsdup(p);
-                continue;
-            }
-            if (haspopt) {
-                dupwargv[dupargc++] = xwcsdup(p);
-                opts = 0;
-                continue;
-            }
-
-            if (p[0] == L'-') {
-
-                if ((p[1] == L'\0') || (p[2] != L'\0')) {
-                    return invalidarg(p);
-                }
-                switch (p[1]) {
-                    case L'K':
-                        xrmendps = 0;
-                    break;
-                    case L'k':
-                        clreenv  = 0;
-                    break;
-                    case L'e':
-                        xdumpenv = 1;
-                        xrunexec = 0;
-                        haseopt  = 1;
-                    break;
-                    case L'f':
-                        xforcewp = 1;
-                    break;
-                    case L'p':
-                        xrunexec = 0;
-                        xdumpenv = 0;
-                        haspopt  = 1;
-                    break;
-                    case L'r':
-                        crp = zerostring;
-                    break;
-                    case L's':
-                        xskipenv = 1;
-                    break;
-                    case L'q':
-                        xshowerr = 0;
-                    break;
-                    case L'w':
-                        cwd = zerostring;
-                    break;
-                    case L'v':
-                        return version(0);
-                    break;
-                    case L'V':
-                        return version(1);
-                    break;
-                    case L'h':
-                    case L'?':
-                        xshowerr = 1;
-                        return usage(0);
-                    break;
-                    default:
-                        return invalidarg(p);
-                    break;
-                }
-                continue;
-            }
-            opts = 0;
         }
-        dupwargv[dupargc++] = xwcsdup(p);
     }
-    if (haseopt && haspopt) {
+    if (haseopt > 1) {
         if (xshowerr)
             fputs("Cannot have both -p and -e options defined\n", stderr);
         return usage(EINVAL);
     }
-    if ((dupargc == 0) && (xdumpenv == 0)) {
+    argc  -= xwoptind;
+    wargv += xwoptind;
+    for (i = 0; i < argc; i++) {
+        dupwargv[dupargc++] = xwcsdup(wargv[i]);
+    }
+
+    if ((dupargc == 0) && (haseopt == 0)) {
         if (xshowerr)
             fputs("Missing PROGRAM argument\n", stderr);
-        return usage(1);
-    }
-    if ((cwd == zerostring) || (crp == zerostring)) {
-        if (xshowerr)
-            fputs("Missing required parameter value\n", stderr);
         return usage(1);
     }
     cpp = xgetenv(L"PATH");
