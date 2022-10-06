@@ -55,7 +55,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         }
         if (v != NULL) {
             if (x++ > 0)
-                fputc(L'\n', stdout);
+                fputwc(L'\n', stdout);
             fputws(v, stdout);
         }
         e++;

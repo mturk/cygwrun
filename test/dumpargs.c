@@ -24,7 +24,7 @@ int wmain(int argc, const wchar_t **wargv)
 
     for (i = 1; i < argc; i++) {
         if (i > 1)
-            fputc(L'\n', stdout);
+            fputwc(L'\n', stdout);
         fputws(wargv[i], stdout);
     }
     return 0;
