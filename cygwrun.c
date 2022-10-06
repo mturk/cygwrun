@@ -388,15 +388,15 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
             place = zerostring;
             return EOF;
         }
-        place++;
+        if (*(place++) == L'\0') {
+            /* Single '-' stop processing */
+            ++xwoptind;
+            place = zerostring;
+            return EOF;
+        }
     }
 
     xwoption = *(place++);
-    if (xwoption == L'\0') {
-        ++xwoptind;
-        place = zerostring;
-        return EOF;
-    }
     if (xwoption != L':') {
         oli = wcschr(opts, (wchar_t)xwoption);
     }
