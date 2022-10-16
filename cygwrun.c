@@ -87,8 +87,6 @@ static const wchar_t *removeext[] = {
     L"ORIGINAL_TEMP",
     L"ORIGINAL_TMP",
     L"PS1",
-    L"temp",
-    L"tmp",
     NULL
 };
 
@@ -97,6 +95,8 @@ static const wchar_t *removeenv[] = {
     L"PATH",
     L"POSIX_ROOT",
     L"PWD",
+    L"TEMP",
+    L"TMP",
     NULL
 };
 
@@ -1094,6 +1094,8 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     wchar_t *crp       = NULL;
     wchar_t *cwd       = NULL;
     wchar_t *cpp;
+    wchar_t *etmp;
+    wchar_t *ptmp;
 
     int dupenvc = 0;
     int dupargc = 0;
@@ -1225,11 +1227,22 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             fputs("Cannot get current working directory\n", stderr);
         return ENOENT;
     }
+    etmp = xgetenv(L"TEMP");
+    if (etmp != NULL)
+        etmp = pathtowin(etmp);
+    else
+        etmp = xwcsdup(L"C:\\Windows\\Temp");
+    ptmp  = xgetenv(L"TMP");
+    if (ptmp != NULL)
+        ptmp = pathtowin(ptmp);
+    else
+        ptmp = xwcsdup(etmp);
+
     while (wenv[envc] != NULL) {
         ++envc;
     }
 
-    dupwenvp = waalloc(envc + 4);
+    dupwenvp = waalloc(envc + 6);
     for (i = 0; i < envc; i++) {
         const wchar_t **e;
         const wchar_t  *p = wenv[i];
@@ -1299,7 +1312,11 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     dupwenvp[dupenvc++] = xwcsconcat(L"PATH=", cpp);
     dupwenvp[dupenvc++] = xwcsconcat(L"PWD=",  cwd);
     dupwenvp[dupenvc++] = xwcsconcat(L"POSIX_ROOT=", posixroot);
+    dupwenvp[dupenvc++] = xwcsconcat(L"TEMP=", etmp);
+    dupwenvp[dupenvc++] = xwcsconcat(L"TMP=",  ptmp);
     xfree(cpp);
     xfree(cwd);
+    xfree(etmp);
+    xfree(ptmp);
     return posixmain(dupargc, dupwargv, dupenvc, dupwenvp);
 }
