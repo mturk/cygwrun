@@ -1091,7 +1091,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     int i, n;
     wchar_t **dupwargv = NULL;
     wchar_t **dupwenvp = NULL;
-    wchar_t *crp       = NULL;
+    const wchar_t *crp = NULL;
     wchar_t *cwd       = NULL;
     wchar_t *cpp;
     wchar_t *wtd;
@@ -1142,7 +1142,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                     haseopt += 1;
                 break;
                 case L'r':
-                    crp = xwcsdup(xwoptarg);
+                    crp = xwoptarg;
                 break;
                 case L's':
                     xskipenv = 1;
