@@ -411,7 +411,7 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
             ++xwoptind;
             place = zerostring;
         }
-        return L'!';
+        return EINVAL;
     }
 
     /* Does this option need an argument? */
@@ -432,7 +432,7 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
         place = zerostring;
         if (IS_EMPTY_WCS(xwoptarg)) {
             /* Option-argument is absent or empty */
-            return L':';
+            return ENOENT;
         }
     }
     else {
@@ -1166,9 +1166,18 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                     xshowerr = 1;
                     return usage(0);
                 break;
+                case EINVAL:
+                    fprintf(stderr, "Error: Invalid command line option: '%C'\n", xwoption);
+                    return usage(opt);
+                break;
+                case ENOENT:
+                    fprintf(stderr, "Error: Missing argument for option: '%C'\n", xwoption);
+                    return usage(opt);
+                break;
                 default:
-                    xshowerr = 1;
-                    return invalidarg(opt);
+                    /* Should never happen */
+                    fprintf(stderr, "Error: Unknown return from xwgetopt: %d\n", opt);
+                    return opt;
                 break;
 
             }
@@ -1176,7 +1185,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     }
     if (haseopt > 1) {
         if (xshowerr)
-            fputs("Cannot have both -p and -e options defined\n", stderr);
+            fputs("Error: Options -p and -e are mutually exclusive\n", stderr);
         return usage(EINVAL);
     }
     argc  -= xwoptind;
