@@ -82,10 +82,7 @@ static const wchar_t *removeext[] = {
     L"_",
     L"!::",
     L"!;",
-    L"OLDPWD",
     L"ORIGINAL_PATH",
-    L"ORIGINAL_TEMP",
-    L"ORIGINAL_TMP",
     L"PS1",
     NULL
 };
