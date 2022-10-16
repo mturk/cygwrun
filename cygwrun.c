@@ -155,13 +155,6 @@ static int version(int verbose)
     return 0;
 }
 
-static int invalidarg(int arg)
-{
-    if (xshowerr)
-        fprintf(stderr, "Error: Invalid command line option: '%C'\n", arg);
-    return usage(EINVAL);
-}
-
 static wchar_t *xwmalloc(size_t size)
 {
     wchar_t *p = (wchar_t *)malloc((size + 1) * sizeof(wchar_t));
@@ -886,20 +879,15 @@ static wchar_t *xsearchexe(const wchar_t *paths, const wchar_t *name)
 
 static wchar_t *getposixroot(const wchar_t *rp)
 {
-    wchar_t *r = NULL;
+    wchar_t *d;
+    wchar_t *r = xwcsdup(rp);
 
-    if (IS_VALID_WCS(rp)) {
-        r = xwcsdup(rp);
-        cleanpath(r);
-    }
-    else {
-        wchar_t *d;
+    if (r == NULL) {
         const wchar_t **e = posixrenv;
 
         while (*e != NULL) {
             r = xgetenv(*e);
             if (r != NULL) {
-                cleanpath(r);
                 break;
             }
             e++;
@@ -927,6 +915,19 @@ static wchar_t *getposixroot(const wchar_t *rp)
                     *d = L'\0';
             }
         }
+    }
+    if (r == NULL) {
+        /* Probably not usable */
+        r = xgetenv(L"APPDATA");
+        if (r == NULL)
+            r = xgetenv(L"SystemRoot");
+    }
+    else {
+        /* Ensure that path exists */
+        d = r;
+        cleanpath(d);
+        r = getrealpathname(d, 1);
+        xfree(d);
     }
     return r;
 }
