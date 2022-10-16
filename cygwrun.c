@@ -430,7 +430,7 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
         }
         ++xwoptind;
         place = zerostring;
-        if ((xwoptarg == NULL) || (*xwoptarg == L'\0')) {
+        if (IS_EMPTY_WCS(xwoptarg)) {
             /* Option-argument is absent or empty */
             return L':';
         }
