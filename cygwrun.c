@@ -862,58 +862,6 @@ static wchar_t *getrealpathname(const wchar_t *path, int isdir)
     return buf;
 }
 
-static wchar_t *getposixroot(const wchar_t *rp)
-{
-    wchar_t *r = NULL;
-    wchar_t *d;
-
-    if (rp == NULL) {
-        const wchar_t **e = posixrenv;
-
-        while (*e != NULL) {
-            r = xgetenv(*e);
-            if (IS_VALID_WCS(r))
-                break;
-            e++;
-        }
-        if (r == NULL) {
-            r = xgetenv(L"HOME");
-            if (IS_VALID_WCS(r)) {
-                wchar_t *p = wcsstr(r, L"\\home\\");
-                if (IS_EMPTY_WCS(p)) {
-                    xfree(r);
-                    r = NULL;
-                }
-                else {
-                    *p = L'\0';
-                    return r;
-                }
-            }
-        }
-        if (r == NULL) {
-            /**
-             * Use default locations
-             */
-            r = xwcsdup(L"C:\\cygwin64");
-            if (_waccess(r, 0)) {
-                r[9] = L'\0';
-                if (_waccess(r, 0)) {
-                    xfree(r);
-                    r = NULL;
-                }
-            }
-            return r;
-        }
-    }
-    else {
-        r = xwcsdup(rp);
-    }
-    cleanpath(r);
-    d = getrealpathname(r, 1);
-    xfree(r);
-    return d;
-}
-
 static wchar_t *xsearchexe(const wchar_t *paths, const wchar_t *name)
 {
     wchar_t  *sp = NULL;
@@ -937,6 +885,64 @@ static wchar_t *xsearchexe(const wchar_t *paths, const wchar_t *name)
     rp = getrealpathname(sp, 0);
     xfree(sp);
     return rp;
+}
+
+static wchar_t *getposixroot(const wchar_t *rp)
+{
+    wchar_t *r = NULL;
+    wchar_t *d;
+
+    if (rp == NULL) {
+        const wchar_t **e = posixrenv;
+
+        while (*e != NULL) {
+            r = xgetenv(*e);
+            if (IS_VALID_WCS(r))
+                break;
+            e++;
+        }
+        if (r == NULL) {
+            r = xsearchexe(NULL, L"basename.exe");
+            if (IS_VALID_WCS(r)) {
+                wchar_t *p;
+                p =  wcsstr(r, L"\\usr\\bin\\basename.exe");
+                if (p == NULL)
+                    p = wcsstr(r, L"\\bin\\basename.exe");
+                if (p == NULL) {
+                    xfree(r);
+                    r = NULL;
+                }
+                else {
+                    *p = L'\0';
+                }
+            }
+        }
+        if (r == NULL) {
+            r = xgetenv(L"HOME");
+            if (IS_VALID_WCS(r)) {
+                wchar_t *p = wcsstr(r, L"\\home\\");
+                if (IS_EMPTY_WCS(p)) {
+                    xfree(r);
+                    r = NULL;
+                }
+                else {
+                    *p = L'\0';
+                    return r;
+                }
+            }
+        }
+        if (r == NULL) {
+            /* Missing root */
+            return NULL;
+        }
+    }
+    else {
+        r = xwcsdup(rp);
+    }
+    cleanpath(r);
+    d = getrealpathname(r, 1);
+    xfree(r);
+    return d;
 }
 
 static wchar_t *realappname(const wchar_t *path)
