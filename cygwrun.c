@@ -892,51 +892,50 @@ static wchar_t *getposixroot(const wchar_t *rp)
     wchar_t *r = NULL;
     wchar_t *d = NULL;
 
-    if (rp == NULL) {
+    if (IS_VALID_WCS(rp)) {
+        d = xwcsdup(rp);
+        cleanpath(d);
+        r = getrealpathname(d, 1);
+        xfree(d);
+    }
+    else {
         const wchar_t **e = posixrenv;
 
         while (*e != NULL) {
-            r = xgetenv(*e);
-            if (IS_VALID_WCS(r))
+            d = xgetenv(*e);
+            if (d != NULL) {
+                cleanpath(d);
+                r = getrealpathname(d, 1);
+                xfree(d);
                 break;
+            }
             e++;
         }
         if (r == NULL) {
             r = xgetenv(L"SHELL");
-            if (IS_VALID_WCS(r)) {
-                wchar_t *p = wcsstr(r, L"\\usr\\bin\\");
-                if (p == NULL)
-                    p = wcsstr(r, L"\\bin\\");
-                if (p != NULL) {
-                    *p = L'\0';
-                    return r;
+            if (r != NULL) {
+                d = wcsstr(r, L"\\usr\\bin\\");
+                if (d == NULL)
+                    d = wcsstr(r, L"\\bin\\");
+                if (d != NULL) {
+                    *d = L'\0';
+                }
+                else {
+                    xfree(r);
+                    r = NULL;
                 }
             }
-            xfree(r);
-            r = NULL;
         }
         if (r == NULL) {
             r = xgetenv(L"HOME");
-            if (IS_VALID_WCS(r)) {
-                wchar_t *p = wcsstr(r, L"\\home\\");
-                if (p != NULL) {
-                    *p = L'\0';
-                    return r;
-                }
+            if (r != NULL) {
+                d = wcsstr(r, L"\\home\\");
+                if (d != NULL)
+                    *d = L'\0';
             }
-            xfree(r);
-            r = NULL;
         }
     }
-    else {
-        r = xwcsdup(rp);
-    }
-    if (r != NULL) {
-        cleanpath(r);
-        d = getrealpathname(r, 1);
-        xfree(r);
-    }
-    return d;
+    return r;
 }
 
 static wchar_t *realappname(const wchar_t *path)
