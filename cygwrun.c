@@ -129,6 +129,7 @@ static int usage(int rv)
         fputs(" -r <DIR>  use DIR as posix root\n", os);
         fputs(" -w <DIR>  change working directory to DIR before calling PROGRAM\n", os);
         fputs(" -k        keep extra posix environment variables.\n", os);
+        fputs(" -K        keep trailing path separators for paths.\n", os);
         fputs(" -f        convert all unknown posix absolute paths\n", os);
         fputs(" -s        do not translate environment variables.\n", os);
         fputs(" -q        do not print errors to stderr.\n", os);
