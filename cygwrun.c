@@ -383,16 +383,22 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
             return EOF;
         }
         place = nargv[xwoptind];
-        if ((place[0] != L'-') || (place[1] == L'-')) {
+        if (*(place++) != L'-') {
             /* Argument is not an option */
             place = zerostring;
             return EOF;
         }
-        if (*(place++) == L'\0') {
-            /* Single '-' stop processing */
-            ++xwoptind;
-            place = zerostring;
-            return EOF;
+        switch (*place) {
+            case L'\0':
+                /* Single '-' skip and stop processing */
+                xwoptind++;
+            case L'-' :
+                /* Double '-' stop processing */
+                place = zerostring;
+                return EOF;
+            break;
+            default:
+            break;
         }
     }
 
