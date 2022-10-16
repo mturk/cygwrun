@@ -890,23 +890,19 @@ static wchar_t *xsearchexe(const wchar_t *paths, const wchar_t *name)
 static wchar_t *getposixroot(const wchar_t *rp)
 {
     wchar_t *r = NULL;
-    wchar_t *d = NULL;
 
     if (IS_VALID_WCS(rp)) {
-        d = xwcsdup(rp);
-        cleanpath(d);
-        r = getrealpathname(d, 1);
-        xfree(d);
+        r = xwcsdup(rp);
+        cleanpath(r);
     }
     else {
+        wchar_t *d;
         const wchar_t **e = posixrenv;
 
         while (*e != NULL) {
-            d = xgetenv(*e);
-            if (d != NULL) {
-                cleanpath(d);
-                r = getrealpathname(d, 1);
-                xfree(d);
+            r = xgetenv(*e);
+            if (r != NULL) {
+                cleanpath(r);
                 break;
             }
             e++;

@@ -96,9 +96,9 @@ test: all $(TESTDA) $(TESTDE)
 	@echo.
 	@echo Running simple verification tests ...
 	@echo.
-	@$(OUTPUT) -r $(WORKDIR) $(TESTDE) MAKEDIR
+	@$(OUTPUT) -r $(SYSTEMROOT) $(TESTDE) MAKEDIR
 	@echo.
-	@$(OUTPUT) -r $(WORKDIR) $(TESTDA) /Foo:/tmp
+	@$(OUTPUT) -r $(SYSTEMROOT) $(TESTDA) /tmp
 	@echo.
 	@echo.
 	@echo You can now call runtest.sh from Cygwin environment
