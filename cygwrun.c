@@ -895,11 +895,17 @@ static wchar_t *getposixroot(const wchar_t *rp)
         if (r == NULL) {
             r = xgetenv(L"SHELL");
             if (r != NULL) {
-                d = wcsstr(r, L"\\usr\\bin\\");
-                if (d == NULL)
-                    d = wcsstr(r, L"\\bin\\");
+                d = wcsrchr(r, L'\\');
                 if (d != NULL) {
                     *d = L'\0';
+                    d  = wcsrchr(r, L'\\');
+                    if ((d != NULL) && (wcscmp(d, L"\\bin") == 0)) {
+                        *d = L'\0';
+                        d  = wcsrchr(r, L'\\');
+                        if ((d != NULL) && (wcscmp(d, L"\\usr") == 0)) {
+                            *d = L'\0';
+                        }
+                    }
                 }
                 else {
                     xfree(r);
