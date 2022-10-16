@@ -1200,6 +1200,14 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             fputs("Missing PROGRAM argument\n", stderr);
         return usage(1);
     }
+
+    posixroot = getposixroot(crp);
+    if (IS_EMPTY_WCS(posixroot)) {
+        if (xshowerr)
+            fputs("Cannot find valid POSIX_ROOT\n", stderr);
+        return ENOENT;
+    }
+
     cpp = xgetenv(L"PATH");
     if (IS_EMPTY_WCS(cpp)) {
         if (xshowerr)
@@ -1222,12 +1230,6 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         waafree(pa);
     }
 
-    posixroot = getposixroot(crp);
-    if (IS_EMPTY_WCS(posixroot)) {
-        if (xshowerr)
-            fputs("Cannot find valid POSIX_ROOT\n", stderr);
-        return ENOENT;
-    }
     if (cwd != NULL) {
         cwd = pathtowin(cwd);
         if (_wchdir(cwd) != 0) {
@@ -1244,12 +1246,12 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         return ENOENT;
     }
     etmp = xgetenv(L"TEMP");
-    if (etmp != NULL)
+    if (IS_VALID_WCS(etmp))
         etmp = pathtowin(etmp);
     else
         etmp = xwcsdup(L"C:\\Windows\\Temp");
     ptmp  = xgetenv(L"TMP");
-    if (ptmp != NULL)
+    if (IS_VALID_WCS(ptmp))
         ptmp = pathtowin(ptmp);
     else
         ptmp = xwcsdup(etmp);
@@ -1287,7 +1289,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             }
         }
         if (p != NULL) {
-            const wchar_t *v = wcschr(p + 1, L'=');
+            const wchar_t *v = wcschr(p, L'=');
             if ((v != NULL) && (v[1] != L'\0')) {
                 dupwenvp[dupenvc++] = xwcsdup(p);
             }
@@ -1326,8 +1328,8 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
      * Add back environment variables
      */
     dupwenvp[dupenvc++] = xwcsconcat(L"PATH=", cpp);
-    dupwenvp[dupenvc++] = xwcsconcat(L"PWD=",  cwd);
     dupwenvp[dupenvc++] = xwcsconcat(L"POSIX_ROOT=", posixroot);
+    dupwenvp[dupenvc++] = xwcsconcat(L"PWD=",  cwd);
     dupwenvp[dupenvc++] = xwcsconcat(L"TEMP=", etmp);
     dupwenvp[dupenvc++] = xwcsconcat(L"TMP=",  ptmp);
     xfree(cpp);
