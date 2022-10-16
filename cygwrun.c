@@ -1115,6 +1115,10 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     dupwargv[0] = realappname(wargv[0]);
 
     if (dupwargv[0] != NULL) {
+        /**
+         * We are renamed to __someapp.exe
+         * Use someapp.exe as PROGRAM to execute
+         **/
         dupargc = 1;
     }
     else {
@@ -1197,14 +1201,14 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     }
 
     posixroot = getposixroot(crp);
-    if (IS_EMPTY_WCS(posixroot)) {
+    if (posixroot == NULL) {
         if (xshowerr)
             fputs("Cannot find valid POSIX_ROOT\n", stderr);
         return ENOENT;
     }
 
     cpp = xgetenv(L"PATH");
-    if (IS_EMPTY_WCS(cpp)) {
+    if (cpp == NULL) {
         if (xshowerr)
             fputs("Missing PATH environment variable\n", stderr);
         return ENOENT;
@@ -1241,12 +1245,12 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         return ENOENT;
     }
     etmp = xgetenv(L"TEMP");
-    if (IS_VALID_WCS(etmp))
+    if (etmp == NULL)
         etmp = pathtowin(etmp);
     else
         etmp = xwcsdup(L"C:\\Windows\\Temp");
     ptmp  = xgetenv(L"TMP");
-    if (IS_VALID_WCS(ptmp))
+    if (ptmp == NULL)
         ptmp = pathtowin(ptmp);
     else
         ptmp = xwcsdup(etmp);
@@ -1302,10 +1306,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
              * Add current directory as first PATH element
              * and search for PROGRAM[.exe]
              */
-            if (isdotpath(exe))
-                pps = xwcscpaths(cwd, cpp);
-            else
-                pps = cpp;
+            pps = xwcscpaths(cwd, cpp);
             sch = xsearchexe(pps, exe);
             if (sch == NULL) {
                 if (xshowerr)
@@ -1313,8 +1314,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                              exe, pps);
                 return ENOENT;
             }
-            if (pps != cpp)
-                xfree(pps);
+            xfree(pps);
         }
         xfree(exe);
         dupwargv[0] = sch;
