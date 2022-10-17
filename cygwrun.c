@@ -1289,8 +1289,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             sch = xsearchexe(pps, exe);
             if (sch == NULL) {
                 if (xshowerr)
-                    fwprintf(stderr, L"Cannot find PROGRAM '%s' inside %s\n",
-                             exe, pps);
+                    fwprintf(stderr, L"Cannot find PROGRAM '%s'\n", exe);
                 return ENOENT;
             }
             xfree(pps);
