@@ -624,10 +624,6 @@ static void cleanpath(wchar_t *s)
                 break;
         }
     }
-    if (c > 1) {
-        if ((s[c] == L'.') && (s[c - 1] == L'\\'))
-            s[c] = L'\0';
-    }
 }
 
 static wchar_t **splitpath(const wchar_t *s, int *tokens, wchar_t ps)
