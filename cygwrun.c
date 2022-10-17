@@ -94,6 +94,7 @@ static const wchar_t *specialenv[] = {
 };
 
 static const wchar_t *removeenv[] = {
+    L"_",
     L"CYGWIN_ROOT",
     L"PATH",
     L"POSIX_ROOT",
