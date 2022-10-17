@@ -1235,14 +1235,18 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     ptd = xgetenv(L"TMP");
     if (ptd != NULL)
         ptd = pathtowin(ptd);
-    else
-        ptd = xwcsdup(L"C:\\Windows\\Temp");
-    wtd  = xgetenv(L"TEMP");
+    wtd = xgetenv(L"TEMP");
     if (wtd != NULL)
         wtd = pathtowin(wtd);
     else
         wtd = xwcsdup(ptd);
-
+    if (ptd == NULL)
+        ptd = xwcsdup(wtd);
+    if (ptd == NULL) {
+        if (xshowerr)
+            fwprintf(stderr, L"Both TEMP and TMP environment variables are missing\n");
+        return ENOENT;
+    }
     while (wenv[envc] != NULL) {
         ++envc;
     }
