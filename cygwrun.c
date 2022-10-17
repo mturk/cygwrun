@@ -31,6 +31,7 @@
 #define IS_VALID_WCS(_s)  (((_s) != NULL) && (*(_s) != L'\0'))
 
 static int      xrunexec  = 1;
+static int      xdumparg  = 0;
 static int      xdumpenv  = 0;
 static int      xskipenv  = 0;
 static int      xskiparg  = 0;
@@ -958,6 +959,8 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     intptr_t rp;
 
     if (xskiparg == 0) {
+        if (xdumparg && (argc == 0))
+            return usage(EINVAL);
         for (i = xrunexec; i < argc; i++) {
             wchar_t *v = NULL;
             wchar_t *a = wargv[i];
@@ -986,14 +989,11 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                     xfree(a);
                 }
             }
-            if (xrunexec == 0) {
+            if (xdumparg) {
                 if (i > 0)
                     fputwc(L'\n', stdout);
                 fputws(wargv[i], stdout);
             }
-        }
-        if (xrunexec == 0) {
-            return 0;
         }
     }
     if (xskipenv == 0) {
@@ -1063,28 +1063,29 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 fputws(wenvp[i], stdout);
             }
         }
-        return 0;
     }
-    _flushall();
-    rp = _wspawnvpe(_P_NOWAIT, wargv[0], wargv, wenvp);
-    if (rp == (intptr_t)-1) {
-        rc = errno;
-        if (xshowerr)
-            fwprintf(stderr, L"Failed to execute: '%s'\n", wargv[0]);
-    }
-    else {
-        /**
-         * wait for child to exit
-         */
-        SetConsoleCtrlHandler(consolehandler, TRUE);
-        if (_cwait(&rc, rp, 0) == (intptr_t)-1) {
+    if (xrunexec) {
+        _flushall();
+        rp = _wspawnvpe(_P_NOWAIT, wargv[0], wargv, wenvp);
+        if (rp == (intptr_t)-1) {
             rc = errno;
-            if (xshowerr) {
-                fwprintf(stderr, L"Execute failed: %s\nFatal error: %s\n\n",
-                         wargv[0], _wcserror(rc));
-            }
+            if (xshowerr)
+                fwprintf(stderr, L"Failed to execute: '%s'\n", wargv[0]);
         }
-        SetConsoleCtrlHandler(consolehandler, FALSE);
+        else {
+            /**
+             * wait for child to exit
+             */
+            SetConsoleCtrlHandler(consolehandler, TRUE);
+            if (_cwait(&rc, rp, 0) == (intptr_t)-1) {
+                rc = errno;
+                if (xshowerr) {
+                    fwprintf(stderr, L"Execute failed: %s\nFatal error: %s\n\n",
+                             wargv[0], _wcserror(rc));
+                }
+            }
+            SetConsoleCtrlHandler(consolehandler, FALSE);
+        }
     }
     return rc;
 }
@@ -1135,14 +1136,15 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                     clreenv  = 0;
                 break;
                 case L'e':
+                    xrunexec = 0;
                     xdumpenv = 1;
                     xskiparg = 1;
-                    xrunexec = 0;
                     haseopt += 1;
                 break;
                 case L'p':
                     xrunexec = 0;
-                    xdumpenv = 0;
+                    xdumparg = 1;
+                    xskipenv = 1;
                     haseopt += 1;
                 break;
                 case L'r':
