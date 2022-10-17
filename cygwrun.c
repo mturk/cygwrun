@@ -143,8 +143,7 @@ static int usage(int rv)
         fputs(" -V        print detailed version information and exit.\n", os);
         fputs(" -h | -?   print this screen and exit.\n", os);
         fputs(" -p        print arguments instead executing PROGRAM.\n", os);
-        fputs(" -e        print current environment block end exit.\n", os);
-        fputs("           if defined, only print variables that begin with ARGUMENTS.\n\n", os);
+        fputs(" -e        print environment variables matching ARGUMENTS.\n", os);
         fputs("To file bugs, visit " PROJECT_URL, os);
     }
     return rv;
@@ -1034,11 +1033,9 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     }
     qsort((void *)wenvp, envc, sizeof(wchar_t *), envsort);
     if (xdumpenv) {
-        int x = 0;
-
         if (argc > 0) {
-            int n;
-            for (n = 0; n < argc; n++) {
+            int n, x;
+            for (n = 0, x = 0; n < argc; n++) {
                 for (i = 0; i < envc; i++) {
                     if (xwcsisenvvar(wenvp[i], wargv[n], 0)) {
                         if (x++ > 0)
@@ -1048,12 +1045,14 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                     }
                 }
                 if (i == envc) {
-                    if (x > 0)
-                        fputwc(L'\n', stderr);
-                    fputws(L"Error: Environment variable '", stderr);
-                    fputws(wargv[n], stderr);
-                    fputws(L"' cannot be found", stderr);
-                    break;
+                    if (xshowerr) {
+                        if (x > 0)
+                            fputwc(L'\n', stderr);
+                        fputws(L"Error: Environment variable '", stderr);
+                        fputws(wargv[n], stderr);
+                        fputws(L"' cannot be found", stderr);
+                    }
+                    return ENOENT;
                 }
             }
         }
@@ -1064,10 +1063,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 fputws(wenvp[i], stdout);
             }
         }
-        if (argc == x)
-            return 0;
-        else
-            return ENOENT;
+        return 0;
     }
     _flushall();
     rp = _wspawnvpe(_P_NOWAIT, wargv[0], wargv, wenvp);
