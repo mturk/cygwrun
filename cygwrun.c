@@ -33,6 +33,7 @@
 static int      xrunexec  = 1;
 static int      xdumpenv  = 0;
 static int      xskipenv  = 0;
+static int      xskiparg  = 0;
 static int      xshowerr  = 1;
 static int      xforcewp  = 0;
 static int      xrmendps  = 1;
@@ -136,6 +137,7 @@ static int usage(int rv)
         fputs(" -K        keep trailing path separators for paths.\n", os);
         fputs(" -f        convert all unknown posix absolute paths\n", os);
         fputs(" -s        do not translate environment variables.\n", os);
+        fputs(" -S        do not translate arguments.\n", os);
         fputs(" -q        do not print errors to stderr.\n", os);
         fputs(" -v        print version information and exit.\n", os);
         fputs(" -V        print detailed version information and exit.\n", os);
@@ -956,7 +958,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     int i, m, rc = 0;
     intptr_t rp;
 
-    if (xdumpenv == 0) {
+    if (xskiparg == 0) {
         for (i = xrunexec; i < argc; i++) {
             wchar_t *v = NULL;
             wchar_t *a = wargv[i];
@@ -1125,7 +1127,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         dupargc = 1;
     }
     else {
-        while ((opt = xwgetopt(argc, wargv, L"fkKepsqw:r:vVh?")) != EOF) {
+        while ((opt = xwgetopt(argc, wargv, L"fkKepsSqw:r:vVh?")) != EOF) {
             switch (opt) {
                 case L'f':
                     xforcewp = 1;
@@ -1138,6 +1140,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                 break;
                 case L'e':
                     xdumpenv = 1;
+                    xskiparg = 1;
                     xrunexec = 0;
                     haseopt += 1;
                 break;
@@ -1151,6 +1154,9 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                 break;
                 case L's':
                     xskipenv = 1;
+                break;
+                case L'S':
+                    xskiparg = 1;
                 break;
                 case L'q':
                     xshowerr = 0;
