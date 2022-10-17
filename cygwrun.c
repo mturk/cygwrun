@@ -84,7 +84,6 @@ static const wchar_t *removeext[] = {
 };
 
 static const wchar_t *specialenv[] = {
-    L"_",
     L"!::",
     L"!;",
     L"PS1",
