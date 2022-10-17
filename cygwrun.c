@@ -79,7 +79,10 @@ static const wchar_t *pathfixed[] = {
 };
 
 static const wchar_t *removeext[] = {
+    L"OLDPWD",
     L"ORIGINAL_PATH",
+    L"ORIGINAL_TEMP",
+    L"ORIGINAL_TMP",
     NULL
 };
 
