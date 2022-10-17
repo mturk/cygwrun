@@ -1076,10 +1076,9 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
 
 int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
 {
-    int i, n;
+    int i;
     wchar_t **dupwargv = NULL;
     wchar_t **dupwenvp = NULL;
-    wchar_t **pa;
     const wchar_t *crp = NULL;
     wchar_t *cwd       = NULL;
     wchar_t *cpp;
@@ -1193,25 +1192,22 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             fputs("Missing PATH environment variable\n", stderr);
         return ENOENT;
     }
+    else {
+        wchar_t *sp = towinpath(cpp, 0);
+        if (sp == NULL) {
+            if (xshowerr)
+                fputs("Error splitting PATH environment variable\n", stderr);
+            return EINVAL;
+        }
+        xfree(cpp);
+        cpp = sp;
+    }
     posixroot = getposixroot(crp, cpp);
     if (posixroot == NULL) {
         if (xshowerr)
             fputs("Cannot find valid POSIX_ROOT\n", stderr);
         return ENOENT;
     }
-
-    pa = splitpath(cpp, &n, L';');
-    if (pa == NULL) {
-        if (xshowerr)
-            fputs("Error splitting PATH environment variable\n", stderr);
-        return EINVAL;
-    }
-    for (i = 0; i < n; i++) {
-        cleanpath(pa[i]);
-    }
-    xfree(cpp);
-    cpp = mergepath(pa);
-    waafree(pa);
 
     if (cwd != NULL) {
         cwd = pathtowin(cwd);
