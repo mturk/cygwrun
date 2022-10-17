@@ -401,6 +401,7 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
             case L'\0':
                 /* Single '-' skip and stop processing */
                 xwoptind++;
+                /* fall through */
             case L'-' :
                 /* Double '-' stop processing */
                 place = zerostring;
@@ -734,7 +735,7 @@ static wchar_t *posixtowin(wchar_t *pp, int m)
     }
     else if (m == 102) {
         /**
-         * For anything from /dev/* return \\.\NUL
+         * For anything from /dev/ return \\.\NUL
          */
         rv = xwcsdup(L"\\\\.\\NUL");
     }
