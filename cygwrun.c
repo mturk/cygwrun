@@ -902,6 +902,10 @@ static wchar_t *getposixroot(const wchar_t *rp)
                     if ((d != NULL) && (wcscmp(d, L"\\bin") == 0)) {
                         *d = L'\0';
                         d  = wcsrchr(r, L'\\');
+                        if ((d != NULL) && (wcscmp(d, L"\\local") == 0)) {
+                            *d = L'\0';
+                            d  = wcsrchr(r, L'\\');
+                        }
                         if ((d != NULL) && (wcscmp(d, L"\\usr") == 0)) {
                             *d = L'\0';
                         }
