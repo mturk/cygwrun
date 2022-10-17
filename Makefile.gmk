@@ -13,23 +13,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Compile native Windows binary from Cygwin
-# The following packages need to be installed:
+# Compile native Windows binary using mingw64
+# make -f Makefile.gmk
+#
+# To compile from Cygwin environment
+# make -f Makefile.gmk USE_MINGW_PACKAGE_PREFIX=1
+#
+# the following packages need to be installed:
 #
 # mingw64-x86_64-binutils,
 # mingw64-x86_64-gcc-core,
 # mingw64-x86_64-headers,
 # mingw64-x86_64-runtime
+#
 
+ifdef USE_MINGW_PACKAGE_PREFIX
 CC = x86_64-w64-mingw32-gcc
-LN = $(CC)
-ifdef MINGW_PACKAGE_PREFIX
-RC = windres
-RL = strip --strip-unneeded
-else
 RC = x86_64-w64-mingw32-windres
 RL = x86_64-w64-mingw32-strip --strip-unneeded
+else
+CC = gcc
+RC = windres
+RL = strip --strip-unneeded
 endif
+LN = $(CC)
 
 SRCDIR  = .
 PROJECT = cygwrun

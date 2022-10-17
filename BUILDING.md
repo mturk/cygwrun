@@ -80,14 +80,11 @@ This will remove all produced binaries and object files
 by simply deleting **x64** subdirectory.
 
 ```no-highlight
-> nmake install _STATIC_MSVCRT=1 PREFIX=C:\some\directory
+> nmake test
 ```
 
-Standard makefile install target that will
-copy the executable to the PREFIX location.
-
-This can be useful if you are building cygwrun with
-some Continuous build application that need produced
-binaries at a specific location for later use.
+This will compile two test utilities which can
+then be used by `runtest.sh` script from Cygwin
+environment.
 
 
