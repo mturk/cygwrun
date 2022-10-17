@@ -893,11 +893,11 @@ static wchar_t *getposixroot(const wchar_t *rp, const wchar_t *sp)
             e++;
         }
         if (r == NULL) {
-            r = xsearchexe(sp, L"bash");
+            r = xsearchexe(sp, L"bash.exe");
             if (r != NULL) {
-                d = wcsstr(r, L"\\usr\\");
+                d = wcsstr(r, L"\\usr\\bin\\bash.exe");
                 if (d == NULL)
-                    d = wcsstr(r, L"\\bin\\");
+                    d = wcsstr(r, L"\\bin\\bash.exe");
                 if (d != NULL) {
                     *d = L'\0';
                 }
