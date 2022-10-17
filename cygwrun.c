@@ -79,9 +79,14 @@ static const wchar_t *pathfixed[] = {
 };
 
 static const wchar_t *removeext[] = {
+    L"ORIGINAL_PATH",
+    NULL
+};
+
+static const wchar_t *specialenv[] = {
+    L"_",
     L"!::",
     L"!;",
-    L"ORIGINAL_PATH",
     L"PS1",
     NULL
 };
@@ -989,26 +994,36 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     }
     if (xskipenv == 0) {
         for (i = 0; i < (envc - 5); i++) {
-            wchar_t *v;
-            wchar_t *p;
             wchar_t *e = wenvp[i];
+            const wchar_t **s = specialenv;
 
-            v = wcschr(e + 1, L'=');
-            if ((v == NULL) || (v[1] == L'\0')) {
-                /**
-                 * Bad environment
-                 */
-                return EBADF;
+            while (*s != NULL) {
+                if (xwcsisenvvar(e, *s, 0)) {
+                    /**
+                     * Do not convert Special environment variables
+                     */
+                    e = NULL;
+                    break;
+                }
+                s++;
             }
-            v++;
-            m = isanypath(v);
-            if (m != 0) {
-                p = towinpath(v, m);
+            if (e != NULL) {
+                wchar_t *v = wcschr(e + 1, L'=');
+                if ((v == NULL) || (v[1] == L'\0')) {
+                    /**
+                     * Bad environment
+                     */
+                    return EBADF;
+                }
+                m = isanypath(++v);
+                if (m != 0) {
+                    wchar_t *p = towinpath(v, m);
 
-                v[0] = L'\0';
-                wenvp[i] = xwcsconcat(e, p);
-                xfree(e);
-                xfree(p);
+                    v[0] = L'\0';
+                    wenvp[i] = xwcsconcat(e, p);
+                    xfree(e);
+                    xfree(p);
+                }
             }
         }
     }
