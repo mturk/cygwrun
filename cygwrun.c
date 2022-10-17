@@ -993,7 +993,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         }
     }
     if (xskipenv == 0) {
-        for (i = 0; i < (envc - 3); i++) {
+        for (i = 0; i < (envc - 5); i++) {
             wchar_t *v;
             wchar_t *p;
             wchar_t *e = wenvp[i];
@@ -1233,12 +1233,12 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         return ENOENT;
     }
     ptd = xgetenv(L"TMP");
-    if (ptd == NULL)
+    if (ptd != NULL)
         ptd = pathtowin(ptd);
     else
         ptd = xwcsdup(L"C:\\Windows\\Temp");
     wtd  = xgetenv(L"TEMP");
-    if (wtd == NULL)
+    if (wtd != NULL)
         wtd = pathtowin(wtd);
     else
         wtd = xwcsdup(ptd);
