@@ -291,6 +291,15 @@ static wchar_t *xwcscpaths(const wchar_t *s1, const wchar_t *s2)
     return rv;
 }
 
+static int xisvarchar(int c)
+{
+    if ((c < 32) || (c > 127))
+        return 0;
+    else
+        return xvalidvarname[c];
+
+}
+
 /**
  * Match = 0, NoMatch = 1, Abort = -1
  * Based loosely on sections of wildmat.c by Rich Salz
@@ -322,7 +331,7 @@ static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
                 return -1;
             break;
             case L'?':
-                if ((*wstr < L'A') || (*wstr > L'z') || (isalpha(*wstr) == 0))
+                if (xisvarchar(*wstr) != 2)
                     return -1;
             break;
             case L'+':
@@ -450,15 +459,6 @@ static int xwcsisenvvar(const wchar_t *str, const wchar_t *var, int icase)
             return *str == L'=';
     }
     return 0;
-}
-
-static int xisvarchar(int c)
-{
-    if ((c < 32) || (c > 127))
-        return 0;
-    else
-        return xvalidvarname[c];
-
 }
 
 static int iswinpath(const wchar_t *s)
