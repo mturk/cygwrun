@@ -1193,14 +1193,9 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         return ENOENT;
     }
     else {
-        wchar_t *sp = towinpath(cpp, 0);
-        if (sp == NULL) {
-            if (xshowerr)
-                fputs("Error splitting PATH environment variable\n", stderr);
-            return EINVAL;
-        }
-        xfree(cpp);
-        cpp = sp;
+        wchar_t *p = cpp;
+        cpp = towinpath(p, 0);
+        xfree(p);
     }
     posixroot = getposixroot(crp, cpp);
     if (posixroot == NULL) {
