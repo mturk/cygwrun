@@ -877,7 +877,7 @@ static wchar_t *xsearchexe(const wchar_t *paths, const wchar_t *name)
     return rp;
 }
 
-static wchar_t *getposixroot(const wchar_t *rp)
+static wchar_t *getposixroot(const wchar_t *rp, const wchar_t *sp)
 {
     wchar_t *d;
     wchar_t *r = xwcsdup(rp);
@@ -893,36 +893,18 @@ static wchar_t *getposixroot(const wchar_t *rp)
             e++;
         }
         if (r == NULL) {
-            r = xgetenv(L"SHELL");
+            r = xsearchexe(sp, L"bash");
             if (r != NULL) {
-                d = wcsrchr(r, L'\\');
+                d = wcsstr(r, L"\\usr\\");
+                if (d == NULL)
+                    d = wcsstr(r, L"\\bin\\");
                 if (d != NULL) {
                     *d = L'\0';
-                    d  = wcsrchr(r, L'\\');
-                    if ((d != NULL) && (wcscmp(d, L"\\bin") == 0)) {
-                        *d = L'\0';
-                        d  = wcsrchr(r, L'\\');
-                        if ((d != NULL) && (wcscmp(d, L"\\local") == 0)) {
-                            *d = L'\0';
-                            d  = wcsrchr(r, L'\\');
-                        }
-                        if ((d != NULL) && (wcscmp(d, L"\\usr") == 0)) {
-                            *d = L'\0';
-                        }
-                    }
                 }
                 else {
                     xfree(r);
                     r = NULL;
                 }
-            }
-        }
-        if (r == NULL) {
-            r = xgetenv(L"HOME");
-            if (r != NULL) {
-                d = wcsstr(r, L"\\home\\");
-                if (d != NULL)
-                    *d = L'\0';
             }
         }
     }
@@ -1101,6 +1083,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     int i, n;
     wchar_t **dupwargv = NULL;
     wchar_t **dupwenvp = NULL;
+    wchar_t **pa;
     const wchar_t *crp = NULL;
     wchar_t *cwd       = NULL;
     wchar_t *cpp;
@@ -1208,34 +1191,31 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         return usage(1);
     }
 
-    posixroot = getposixroot(crp);
-    if (posixroot == NULL) {
-        if (xshowerr)
-            fputs("Cannot find valid POSIX_ROOT\n", stderr);
-        return ENOENT;
-    }
-
     cpp = xgetenv(L"PATH");
     if (cpp == NULL) {
         if (xshowerr)
             fputs("Missing PATH environment variable\n", stderr);
         return ENOENT;
     }
-    else {
-        wchar_t **pa = splitpath(cpp, &n, L';');
-
-        if (pa == NULL) {
-            if (xshowerr)
-                fputs("Error splitting PATH environment variable\n", stderr);
-            return EINVAL;
-        }
-        for (i = 0; i < n; i++) {
-            cleanpath(pa[i]);
-        }
-        xfree(cpp);
-        cpp = mergepath(pa);
-        waafree(pa);
+    posixroot = getposixroot(crp, cpp);
+    if (posixroot == NULL) {
+        if (xshowerr)
+            fputs("Cannot find valid POSIX_ROOT\n", stderr);
+        return ENOENT;
     }
+
+    pa = splitpath(cpp, &n, L';');
+    if (pa == NULL) {
+        if (xshowerr)
+            fputs("Error splitting PATH environment variable\n", stderr);
+        return EINVAL;
+    }
+    for (i = 0; i < n; i++) {
+        cleanpath(pa[i]);
+    }
+    xfree(cpp);
+    cpp = mergepath(pa);
+    waafree(pa);
 
     if (cwd != NULL) {
         cwd = pathtowin(cwd);
