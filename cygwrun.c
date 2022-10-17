@@ -79,7 +79,6 @@ static const wchar_t *pathfixed[] = {
 };
 
 static const wchar_t *removeext[] = {
-    L"_",
     L"!::",
     L"!;",
     L"ORIGINAL_PATH",
