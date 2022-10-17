@@ -1011,7 +1011,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             }
             if (e != NULL) {
                 wchar_t *v = wcschr(e + 1, L'=');
-                if ((v == NULL) || (v[1] == L'\0')) {
+                if (v == NULL) {
                     /**
                      * Bad environment
                      */
@@ -1283,7 +1283,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             }
         }
         if (p != NULL) {
-            const wchar_t *v = wcschr(p, L'=');
+            const wchar_t *v = wcschr(p + 1, L'=');
             if ((v != NULL) && (v[1] != L'\0')) {
                 dupwenvp[dupenvc++] = xwcsdup(p);
             }
