@@ -23,13 +23,29 @@
 #    eg: mkrelease.sh 1.1.4_1 _VENDOR_SFX=_1
 #
 
+case "`uname -s`" in
+  CYGWIN*)
+    MakefileFlags="USE_MINGW_PACKAGE_PREFIX=1"
+    BuildHost=cygwin
+  ;;
+  MINGW*)
+    BuildHost=mingw
+  ;;
+  *)
+    echo "Unknown `uname`"
+    echo "This scrip can run only inside cygwin or mingw"
+    exit 1
+  ;;
+
+esac
+
 eexit()
 {
     e=$1; shift;
     echo "$@" 1>&2
     echo 1>&2
-	echo "Usage: mkrelease.sh version [options]" 1>&2
-	echo "   eg: mkrelease.sh 1.1.4_1 _VENDOR_SFX=_1" 1>&2
+    echo "Usage: mkrelease.sh version [options]" 1>&2
+    echo "   eg: mkrelease.sh 1.1.4_1 _VENDOR_SFX=_1" 1>&2
     exit $e
 }
 
@@ -42,13 +58,13 @@ ReleaseName=$ProjectName-$ReleaseVersion-win-$ReleaseArch
 ReleaseLog=$ReleaseName.txt
 #
 #
-make -f Makefile.gmk $*
+make -f Makefile.gmk $MakefileFlags $*
 #
 pushd $ReleaseArch >/dev/null
 echo "## Binary release v$ReleaseVersion" > $ReleaseLog
 echo >> $ReleaseLog
 echo '```no-highlight' >> $ReleaseLog
-echo "Compiled using:" >> $ReleaseLog
+echo "Compiled using $BuildHost host:" >> $ReleaseLog
 echo "make -f Makefile.gmk $*" >> $ReleaseLog
 echo "`gcc --version | head -1`" >> $ReleaseLog
 echo >> $ReleaseLog
