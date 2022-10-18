@@ -380,23 +380,16 @@ static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
 
 static wchar_t *xwcsquote(wchar_t *s)
 {
-    wchar_t *r, *p;
-    int i, n;
+    wchar_t *r;
+    size_t   n;
 
-    n = (int)xwcslen(s);
-
-    for (i = 0; i < n; i++) {
-        if (iswspace(s[i]))
-            break;
-    }
-    if (i >= n)
+    if (wcspbrk(s, L" \t") == NULL)
         return s;
-    r = p = xwmalloc(n + 4);
-    *(p++) = L'"';
-    wmemcpy(p, s, n);
-    p += n;
-    *(p++) = L'"';
-    *p = L'\0';
+    n = xwcslen(s);
+    r = xwmalloc(n + 2);
+    r[0] = L'"';
+    wmemcpy(r + 1, s, n);
+    wmemcpy(r + n + 1, L"\"\0", 2);
 
     xfree(s);
     return r;
@@ -1059,8 +1052,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 wmemcpy(p, wargv[i], n);
                 p += n;
             }
-            *(p++) = L'"';
-            *p     = L'\0';
+            wmemcpy(p, L"\"\0", 2);
             xfree(b);
             wargv[xrunexec - 1] = c;
             for (i = xrunexec; i < argc; i++)
