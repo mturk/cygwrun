@@ -64,18 +64,9 @@ echo. >> %ReleaseLog%
 rem
 del /F /Q %ProjectName%.i 2>NUL
 del /F /Q %ProjectName%.p 2>NUL
-rem
-rem Set path for ClamAV and 7za if needed
-rem
-rem set "PATH=C:\Tools\clamav;C:\Utils;%PATH%"
-rem
-freshclam.exe --quiet
-clamscan.exe --version >> %ReleaseLog%
-clamscan.exe --bytecode=no %ProjectName%.exe >> %ReleaseLog%
 echo ``` >> %ReleaseLog%
 del /F /Q %ReleaseName%.zip 2>NUL
 7za.exe a -bd %ReleaseName%.zip %ProjectName%.exe
-sigtool.exe --sha256 %ReleaseName%.zip > %ReleaseName%-sha256.txt
 popd
 goto End
 rem
