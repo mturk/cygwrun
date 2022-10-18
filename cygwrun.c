@@ -1109,7 +1109,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 for (i = 0; i < envc; i++) {
                     if (xwcsisenvvar(wenvp[i], wargv[n], 0)) {
                         if (x++ > 0)
-                            fputwc(L'\n', stdout);
+                            fputc('\n', stdout);
                         fputws(wenvp[i], stdout);
                         break;
                     }
@@ -1117,10 +1117,10 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 if (i == envc) {
                     if (xshowerr) {
                         if (x > 0)
-                            fputwc(L'\n', stderr);
-                        fputws(L"Error: Environment variable '", stderr);
-                        fputws(wargv[n], stderr);
-                        fputws(L"' cannot be found", stderr);
+                            fputc(L'\n', stderr);
+                        fprintf(stderr,
+                                "Error: Environment variable '%S' cannot be found",
+                                wargv[n]);
                     }
                     return ENOENT;
                 }
@@ -1129,7 +1129,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         else {
             for (i = 0; i < envc; i++) {
                 if (i > 0)
-                    fputwc(L'\n', stdout);
+                    fputc('\n', stdout);
                 fputws(wenvp[i], stdout);
             }
         }
