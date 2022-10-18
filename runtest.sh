@@ -132,10 +132,7 @@ rv="`./__dumpenvp FOO`"
 test "x$rv" = "xFOO=$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #11.1: \`$rv'"
 popd >/dev/null
 
-$_cygwrun $srcdir/test/echoargs.bat /tmp /usr/a >/tmp/echoargs.out
-dos2unix -q /tmp/echoargs.out >/dev/null
-rv="`cat /tmp/echoargs.out | head -1`"
-rm /tmp/echoargs.out
+rv="`$_cygwrun $srcdir/test/echoargs.bat /tmp /usr/a | tr -d '\r'`"
 test "x$rv" = "x$tmpdir $usrdir\\a" || xbexit 1 "Failed #12.1: \`$rv'"
 
 
