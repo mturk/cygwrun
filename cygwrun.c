@@ -1315,7 +1315,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         ptd = xwcsdup(wtd);
     if (ptd == NULL) {
         if (xshowerr)
-            fprintf(stderr, "Both TEMP and TMP environment variables are missing\n");
+            fputs("Both TEMP and TMP environment variables are missing\n", stderr);
         return ENOENT;
     }
     while (wenv[envc] != NULL) {
