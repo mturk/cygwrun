@@ -38,7 +38,7 @@ static int      xskiparg  = 0;
 static int      xshowerr  = 1;
 static int      xforcewp  = 0;
 static int      xrmendps  = 1;
-
+static int      xisbatch  = 0;
 static int      xwoptind  = 1;   /* Index into parent argv vector */
 static int      xwoption  = 0;   /* Character checked for validity */
 static const wchar_t  *xwoptarg = NULL;
@@ -378,6 +378,31 @@ static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
     return (*wstr != L'\0');
 }
 
+static wchar_t *xwcsquote(wchar_t *s)
+{
+    wchar_t *r, *p;
+    int i, n;
+
+    n = (int)xwcslen(s);
+
+    for (i = 0; i < n; i++) {
+        if (iswspace(s[i]))
+            break;
+    }
+    if (i >= n)
+        return s;
+    r = p = xwmalloc(n + 4);
+    *(p++) = L'"';
+    wmemcpy(p, s, n);
+    p += n;
+    *(p++) = L'"';
+    *p = L'\0';
+
+    xfree(s);
+    return r;
+}
+
+
 int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
 {
     const wchar_t *oli = NULL;
@@ -467,6 +492,23 @@ static int xwcsisenvvar(const wchar_t *str, const wchar_t *var, int icase)
         var++;
         if (*var == L'\0')
             return *str == L'=';
+    }
+    return 0;
+}
+
+static int xisbatchfile(const wchar_t *s)
+{
+    size_t n = xwcslen(s);
+    /* a.bat */
+    if (n > 4) {
+        const wchar_t *e = s + n - 4;
+
+        if (*(e++) == L'.') {
+            if (wcsicmp(e, L"bat") == 0)
+                return 1;
+            if (wcsicmp(e, L"cmd") == 0)
+                return 1;
+        }
     }
     return 0;
 }
@@ -996,6 +1038,35 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 fputws(wargv[i], stdout);
             }
         }
+        if (xisbatch && (argc > xrunexec)) {
+            size_t len, n;
+            wchar_t *p, *c;
+            wchar_t *b = wargv[xrunexec - 1];
+
+            len = xwcslen(b);
+            for (i = xrunexec; i < argc; i++) {
+                wargv[i] = xwcsquote(wargv[i]);
+                len += xwcslen(wargv[i]) + 1;
+            }
+            p = c = xwmalloc(len + 2);
+            n = xwcslen(b);
+            *(p++) = L'"';
+            wmemcpy(p, b, n);
+            p += n;
+            for (i = xrunexec; i < argc; i++) {
+                n = xwcslen(wargv[i]);
+                *(p++) = L' ';
+                wmemcpy(p, wargv[i], n);
+                p += n;
+            }
+            *(p++) = L'"';
+            *p     = L'\0';
+            xfree(b);
+            wargv[xrunexec - 1] = c;
+            for (i = xrunexec; i < argc; i++)
+                xfree(wargv[i]);
+            wargv[xrunexec] = NULL;
+        }
     }
     if (xskipenv == 0) {
         for (i = 0; i < (envc - 5); i++) {
@@ -1071,7 +1142,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         if (rp == (intptr_t)-1) {
             rc = errno;
             if (xshowerr)
-                fwprintf(stderr, L"Failed to execute: '%s'\n", wargv[0]);
+                fprintf(stderr, "Failed to execute: '%S'\n", wargv[0]);
         }
         else {
             /**
@@ -1081,8 +1152,8 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             if (_cwait(&rc, rp, 0) == (intptr_t)-1) {
                 rc = errno;
                 if (xshowerr) {
-                    fwprintf(stderr, L"Execute failed: %s\nFatal error: %s\n\n",
-                             wargv[0], _wcserror(rc));
+                    fprintf(stderr, "Execute failed: %S\nFatal error: %S\n\n",
+                            wargv[0], _wcserror(rc));
                 }
             }
             SetConsoleCtrlHandler(consolehandler, FALSE);
@@ -1114,7 +1185,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         fputs("\nMissing environment\n", stderr);
         return EBADF;
     }
-    dupwargv = waalloc(argc);
+    dupwargv = waalloc(argc + 4);
     dupwargv[0] = realappname(wargv[0]);
 
     if (dupwargv[0] != NULL) {
@@ -1253,7 +1324,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         ptd = xwcsdup(wtd);
     if (ptd == NULL) {
         if (xshowerr)
-            fwprintf(stderr, L"Both TEMP and TMP environment variables are missing\n");
+            fprintf(stderr, "Both TEMP and TMP environment variables are missing\n");
         return ENOENT;
     }
     while (wenv[envc] != NULL) {
@@ -1311,13 +1382,30 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             sch = xsearchexe(pps, exe);
             if (sch == NULL) {
                 if (xshowerr)
-                    fwprintf(stderr, L"Cannot find PROGRAM '%s'\n", exe);
+                    fprintf(stderr, "Cannot find PROGRAM '%S'\n", exe);
                 return ENOENT;
             }
             xfree(pps);
         }
         xfree(exe);
-        dupwargv[0] = sch;
+        if (xisbatchfile(sch)) {
+            for (i = dupargc; i > 0; i--) {
+                dupwargv[i + 3] = dupwargv[i];
+            }
+            /**
+             * Execute batch file using cmd.exe
+             */
+            dupwargv[0] = xgetenv(L"COMSPEC");
+            dupwargv[1] = xwcsdup(L"/D");
+            dupwargv[2] = xwcsdup(L"/C");
+            dupwargv[3] = xwcsquote(sch);
+            dupargc  += 3;
+            xrunexec += 3;
+            xisbatch  = 1;
+        }
+        else {
+            dupwargv[0] = sch;
+        }
     }
     /**
      * Add back environment variables
