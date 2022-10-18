@@ -1258,15 +1258,13 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     }
     argc  -= xwoptind;
     wargv += xwoptind;
-    if (xrunexec) {
+    if (xrunexec && (dupwargv[0] == NULL)) {
         if (argc > 0) {
-            if (dupwargv[0] == NULL) {
-                dupwargv[0] = xwcsdup(wargv[0]);
-                argc--;
-                wargv++;
-            }
+            dupwargv[0] = xwcsdup(wargv[0]);
+            argc--;
+            wargv++;
         }
-        if (dupwargv[0] == NULL) {
+        else {
             if (xshowerr)
                 fputs("Missing PROGRAM argument\n", stderr);
             return usage(1);
