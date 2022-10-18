@@ -504,9 +504,9 @@ static int xisbatchfile(const wchar_t *s)
         const wchar_t *e = s + n - 4;
 
         if (*(e++) == L'.') {
-            if (wcsicmp(e, L"bat") == 0)
+            if (_wcsicmp(e, L"bat") == 0)
                 return 1;
-            if (wcsicmp(e, L"cmd") == 0)
+            if (_wcsicmp(e, L"cmd") == 0)
                 return 1;
         }
     }
