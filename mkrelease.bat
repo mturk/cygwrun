@@ -23,8 +23,9 @@ rem
 setlocal
 if "x%~1" == "x" goto Einval
 rem
+set "BuildDir=x64"
 set "ProjectName=cygwrun"
-set "ReleaseArch=x64"
+set "ReleaseArch=win64"
 set "ReleaseVersion=%~1"
 set "MakefileFlags=_STATIC_MSVCRT=1"
 shift
@@ -36,17 +37,15 @@ goto setArgs
 rem
 :doneArgs
 rem
-set "ReleaseName=%ProjectName%-%ReleaseVersion%-win-%ReleaseArch%"
+set "ReleaseName=%ProjectName%-%ReleaseVersion%-%ReleaseArch%"
 set "ReleaseLog=%ReleaseName%.txt
-pushd %~dp0
-set "BuildDir=%cd%"
-popd
 rem
 rem Create builds
-nmake /nologo /A %MakefileFlags%
+nmake /nologo clean
+nmake /nologo %MakefileFlags%
 if not %ERRORLEVEL% == 0 goto Failed
 rem
-pushd "%ReleaseArch%"
+pushd "%BuildDir%"
 rem
 rem Get nmake and cl versions
 rem

@@ -51,9 +51,10 @@ esac
 ReleaseVersion=$1
 test "x$ReleaseVersion" = "x" && eexit 1 "Missing version argument"
 shift
+BuildDir=x64
 ProjectName=cygwrun
-ReleaseArch=x64
-ReleaseName=$ProjectName-$ReleaseVersion-win-$ReleaseArch
+ReleaseArch=win64-mingw
+ReleaseName=$ProjectName-$ReleaseVersion-$ReleaseArch
 ReleaseLog=$ReleaseName.txt
 #
 #
@@ -62,7 +63,7 @@ make -f Makefile.gmk clean
 test "x$BuildHost" = "xcygwin" && MakefileFlags="USE_MINGW_PACKAGE_PREFIX=1 $MakefileFlags"
 make -f Makefile.gmk $MakefileFlags
 #
-pushd $ReleaseArch >/dev/null
+pushd $BuildDir >/dev/null
 echo "## Binary release v$ReleaseVersion" > $ReleaseLog
 echo >> $ReleaseLog
 echo '```no-highlight' >> $ReleaseLog
