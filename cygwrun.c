@@ -1032,21 +1032,29 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             }
         }
         if (xisbatch && (argc > xrunexec)) {
-            size_t  len, n;
+            int     x;
+            size_t  s[32];
+            size_t  n, c = 2;
             wchar_t *p;
             wchar_t *b = wargv[xrunexec - 1];
 
-            len = n = xwcslen(b);
-            for (i = xrunexec; i < argc; i++) {
+            s[0] = xwcslen(b);
+            for (i = xrunexec, x = 1; i < argc; i++, x++) {
                 wargv[i] = xwcsquote(wargv[i]);
-                len += xwcslen(wargv[i]) + 1;
-            }
-            wargv[xrunexec - 1] = p = xwmalloc(len + 2);
-            *(p++) = L'"';
-            wmemcpy(p, b, n);
-            p += n;
-            for (i = xrunexec; i < argc; i++) {
                 n = xwcslen(wargv[i]);
+                if (x < 32)
+                    s[x] = n;
+                c += (n + 1);
+            }
+            wargv[xrunexec - 1] = p = xwmalloc(s[0] + c);
+            *(p++) = L'"';
+            wmemcpy(p, b, s[0]);
+            p += s[0];
+            for (i = xrunexec, x = 1; i < argc; i++, x++) {
+                if (x < 32)
+                    n = s[x];
+                else
+                    n = xwcslen(wargv[i]);
                 *(p++) = L' ';
                 wmemcpy(p, wargv[i], n);
                 p += n;
