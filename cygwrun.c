@@ -383,7 +383,7 @@ static wchar_t *xwcsquote(wchar_t *s)
     wchar_t *r;
     size_t   n;
 
-    if (wcspbrk(s, L" \t") == NULL)
+    if ((*s == L'"') || (wcspbrk(s, L" \t") == NULL))
         return s;
     n = xwcslen(s);
     r = xwmalloc(n + 2);
