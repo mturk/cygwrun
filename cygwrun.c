@@ -1178,16 +1178,13 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         return EBADF;
     }
     dupwargv = waalloc(argc + 4);
+    /**
+     * Check if we are renamed to __someapp.exe
+     * Use someapp.exe as PROGRAM to execute
+     **/
     dupwargv[0] = realappname(wargv[0]);
 
-    if (dupwargv[0] != NULL) {
-        /**
-         * We are renamed to __someapp.exe
-         * Use someapp.exe as PROGRAM to execute
-         **/
-        dupargc = 1;
-    }
-    else {
+    if (dupwargv[0] == NULL) {
         while ((opt = xwgetopt(argc, wargv, L"fkKepsSqw:r:vVh?")) != EOF) {
             switch (opt) {
                 case L'f':
@@ -1261,16 +1258,20 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     }
     argc  -= xwoptind;
     wargv += xwoptind;
-    for (i = 0; i < argc; i++) {
-        dupwargv[dupargc++] = xwcsdup(wargv[i]);
+    if (xrunexec) {
+        if (argc > 0) {
+            if (dupwargv[0] == NULL) {
+                dupwargv[0] = xwcsdup(wargv[0]);
+                argc--;
+                wargv++;
+            }
+        }
+        if (dupwargv[0] == NULL) {
+            if (xshowerr)
+                fputs("Missing PROGRAM argument\n", stderr);
+            return usage(1);
+        }
     }
-
-    if ((dupargc == 0) && (haseopt == 0)) {
-        if (xshowerr)
-            fputs("Missing PROGRAM argument\n", stderr);
-        return usage(1);
-    }
-
     cpp = xgetenv(L"PATH");
     if (cpp == NULL) {
         if (xshowerr)
@@ -1293,7 +1294,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         cwd = pathtowin(cwd);
         if (_wchdir(cwd) != 0) {
             if (xshowerr)
-                fwprintf(stderr, L"Invalid working directory: '%s'\n", cwd);
+                fprintf(stderr, "Invalid working directory: '%S'\n", cwd);
             return ENOENT;
         }
         xfree(cwd);
@@ -1381,24 +1382,22 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         }
         xfree(exe);
         if (xisbatchfile(sch)) {
-            for (i = dupargc; i > 0; i--) {
-                dupwargv[i + 3] = dupwargv[i];
-            }
             /**
              * Execute batch file using cmd.exe
              */
-            dupwargv[0] = xgetenv(L"COMSPEC");
-            dupwargv[1] = xwcsdup(L"/D");
-            dupwargv[2] = xwcsdup(L"/C");
-            dupwargv[3] = xwcsquote(sch);
-            dupargc  += 3;
-            xrunexec += 3;
-            xisbatch  = 1;
+            dupwargv[dupargc++] = xgetenv(L"COMSPEC");
+            dupwargv[dupargc++] = xwcsdup(L"/D");
+            dupwargv[dupargc++] = xwcsdup(L"/C");
+            sch = xwcsquote(sch);
+            xisbatch = 1;
         }
-        else {
-            dupwargv[0] = sch;
-        }
+        dupwargv[dupargc++] = sch;
+        xrunexec = dupargc;
     }
+    for (i = 0; i < argc; i++) {
+        dupwargv[dupargc++] = xwcsdup(wargv[i]);
+    }
+
     /**
      * Add back environment variables
      */
