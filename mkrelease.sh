@@ -23,9 +23,18 @@
 #    eg: mkrelease.sh 1.1.4_1 _VENDOR_SFX=_1
 #
 
+eexit()
+{
+    e=$1; shift;
+    echo "$@" 1>&2
+    echo 1>&2
+    echo "Usage: mkrelease.sh version [options]" 1>&2
+    echo "   eg: mkrelease.sh 1.1.4_1 _VENDOR_SFX=_1" 1>&2
+    exit $e
+}
+
 case "`uname -s`" in
   CYGWIN*)
-    MakefileFlags="USE_MINGW_PACKAGE_PREFIX=1"
     BuildHost=cygwin
   ;;
   MINGW*)
@@ -39,16 +48,6 @@ case "`uname -s`" in
 
 esac
 
-eexit()
-{
-    e=$1; shift;
-    echo "$@" 1>&2
-    echo 1>&2
-    echo "Usage: mkrelease.sh version [options]" 1>&2
-    echo "   eg: mkrelease.sh 1.1.4_1 _VENDOR_SFX=_1" 1>&2
-    exit $e
-}
-
 ReleaseVersion=$1
 test "x$ReleaseVersion" = "x" && eexit 1 "Missing version argument"
 shift
@@ -58,19 +57,21 @@ ReleaseName=$ProjectName-$ReleaseVersion-win-$ReleaseArch
 ReleaseLog=$ReleaseName.txt
 #
 #
-make -f Makefile.gmk $MakefileFlags $*
+MakefileFlags="$*"
+make -f Makefile.gmk clean
+test "x$BuildHost" = "xcygwin" && MakefileFlags="USE_MINGW_PACKAGE_PREFIX=1 $MakefileFlags"
+make -f Makefile.gmk $MakefileFlags
 #
 pushd $ReleaseArch >/dev/null
 echo "## Binary release v$ReleaseVersion" > $ReleaseLog
 echo >> $ReleaseLog
 echo '```no-highlight' >> $ReleaseLog
-echo "Compiled using $BuildHost host:" >> $ReleaseLog
-echo "make -f Makefile.gmk $*" >> $ReleaseLog
-echo "`gcc --version | head -1`" >> $ReleaseLog
+echo "Compiled on $BuildHost host:" >> $ReleaseLog
+echo "make -f Makefile.gmk $MakefileFlags" >> $ReleaseLog
+echo "using: `gcc --version | head -1`" >> $ReleaseLog
 echo >> $ReleaseLog
 echo '```' >> $ReleaseLog
 #
-rm $ReleaseName.zip 2>/dev/null
 #
 7za a -bd $ReleaseName.zip $ProjectName.exe
 #
