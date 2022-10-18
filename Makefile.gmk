@@ -43,6 +43,8 @@ PROJECT = cygwrun
 TARGET  = $(PROJECT).exe
 WORKDIR = $(SRCDIR)/x64
 OUTPUT  = $(WORKDIR)/$(TARGET)
+TESTDA  = $(WORKDIR)/dumpargs.exe
+TESTDE  = $(WORKDIR)/dumpenvp.exe
 
 WINVER  = 0x0601
 CFLAGS  = -DNDEBUG -D_WIN32_WINNT=$(WINVER) -DWINVER=$(WINVER) -DWIN32_LEAN_AND_MEAN \
@@ -63,8 +65,14 @@ RFLAGS += -D _VENDOR_NUM=$(_VENDOR_NUM)
 endif
 
 OBJECTS = \
-	$(WORKDIR)/$(PROJECT).obj \
+	$(WORKDIR)/$(PROJECT).o \
 	$(WORKDIR)/$(PROJECT).res
+
+TESTDA_OBJECTS = \
+	$(WORKDIR)/dumpargs.o
+
+TESTDE_OBJECTS = \
+	$(WORKDIR)/dumpenvp.o
 
 all : $(WORKDIR) $(OUTPUT)
 	@:
@@ -72,7 +80,10 @@ all : $(WORKDIR) $(OUTPUT)
 $(WORKDIR):
 	@mkdir -p $@
 
-$(WORKDIR)/%.obj: $(SRCDIR)/%.c $(SRCDIR)/%.h
+$(WORKDIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/%.h
+	$(CC) $(CLOPTS) -o $@ $(CFLAGS) -I$(SRCDIR) $<
+
+$(WORKDIR)/%.o: $(SRCDIR)/test/%.c
 	$(CC) $(CLOPTS) -o $@ $(CFLAGS) -I$(SRCDIR) $<
 
 $(WORKDIR)/%.res: $(SRCDIR)/%.rc $(SRCDIR)/%.h
@@ -81,6 +92,25 @@ $(WORKDIR)/%.res: $(SRCDIR)/%.rc $(SRCDIR)/%.h
 $(OUTPUT): $(WORKDIR) $(OBJECTS)
 	$(LN) $(LNOPTS) -o $@ $(OBJECTS) $(LDLIBS)
 	$(RL) $@
+
+$(TESTDA): $(WORKDIR) $(TESTDA_OBJECTS)
+	$(LN) $(LNOPTS) -o $@ $(TESTDA_OBJECTS) $(LDLIBS)
+	$(RL) $@
+
+$(TESTDE): $(WORKDIR) $(TESTDE_OBJECTS)
+	$(LN) $(LNOPTS) -o $@ $(TESTDE_OBJECTS) $(LDLIBS)
+	$(RL) $@
+
+test: all $(TESTDA) $(TESTDE)
+	@echo
+	@echo Running simple verification tests ...
+	@echo
+	@$(OUTPUT) $(TESTDE) SHELL
+	@echo
+	@$(OUTPUT) $(TESTDA) //tmp
+	@echo
+	@echo
+	@echo You can now run runtest.sh from Cygwin environment
 
 clean:
 	@rm -rf $(WORKDIR)
