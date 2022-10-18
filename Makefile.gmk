@@ -30,11 +30,11 @@
 ifdef USE_MINGW_PACKAGE_PREFIX
 CC = x86_64-w64-mingw32-gcc
 RC = x86_64-w64-mingw32-windres
-RL = x86_64-w64-mingw32-strip --strip-unneeded
+RL = x86_64-w64-mingw32-strip
 else
 CC = gcc
 RC = windres
-RL = strip --strip-unneeded
+RL = strip
 endif
 LN = $(CC)
 
@@ -55,6 +55,7 @@ RCOPTS  = -l 0x409 -F pe-x86-64 -O coff
 RFLAGS  = -D NDEBUG -D _WIN32_WINNT=$(WINVER) -D WINVER=$(WINVER) $(EXTRA_RFLAGS)
 CLOPTS  = $(LNOPTS) -c
 LDLIBS  = -lkernel32
+RLOPTS  = --strip-unneeded
 
 ifdef _VENDOR_SFX
 CFLAGS += -D_VENDOR_SFX=$(_VENDOR_SFX)
@@ -91,15 +92,13 @@ $(WORKDIR)/%.res: $(SRCDIR)/%.rc $(SRCDIR)/%.h
 
 $(OUTPUT): $(WORKDIR) $(OBJECTS)
 	$(LN) $(LNOPTS) -o $@ $(OBJECTS) $(LDLIBS)
-	$(RL) $@
+	$(RL) $(RLOPTS) $@
 
 $(TESTDA): $(WORKDIR) $(TESTDA_OBJECTS)
 	$(LN) $(LNOPTS) -o $@ $(TESTDA_OBJECTS) $(LDLIBS)
-	$(RL) $@
 
 $(TESTDE): $(WORKDIR) $(TESTDE_OBJECTS)
 	$(LN) $(LNOPTS) -o $@ $(TESTDE_OBJECTS) $(LDLIBS)
-	$(RL) $@
 
 test: all $(TESTDA) $(TESTDE)
 	@echo
