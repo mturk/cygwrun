@@ -275,16 +275,13 @@ static wchar_t *xwcscpaths(const wchar_t *s1, const wchar_t *s2)
     l1 = xwcslen(s1);
     l2 = xwcslen(s2);
 
-    if (l1 == 0)
+    if ((l1 == 0) || (l2 == 0))
         return NULL;
-    rv = xwmalloc(l1 + l2 + 2);
+    rv = xwmalloc(l1 + l2 + 1);
 
     wmemcpy(rv, s1, l1);
-    if(l2 > 0) {
-        rv[l1++] = L';';
-        wmemcpy(rv + l1 , s2, l2);
-    }
-    rv[l1 + l2] = L'\0';
+    rv[l1++] = L';';
+    wmemcpy(rv + l1 , s2, l2);
     return rv;
 }
 
@@ -377,7 +374,7 @@ static wchar_t *xwcsquote(wchar_t *s)
     r = xwmalloc(n + 2);
     r[0] = L'"';
     wmemcpy(r + 1, s, n);
-    wmemcpy(r + n + 1, L"\"\0", 2);
+    r[n + 1] = L'"';
 
     xfree(s);
     return r;
