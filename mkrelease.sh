@@ -75,7 +75,7 @@ echo >> $ReleaseLog
 #
 7za a -bd $ReleaseName.zip $ProjectName.exe
 echo "SHA256 hash of $ReleaseName.zip:" >> $ReleaseLog
-sha256sum $ReleaseName.zip >> $ReleaseLog
+sha256sum $ReleaseName.zip | sed 's;\ .*;;' >> $ReleaseLog
 echo >> $ReleaseLog
 echo '```' >> $ReleaseLog
 #
