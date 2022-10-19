@@ -175,16 +175,6 @@ static wchar_t *xwmalloc(size_t size)
     return p;
 }
 
-static wchar_t *xwcalloc(size_t size)
-{
-    wchar_t *p = (wchar_t *)calloc(size + 2, sizeof(wchar_t));
-    if (p == NULL) {
-        _wperror(L"xwcalloc");
-        _exit(1);
-    }
-    return p;
-}
-
 static wchar_t **waalloc(size_t size)
 {
     wchar_t **p = (wchar_t **)calloc(size + 2, sizeof(wchar_t *));
