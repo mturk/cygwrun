@@ -219,7 +219,7 @@ static wchar_t *xwcsdup(const wchar_t *s)
 
     if (IS_EMPTY_WCS(s))
         return NULL;
-    n = wcslen(s) + 1;
+    n = wcslen(s);
     p = xwmalloc(n);
     return wmemcpy(p, s, n);
 }
@@ -232,8 +232,7 @@ static wchar_t *xwcsndup(const wchar_t *s, size_t len)
     if (IS_EMPTY_WCS(s) || (len == 0))
         return NULL;
     n = wcsnlen(s, len);
-    p = xwmalloc(n + 1);
-    p[n] = L'\0';
+    p = xwmalloc(n);
     return wmemcpy(p, s, n);
 }
 
@@ -269,13 +268,12 @@ static wchar_t *xwcsconcat(const wchar_t *s1, const wchar_t *s2)
 
     if ((l1 + l2) == 0)
         return NULL;
-    rv = xwmalloc(l1 + l2 + 1);
+    rv = xwmalloc(l1 + l2);
 
     if(l1 > 0)
         wmemcpy(rv, s1, l1);
     if(l2 > 0)
         wmemcpy(rv + l1, s2, l2);
-    rv[l1 + l2] = L'\0';
     return rv;
 }
 
@@ -728,20 +726,27 @@ static wchar_t **splitpath(const wchar_t *s, int *tokens, wchar_t ps)
 
 static wchar_t *mergepath(const wchar_t **pp)
 {
-    int  i;
-    size_t len = 0;
+    int  i, x;
+    size_t s[64];
+    size_t n, len = 0;
     wchar_t  *r, *p;
 
-    for (i = 0; pp[i] != NULL; i++) {
-        len += wcslen(pp[i]) + 1;
+    for (i = 0, x = 0; pp[i] != NULL; i++, x++) {
+        n = wcslen(pp[i]);
+        if (x < 64)
+            s[x] = n;
+        len += (n + 1);
     }
     r = p = xwmalloc(len + 2);
-    for (i = 0; pp[i] != NULL; i++) {
-        len = wcslen(pp[i]);
+    for (i = 0, x = 0; pp[i] != NULL; i++, x++) {
+        if (x < 64)
+            n = s[x];
+        else
+            n = wcslen(pp[i]);
         if (i > 0)
             *(p++) = L';';
-        wmemcpy(p, pp[i], len);
-        p += len;
+        wmemcpy(p, pp[i], n);
+        p += n;
     }
     *p = L'\0';
     return r;
@@ -1399,7 +1404,8 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         xrunexec = dupargc;
     }
     for (i = 0; i < argc; i++) {
-        dupwargv[dupargc++] = xwcsdup(wargv[i]);
+        if (IS_VALID_WCS(wargv[i]))
+            dupwargv[dupargc++] = xwcsdup(wargv[i]);
     }
 
     /**
