@@ -787,6 +787,8 @@ static wchar_t *pathtowin(wchar_t *pp)
     wchar_t *rv = pp;
 
     m = isanypath(pp);
+    if (m == 0)
+        return pp;
     if (m < 100) {
         cleanpath(pp);
     }
@@ -990,32 +992,21 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         if (xdumparg && (argc == 0))
             return usage(EINVAL);
         for (i = xrunexec; i < argc; i++) {
-            wchar_t *v = NULL;
+            wchar_t *v;
             wchar_t *a = wargv[i];
 
-            m = isanypath(a);
-            if (m == 0) {
-                v = cmdoptionval(a);
-                m = isanypath(v);
-            }
-            if (m == 0) {
-                /**
-                 * Skip quoted argument
-                 */
+            v = cmdoptionval(a);
+            if (v != NULL) {
+                wchar_t *p = xwcsdup(v);
+
+                p = pathtowin(p);
+                v[0] = L'\0';
+                wargv[i] = xwcsconcat(a, p);
+                xfree(p);
+                xfree(a);
             }
             else {
-                if (v == NULL) {
-                    wargv[i] = towinpath(a, m);
-                    xfree(a);
-                }
-                else {
-                    wchar_t *p = towinpath(v, m);
-
-                    v[0] = L'\0';
-                    wargv[i] = xwcsconcat(a, p);
-                    xfree(p);
-                    xfree(a);
-                }
+                wargv[i] = pathtowin(a);
             }
             if (xdumparg) {
                 if (i > 0)
