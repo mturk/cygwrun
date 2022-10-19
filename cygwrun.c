@@ -798,7 +798,7 @@ static wchar_t *pathtowin(wchar_t *pp)
     return rv;
 }
 
-static wchar_t *towinpath(const wchar_t *str, int m)
+static wchar_t *towinpaths(const wchar_t *str, int m)
 {
     int i, n;
     wchar_t *wp = xwcsdup(str);
@@ -1066,20 +1066,16 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             }
             if (e != NULL) {
                 wchar_t *v = wcschr(e + 1, L'=');
-                if (v == NULL) {
-                    /**
-                     * Bad environment
-                     */
-                    return EBADF;
-                }
-                m = isanypath(++v);
-                if (m != 0) {
-                    wchar_t *p = towinpath(v, m);
+                if (IS_VALID_WCS(v)) {
+                    m = isanypath(++v);
+                    if (m != 0) {
+                        wchar_t *p = towinpaths(v, m);
 
-                    v[0] = L'\0';
-                    wenvp[i] = xwcsconcat(e, p);
-                    xfree(e);
-                    xfree(p);
+                        v[0] = L'\0';
+                        wenvp[i] = xwcsconcat(e, p);
+                        xfree(e);
+                        xfree(p);
+                    }
                 }
             }
         }
@@ -1267,7 +1263,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     }
     else {
         wchar_t *p = cpp;
-        cpp = towinpath(p, 0);
+        cpp = towinpaths(p, 0);
         xfree(p);
     }
     posixroot = getposixroot(crp, cpp);
