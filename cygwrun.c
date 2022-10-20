@@ -26,9 +26,10 @@
 #include <io.h>
 #include "cygwrun.h"
 
+#define WNUL              L'\0'
 #define IS_PSW(_c)        (((_c) == L'/') || ((_c)  == L'\\'))
-#define IS_EMPTY_WCS(_s)  (((_s) == NULL) || (*(_s) == L'\0'))
-#define IS_VALID_WCS(_s)  (((_s) != NULL) && (*(_s) != L'\0'))
+#define IS_EMPTY_WCS(_s)  (((_s) == NULL) || (*(_s) == WNUL))
+#define IS_VALID_WCS(_s)  (((_s) != NULL) && (*(_s) != WNUL))
 
 static int      xrunexec  = 1;
 static int      xdumparg  = 0;
@@ -124,7 +125,7 @@ const char xvalidvarname[128] =
         0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2, 2,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0
 };
 
-static wchar_t zerostring[4] = { L'\0', L'\0', L'\0', L'\0' };
+static wchar_t zerostring[4] = { WNUL, WNUL, WNUL, WNUL };
 
 static int usage(int rv)
 {
@@ -171,7 +172,7 @@ static wchar_t *xwmalloc(size_t size)
         _wperror(L"xwmalloc");
         _exit(1);
     }
-    p[size] = L'\0';
+    p[size] = WNUL;
     return p;
 }
 
@@ -303,8 +304,8 @@ static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
     int match;
     int mflag;
 
-    for ( ; *wexp != L'\0'; wstr++, wexp++) {
-        if (*wstr == L'\0' && *wexp != L'*')
+    for ( ; *wexp != WNUL; wstr++, wexp++) {
+        if (*wstr == WNUL && *wexp != L'*')
             return -1;
         switch (*wexp) {
             case L'*':
@@ -315,9 +316,9 @@ static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
                      */
                     wexp++;
                 }
-                if (*wexp == L'\0')
+                if (*wexp == WNUL)
                     return 0;
-                while (*wstr != L'\0') {
+                while (*wstr != WNUL) {
                     int rv = xwcsmatch(wstr++, wexp);
                     if (rv != 1)
                         return rv;
@@ -345,7 +346,7 @@ static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
                         mflag = 1;
                 }
                 while (*wexp != L']') {
-                    if ((*wexp == L'\0') || (*wexp == L'['))
+                    if ((*wexp == WNUL) || (*wexp == L'['))
                         return -1;
                     if (*wexp == *wstr)
                         match = 1;
@@ -360,7 +361,7 @@ static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
             break;
         }
     }
-    return (*wstr != L'\0');
+    return (*wstr != WNUL);
 }
 
 static wchar_t *xwcsquote(wchar_t *s)
@@ -387,7 +388,7 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
     static const wchar_t *place = zerostring;
 
     xwoptarg = NULL;
-    if (*place == L'\0') {
+    if (*place == WNUL) {
 
         if (xwoptind >= nargc) {
             /* No more arguments */
@@ -400,7 +401,7 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
             place = zerostring;
             return EOF;
         }
-        if (*place == L'\0') {
+        if (*place == WNUL) {
             /* Single '-' skip and stop processing */
             xwoptind++;
             place = zerostring;
@@ -414,7 +415,7 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
     }
     if (oli == NULL) {
         place = zerostring;
-        if (*place == L'\0')
+        if (*place == WNUL)
             return EOF;
         else
             return EINVAL;
@@ -426,7 +427,7 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
          * Option-argument is either the rest of this argument
          * or the entire next argument.
          */
-        if (*place != L'\0') {
+        if (*place != WNUL) {
             xwoptarg = place;
         }
         else if (oli[2] != L':') {
@@ -443,7 +444,7 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
     }
     else {
         /* Don't need argument */
-        if (*place == L'\0') {
+        if (*place == WNUL) {
             ++xwoptind;
             place = zerostring;
         }
@@ -453,7 +454,7 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
 
 static int xwcsisenvvar(const wchar_t *str, const wchar_t *var, int icase)
 {
-    while (*str != L'\0') {
+    while (*str != WNUL) {
         wchar_t cs = icase ? tolower(*str) : *str;
         wchar_t cv = icase ? tolower(*var) : *var;
 
@@ -461,7 +462,7 @@ static int xwcsisenvvar(const wchar_t *str, const wchar_t *var, int icase)
             break;
         str++;
         var++;
-        if (*var == L'\0')
+        if (*var == WNUL)
             return *str == L'=';
     }
     return 0;
@@ -489,12 +490,12 @@ static int iswinpath(const wchar_t *s)
     int i = 0;
 
     if (IS_PSW(s[0])) {
-        if (IS_PSW(s[1]) && (s[2] != L'\0')) {
+        if (IS_PSW(s[1]) && (s[2] != WNUL)) {
             i  = 2;
             s += 2;
             if ((s[0] == L'?' ) &&
                 (IS_PSW(s[1]) ) &&
-                (s[2] != L'\0')) {
+                (s[2] != WNUL)) {
                 /**
                  * We have \\?\* path
                  */
@@ -505,7 +506,7 @@ static int iswinpath(const wchar_t *s)
     }
     if (xisvarchar(s[0]) == 2) {
         if (s[1] == L':') {
-            if (s[2] == L'\0')
+            if (s[2] == WNUL)
                 i += 2;
             else if (IS_PSW(s[2]))
                 i += 3;
@@ -533,7 +534,7 @@ static int isposixpath(const wchar_t *str)
 
     if (str[0] != L'/')
         return isdotpath(str);
-    if (str[1] == L'\0')
+    if (str[1] == WNUL)
         return 301;
     if (str[1] == L'/')
         return iswinpath(str);
@@ -593,7 +594,7 @@ static wchar_t *cmdoptionval(wchar_t *s)
     if (IS_EMPTY_WCS(s))
         return NULL;
 
-    while (*s != L'\0') {
+    while (*s != WNUL) {
         int c = *(s++);
         if (n > 0) {
             if (c == L'=')
@@ -628,17 +629,17 @@ static void cleanpath(wchar_t *s)
 
         s[c++] = s[n];
     }
-    s[c--] = L'\0';
+    s[c--] = WNUL;
     while (c > 0) {
         if ((s[c] == L';') || (s[c] < L'!'))
-            s[c--] = L'\0';
+            s[c--] = WNUL;
         else
             break;
     }
     if (xrmendps) {
         while (c > 1) {
             if ((s[c] == L'\\') && (s[c - 1] != L'.'))
-                s[c--] = L'\0';
+                s[c--] = WNUL;
             else
                 break;
         }
@@ -656,7 +657,7 @@ static wchar_t **splitpath(const wchar_t *s, int *tokens, wchar_t ps)
     if (*s == ps)
         return NULL;
     e = s;
-    while (*e != L'\0') {
+    while (*e != WNUL) {
         if (*(e++) == ps)
             x++;
     }
@@ -688,7 +689,7 @@ static wchar_t **splitpath(const wchar_t *s, int *tokens, wchar_t ps)
             s = e + 1;
         }
     }
-    if (*s != L'\0') {
+    if (*s != WNUL) {
         if (isanypath(s) == 0) {
             waafree(sa);
             return NULL;
@@ -726,14 +727,14 @@ static wchar_t *mergepath(const wchar_t **pp)
         wmemcpy(p, pp[i], n);
         p += n;
     }
-    *p = L'\0';
+    *p = WNUL;
     return r;
 }
 
 static wchar_t *posixtowin(wchar_t *pp, int m)
 {
     wchar_t *rv = NULL;
-    wchar_t  windrive[] = { L'\0', L':', L'\\', L'\0'};
+    wchar_t  windrive[] = { WNUL, L':', L'\\', WNUL};
 
     if (m == 0)
         m = isposixpath(pp);
@@ -925,7 +926,7 @@ static wchar_t *getposixroot(const wchar_t *rp, const wchar_t *sp)
                 if (d == NULL)
                     d = wcsstr(r, L"\\bin\\bash.exe");
                 if (d != NULL) {
-                    *d = L'\0';
+                    *d = WNUL;
                 }
                 else {
                     xfree(r);
@@ -991,7 +992,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 wchar_t *p = xwcsdup(v);
 
                 p = pathtowin(p);
-                v[0] = L'\0';
+                v[0] = WNUL;
                 wargv[i] = xwcsconcat(a, p);
                 xfree(p);
                 xfree(a);
@@ -1062,7 +1063,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                     if (m != 0) {
                         wchar_t *p = towinpaths(v, m);
 
-                        v[0] = L'\0';
+                        v[0] = WNUL;
                         wenvp[i] = xwcsconcat(e, p);
                         xfree(e);
                         xfree(p);
@@ -1328,7 +1329,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         }
         if (p != NULL) {
             const wchar_t *v = wcschr(p + 1, L'=');
-            if ((v != NULL) && (v[1] != L'\0')) {
+            if ((v != NULL) && (v[1] != WNUL)) {
                 dupwenvp[dupenvc++] = xwcsdup(p);
             }
         }
