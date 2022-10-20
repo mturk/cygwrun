@@ -663,13 +663,15 @@ static wchar_t **splitpath(const wchar_t *s, int *tokens, wchar_t ps)
     wchar_t **sa;
     const wchar_t *e;
 
+    *tokens = 0;
+    if (*s == ps)
+        return NULL;
     e = s;
     while (*e != L'\0') {
         if (*(e++) == ps)
             x++;
     }
     sa = waalloc(x + 1);
-    *tokens = 0;
     while ((e = wcschr(s, ps)) != NULL) {
         wchar_t *p;
         size_t   n = (size_t)(e - s);
