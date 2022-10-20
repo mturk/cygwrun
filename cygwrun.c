@@ -385,11 +385,12 @@ static wchar_t *xwcsquote(wchar_t *s)
 int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
 {
     const wchar_t *oli = NULL;
+    static int optcnt = 0;
     static const wchar_t *place = zerostring;
 
     xwoptarg = NULL;
     if (*place == WNUL) {
-
+        optcnt = 0;
         if (xwoptind >= nargc) {
             /* No more arguments */
             place = zerostring;
@@ -415,12 +416,12 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
     }
     if (oli == NULL) {
         place = zerostring;
-        if (*place == WNUL)
-            return EOF;
-        else
+        if (optcnt)
             return EINVAL;
+        else
+            return EOF;
     }
-
+    optcnt++;
     /* Does this option need an argument? */
     if (oli[1] == L':') {
         /*
