@@ -400,18 +400,11 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
             place = zerostring;
             return EOF;
         }
-        switch (*place) {
-            case L'\0':
-                /* Single '-' skip and stop processing */
-                xwoptind++;
-                /* fall through */
-            case L'-' :
-                /* Double '-' stop processing */
-                place = zerostring;
-                return EOF;
-            break;
-            default:
-            break;
+        if (*place == L'\0') {
+            /* Single '-' skip and stop processing */
+            xwoptind++;
+            place = zerostring;
+            return EOF;
         }
     }
 
@@ -420,11 +413,11 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
         oli = wcschr(opts, (wchar_t)xwoption);
     }
     if (oli == NULL) {
-        if (*place == L'\0') {
-            ++xwoptind;
-            place = zerostring;
-        }
-        return EINVAL;
+        place = zerostring;
+        if (*place == L'\0')
+            return EOF;
+        else
+            return EINVAL;
     }
 
     /* Does this option need an argument? */
@@ -600,10 +593,6 @@ static wchar_t *cmdoptionval(wchar_t *s)
     if (IS_EMPTY_WCS(s))
         return NULL;
 
-    if ((s[0] == L'-') && (s[1] == L'-'))
-        s += 2;
-    if ((s[0] == L'-'))
-        return NULL;
     while (*s != L'\0') {
         int c = *(s++);
         if (n > 0) {
