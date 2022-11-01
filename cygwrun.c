@@ -234,10 +234,7 @@ static wchar_t *xgetenv(const wchar_t *s)
     if (IS_EMPTY_WCS(s))
         return NULL;
     d = _wgetenv(s);
-    if (IS_EMPTY_WCS(d))
-        return NULL;
-    else
-        return xwcsdup(d);
+    return xwcsdup(d);
 }
 
 static size_t xwcslen(const wchar_t *s)
