@@ -1329,7 +1329,10 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         }
         if (p != NULL) {
             const wchar_t *v = wcschr(p + 1, L'=');
-            if ((v != NULL) && (v[1] != WNUL)) {
+            if (IS_VALID_WCS(v)) {
+                /**
+                 * Only pass non empty environment variables
+                 */
                 dupwenvp[dupenvc++] = xwcsdup(p);
             }
         }
