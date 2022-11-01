@@ -1038,7 +1038,8 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             xfree(b);
             for (i = xrunexec; i < argc; i++)
                 xfree(wargv[i]);
-            wargv[xrunexec] = NULL;
+            wargv[xrunexec]     = NULL;
+            wargv[xrunexec + 1] = NULL;
         }
     }
     if (xskipenv == 0) {
