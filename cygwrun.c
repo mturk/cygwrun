@@ -167,7 +167,7 @@ static int version(int verbose)
 
 static wchar_t *xwmalloc(size_t size)
 {
-    wchar_t *p = (wchar_t *)malloc((size + 2) * sizeof(wchar_t));
+    wchar_t *p = (wchar_t *)malloc((size + 1) * sizeof(wchar_t));
     if (p == NULL) {
         _wperror(L"xwmalloc");
         _exit(1);
