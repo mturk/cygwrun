@@ -1036,10 +1036,10 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             }
             wmemcpy(p, L"\"\0", 2);
             xfree(b);
-            for (i = xrunexec; i < argc; i++)
+            for (i = xrunexec; i < argc; i++) {
                 xfree(wargv[i]);
-            wargv[xrunexec]     = NULL;
-            wargv[xrunexec + 1] = NULL;
+                wargv[i] = NULL;
+            }
         }
     }
     if (xskipenv == 0) {
