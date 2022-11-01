@@ -43,6 +43,8 @@ Options are:
  -k        keep extra posix environment variables.
  -K        keep trailing path separators for paths.
  -f        convert all unknown posix absolute paths
+ -n <ENV>  do not translate ENV variable(s)
+           multiple variables are comma separated.
  -s        do not translate environment variables.
  -S        do not translate arguments.
  -q        do not print errors to stderr.
@@ -50,7 +52,8 @@ Options are:
  -V        print detailed version information and exit.
  -h | -?   print this screen and exit.
  -p        print arguments instead executing PROGRAM.
- -e        print environment variables matching ARGUMENTS.
+ -e        print environment variables matching ARGUMENTS
+           if no ARGUMENTS are provided print all variables.
 
 ```
 

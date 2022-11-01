@@ -14,5 +14,5 @@ For a full list of changes, see the [git commit log][log]
  * Add full support for building with msys2 or cygwin environment
  * Allow batch files to be used as **PROGRAM**
    by using `cmd.exe`
- 
- 
+ * Add **-n ENV[,...]** command line option which causes
+   that specified `ENV` variables are not translated

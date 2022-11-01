@@ -45,6 +45,7 @@ static int      xwoption  = 0;   /* Character checked for validity */
 static const wchar_t  *xwoptarg = NULL;
 
 static wchar_t *posixroot = NULL;
+static wchar_t **xrawenvs = NULL;
 
 static const wchar_t *pathmatches[] = {
     L"/cygdrive/?/+*",
@@ -89,12 +90,7 @@ static const wchar_t *removeext[] = {
     NULL
 };
 
-static const wchar_t *specialenv[] = {
-    L"!::",
-    L"!;",
-    L"PS1",
-    NULL
-};
+static const wchar_t *specialenv = L"!::,!;,PS1,";
 
 static const wchar_t *removeenv[] = {
     L"_",
@@ -138,6 +134,8 @@ static int usage(int rv)
         fputs(" -k        keep extra posix environment variables.\n", os);
         fputs(" -K        keep trailing path separators for paths.\n", os);
         fputs(" -f        convert all unknown posix absolute paths\n", os);
+        fputs(" -n <ENV>  do not translate ENV variable(s)\n", os);
+        fputs("           multiple variables are comma separated.\n", os);
         fputs(" -s        do not translate environment variables.\n", os);
         fputs(" -S        do not translate arguments.\n", os);
         fputs(" -q        do not print errors to stderr.\n", os);
@@ -145,7 +143,8 @@ static int usage(int rv)
         fputs(" -V        print detailed version information and exit.\n", os);
         fputs(" -h | -?   print this screen and exit.\n", os);
         fputs(" -p        print arguments instead executing PROGRAM.\n", os);
-        fputs(" -e        print environment variables matching ARGUMENTS.\n", os);
+        fputs(" -e        print environment variables matching ARGUMENTS\n", os);
+        fputs("           if no ARGUMENTS are provided print all variables.\n", os);
         fputs("To file bugs, visit " PROJECT_URL, os);
     }
     return rv;
@@ -646,6 +645,41 @@ static void cleanpath(wchar_t *s)
     }
 }
 
+static wchar_t **xsplitstr(const wchar_t *s, wchar_t sc)
+{
+    int c = 0;
+    int x = 0;
+    wchar_t **sa;
+    const wchar_t *e;
+
+    e = s;
+    while (*e != WNUL) {
+        if (*(e++) == sc)
+            x++;
+    }
+    sa = waalloc(x + 1);
+    while ((e = wcschr(s, sc)) != NULL) {
+        wchar_t *p;
+        size_t   n = (size_t)(e - s);
+
+        if (n == 0) {
+            /**
+             * Skip multiple separators
+             */
+            s = e + 1;
+            continue;
+        }
+        p = xwcsndup(s, n);
+        sa[c++] = p;
+        s = e + 1;
+    }
+    if (*s != WNUL) {
+        sa[c++] = xwcsdup(s);
+    }
+
+    return sa;
+}
+
 static wchar_t **splitpath(const wchar_t *s, int *tokens, wchar_t ps)
 {
     int c = 0;
@@ -1045,12 +1079,12 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     if (xskipenv == 0) {
         for (i = 0; i < (envc - 5); i++) {
             wchar_t *e = wenvp[i];
-            const wchar_t **s = specialenv;
+            const wchar_t **s = xrawenvs;
 
             while (*s != NULL) {
                 if (xwcsisenvvar(e, *s, 0)) {
                     /**
-                     * Do not convert Special environment variables
+                     * Do not convert specified environment variables
                      */
                     e = NULL;
                     break;
@@ -1138,10 +1172,12 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     wchar_t **dupwargv = NULL;
     wchar_t **dupwenvp = NULL;
     const wchar_t *crp = NULL;
+    const wchar_t *ppe = NULL;
     wchar_t *cwd       = NULL;
     wchar_t *cpp;
     wchar_t *wtd;
     wchar_t *ptd;
+    wchar_t *npe;
 
     int dupenvc = 0;
     int dupargc = 0;
@@ -1163,7 +1199,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     dupwargv[0] = realappname(wargv[0]);
 
     if (dupwargv[0] == NULL) {
-        while ((opt = xwgetopt(argc, wargv, L"fkKepsSqw:r:vVh?")) != EOF) {
+        while ((opt = xwgetopt(argc, wargv, L"fkKen:psSqw:r:vVh?")) != EOF) {
             switch (opt) {
                 case L'f':
                     xforcewp = 1;
@@ -1185,6 +1221,9 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                     xdumparg = 1;
                     xskipenv = 1;
                     haseopt += 1;
+                break;
+                case L'n':
+                    ppe = xwoptarg;
                 break;
                 case L'r':
                     crp = xwoptarg;
@@ -1296,6 +1335,9 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             fputs("Both TEMP and TMP environment variables are missing\n", stderr);
         return ENOENT;
     }
+    npe = xwcsconcat(specialenv, ppe);
+    xrawenvs = xsplitstr(npe, L',');
+    xfree(npe);
     while (wenv[envc] != NULL) {
         ++envc;
     }
@@ -1310,7 +1352,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             while (*e != NULL) {
                 if (xwcsisenvvar(p, *e, 0)) {
                     /**
-                     * Skip private environment variable
+                     * Skip posix extra environment variable
                      */
                     p = NULL;
                     break;
@@ -1322,6 +1364,9 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             e = removeenv;
             while (*e != NULL) {
                 if (xwcsisenvvar(p, *e, 1)) {
+                    /**
+                     * Skip private environment variable
+                     */
                     p = NULL;
                     break;
                 }
