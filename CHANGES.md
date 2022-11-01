@@ -8,7 +8,6 @@ For a full list of changes, see the [git commit log][log]
 
 ## v1.1.5
 
- * In development
 
 ### New Features
  * Add full support for building with msys2 or cygwin environment
