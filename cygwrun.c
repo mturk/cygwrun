@@ -618,8 +618,10 @@ static void cleanpath(wchar_t *s)
 {
     int n;
     int c;
-    int i = (int)xwcslen(s);
+    int i;
 
+
+    i = (int)xwcslen(s);
     for (n = 0, c = 0; n < i; n++) {
         if (IS_PSW(s[n]))  {
             if ((n > 0) && IS_PSW(s[n + 1])) {
@@ -669,7 +671,7 @@ static wchar_t **splitpath(const wchar_t *s, int *tokens, wchar_t ps)
 
         if (n == 0) {
             /**
-             * Handle multiple collons
+             * Skip multiple separators
              */
             s = e + 1;
             continue;
@@ -679,8 +681,8 @@ static wchar_t **splitpath(const wchar_t *s, int *tokens, wchar_t ps)
 
         if (isanypath(p) == 0) {
             /**
-             * Token before ':' was not a posix path.
-             * Return original str regerdless if some
+             * Token before separator was not a posix path.
+             * Return original str regardless if some
              * previous tokens evaluated as posix path.
              */
             waafree(sa);
@@ -809,7 +811,7 @@ static wchar_t *towinpaths(const wchar_t *str, int m)
                 waafree(pa);
             }
         }
-        else {
+        else if (iswinpath(wp)) {
             cleanpath(wp);
         }
     }
@@ -827,7 +829,7 @@ static wchar_t *towinpaths(const wchar_t *str, int m)
             }
         }
         else {
-            wp = posixtowin(wp, m);
+            wp = posixtowin(wp, 0);
         }
     }
     return wp;
