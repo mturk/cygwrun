@@ -836,45 +836,36 @@ static wchar_t *pathtowin(wchar_t *pp)
     return rv;
 }
 
-static wchar_t *towinpaths(const wchar_t *str, int m)
+static wchar_t *towinpaths(const wchar_t *ps, int m)
 {
     int i, n;
-    wchar_t *wp = xwcsdup(str);
+    wchar_t **pa;
+    wchar_t  *wp = NULL;
 
     if (m < 100) {
-        if (wcschr(wp, L';')) {
-            wchar_t **pa = splitpath(wp, &n, L';');
+        pa = splitpath(ps, &n, L';');
 
-            if (pa != NULL) {
-                for (i = 0; i < n; i++) {
-                    cleanpath(pa[i]);
-                }
-                xfree(wp);
-                wp = mergepath(pa);
-                waafree(pa);
+        if (pa != NULL) {
+            for (i = 0; i < n; i++) {
+                cleanpath(pa[i]);
             }
-        }
-        else if (iswinpath(wp)) {
-            cleanpath(wp);
+            wp = mergepath(pa);
+            waafree(pa);
         }
     }
     else {
-        if (wcschr(wp, L':')) {
-            wchar_t **pa = splitpath(wp, &n, L':');
+        pa = splitpath(ps, &n, L':');
 
-            if (pa != NULL) {
-                for (i = 0; i < n; i++) {
-                    pa[i] = posixtowin(pa[i], 0);
-                }
-                xfree(wp);
-                wp = mergepath(pa);
-                waafree(pa);
+        if (pa != NULL) {
+            for (i = 0; i < n; i++) {
+                pa[i] = posixtowin(pa[i], 0);
             }
-        }
-        else {
-            wp = posixtowin(wp, 0);
+            wp = mergepath(pa);
+            waafree(pa);
         }
     }
+    if (wp == NULL)
+        wp = xwcsdup(ps);
     return wp;
 }
 
