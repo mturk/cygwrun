@@ -702,36 +702,25 @@ static void cleanpath(wchar_t *s)
 
 static wchar_t **xsplitstr(const wchar_t *s, wchar_t sc)
 {
-    int c = 0;
+    int c;
     int x = 0;
+    wchar_t  *cx = NULL;
+    wchar_t  *ws;
+    wchar_t  *es;
     wchar_t **sa;
-    const wchar_t *e;
 
-    e = s;
-    while (*e != WNUL) {
-        if (*(e++) == sc)
-            x++;
+    c =  xwcsntok(s, sc);
+    if (c == 0)
+        return NULL;
+    ws = xwcsdup(s);
+    sa = waalloc(c);
+    es = xwcsctok(ws, sc, &cx);
+    while (es != NULL) {
+        if (IS_VALID_WCS(es))
+            sa[x++] = xwcsdup(es);
+        es = xwcsctok(NULL, sc, &cx);
     }
-    sa = waalloc(x + 1);
-    while ((e = wcschr(s, sc)) != NULL) {
-        wchar_t *p;
-        size_t   n = (size_t)(e - s);
-
-        if (n == 0) {
-            /**
-             * Skip multiple separators
-             */
-            s = e + 1;
-            continue;
-        }
-        p = xwcsndup(s, n);
-        sa[c++] = p;
-        s = e + 1;
-    }
-    if (*s != WNUL) {
-        sa[c++] = xwcsdup(s);
-    }
-
+    xfree(ws);
     return sa;
 }
 
