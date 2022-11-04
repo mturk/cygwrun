@@ -377,6 +377,61 @@ static wchar_t *xwcsquote(wchar_t *s)
     return r;
 }
 
+/**
+ * Count the number of tokens delimited by d
+ */
+static int xwcsntok(const wchar_t *s, wchar_t d)
+{
+    int n = 1;
+
+    while (*s == d) {
+        s++;
+    }
+    if (*s == WNUL)
+        return 0;
+    while (*s != WNUL) {
+        if (*(s++) == d) {
+            while (*s == d) {
+                s++;
+            }
+            if (*s != WNUL)
+                n++;
+        }
+    }
+    return n;
+}
+
+/**
+ * This is wcstok_s clone using single character as token delimiter
+ */
+static wchar_t *xwcsctok(wchar_t *s, wchar_t d, wchar_t **c)
+{
+    wchar_t *p;
+
+    if ((s == NULL) && ((s = *c) == NULL))
+        return NULL;
+
+    *c = NULL;
+    /**
+     * Skip leading delimiter
+     */
+    while (*s == d) {
+        s++;
+    }
+    if (*s == WNUL)
+        return NULL;
+    p = s;
+
+    while (*s != WNUL) {
+        if (*s == d) {
+            *s = WNUL;
+            *c = s + 1;
+            break;
+        }
+        s++;
+    }
+    return p;
+}
 
 int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
 {
@@ -682,58 +737,26 @@ static wchar_t **xsplitstr(const wchar_t *s, wchar_t sc)
 
 static wchar_t **splitpath(const wchar_t *s, int *tokens, wchar_t ps)
 {
-    int c = 0;
-    int x = 0;
+    int       nc = 0;
+    wchar_t  *ws;
     wchar_t **sa;
-    const wchar_t *e;
+    wchar_t  *cx = NULL;
+    wchar_t  *es;
 
-    *tokens = 0;
-    if (*s == ps)
+    *tokens =  xwcsntok(s, ps);
+    if (*tokens == 0)
         return NULL;
-    e = s;
-    while (*e != WNUL) {
-        if (*(e++) == ps)
-            x++;
-    }
-    sa = waalloc(x + 1);
-    while ((e = wcschr(s, ps)) != NULL) {
-        wchar_t *p;
-        size_t   n = (size_t)(e - s);
+    ws = xwcsdup(s);
+    sa = waalloc(*tokens);
 
-        if (n == 0) {
-            /**
-             * Skip multiple separators
-             */
-            s = e + 1;
-            continue;
-        }
-        p = xwcsndup(s, n);
-        sa[c++] = p;
-
-        if (isanypath(p) == 0) {
-            /**
-             * Token before separator was not a posix path.
-             * Return original str regardless if some
-             * previous tokens evaluated as posix path.
-             */
-            waafree(sa);
-            return NULL;
-        }
-        else {
-            s = e + 1;
-        }
+    es = xwcsctok(ws, ps, &cx);
+    while (es != NULL) {
+        if (IS_VALID_WCS(es))
+            sa[nc++] = xwcsdup(es);
+        es = xwcsctok(NULL, ps, &cx);
     }
-    if (*s != WNUL) {
-        if (isanypath(s) == 0) {
-            waafree(sa);
-            return NULL;
-        }
-        else {
-            sa[c++] = xwcsdup(s);
-        }
-    }
-
-    *tokens = c;
+    xfree(ws);
+    *tokens = nc;
     return sa;
 }
 
