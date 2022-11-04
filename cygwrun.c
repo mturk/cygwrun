@@ -702,8 +702,7 @@ static void cleanpath(wchar_t *s)
 
 static wchar_t **xsplitstr(const wchar_t *s, wchar_t sc)
 {
-    int c;
-    int x = 0;
+    int      c, x = 0;
     wchar_t  *cx = NULL;
     wchar_t  *ws;
     wchar_t  *es;
@@ -724,28 +723,27 @@ static wchar_t **xsplitstr(const wchar_t *s, wchar_t sc)
     return sa;
 }
 
-static wchar_t **splitpath(const wchar_t *s, int *tokens, wchar_t ps)
+static wchar_t **splitpath(const wchar_t *s, wchar_t ps)
 {
-    int       nc = 0;
+    int      c, x = 0;
     wchar_t  *ws;
     wchar_t **sa;
     wchar_t  *cx = NULL;
     wchar_t  *es;
 
-    *tokens =  xwcsntok(s, ps);
-    if (*tokens == 0)
+    c =  xwcsntok(s, ps);
+    if (c == 0)
         return NULL;
     ws = xwcsdup(s);
-    sa = waalloc(*tokens);
+    sa = waalloc(c);
 
     es = xwcsctok(ws, ps, &cx);
     while (es != NULL) {
         if (IS_VALID_WCS(es))
-            sa[nc++] = xwcsdup(es);
+            sa[x++] = xwcsdup(es);
         es = xwcsctok(NULL, ps, &cx);
     }
     xfree(ws);
-    *tokens = nc;
     return sa;
 }
 
@@ -838,15 +836,15 @@ static wchar_t *pathtowin(wchar_t *pp)
 
 static wchar_t *towinpaths(const wchar_t *ps, int m)
 {
-    int i, n;
+    int i;
     wchar_t **pa;
     wchar_t  *wp = NULL;
 
     if (m < 100) {
-        pa = splitpath(ps, &n, L';');
+        pa = splitpath(ps, L';');
 
         if (pa != NULL) {
-            for (i = 0; i < n; i++) {
+            for (i = 0; pa[i] != NULL; i++) {
                 cleanpath(pa[i]);
             }
             wp = mergepath(pa);
@@ -854,10 +852,10 @@ static wchar_t *towinpaths(const wchar_t *ps, int m)
         }
     }
     else {
-        pa = splitpath(ps, &n, L':');
+        pa = splitpath(ps, L':');
 
         if (pa != NULL) {
-            for (i = 0; i < n; i++) {
+            for (i = 0; pa[i] != NULL; i++) {
                 pa[i] = posixtowin(pa[i], 0);
             }
             wp = mergepath(pa);
