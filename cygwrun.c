@@ -609,6 +609,9 @@ static int isanypath(const wchar_t *s)
     if (IS_EMPTY_WCS(s))
         return 0;
     switch (s[0]) {
+        case L'\'':
+            r = 0;
+        break;
         case L'/':
             r = isposixpath(s);
         break;
