@@ -82,15 +82,7 @@ static const wchar_t *pathfixed[] = {
     NULL
 };
 
-static const wchar_t *removeext[] = {
-    L"OLDPWD",
-    L"ORIGINAL_PATH",
-    L"ORIGINAL_TEMP",
-    L"ORIGINAL_TMP",
-    NULL
-};
-
-static const wchar_t *specialenv = L"!::,!;,PS1,";
+static const wchar_t *specialenv = L"!::,!;,PS1,OLDPWD,ORIGINAL_PATH,ORIGINAL_TEMP,ORIGINAL_TMP,";
 
 static const wchar_t *removeenv[] = {
     L"_",
@@ -131,13 +123,12 @@ static int usage(int rv)
         fputs("Execute PROGRAM [ARGUMENTS]...\n\nOptions are:\n", os);
         fputs(" -r <DIR>  use DIR as posix root\n", os);
         fputs(" -w <DIR>  change working directory to DIR before calling PROGRAM\n", os);
-        fputs(" -k        keep extra posix environment variables.\n", os);
-        fputs(" -K        keep trailing path separators for paths.\n", os);
-        fputs(" -f        convert all unknown posix absolute paths\n", os);
         fputs(" -n <ENV>  do not translate ENV variable(s)\n", os);
         fputs("           multiple variables are comma separated.\n", os);
-        fputs(" -s        do not translate environment variables.\n", os);
-        fputs(" -S        do not translate arguments.\n", os);
+        fputs(" -A        do not translate arguments.\n", os);
+        fputs(" -E        do not translate environment variables.\n", os);
+        fputs(" -K        keep trailing path separators for paths.\n", os);
+        fputs(" -f        convert all unknown posix absolute paths.\n", os);
         fputs(" -q        do not print errors to stderr.\n", os);
         fputs(" -v        print version information and exit.\n", os);
         fputs(" -V        print detailed version information and exit.\n", os);
@@ -145,7 +136,7 @@ static int usage(int rv)
         fputs(" -p        print arguments instead executing PROGRAM.\n", os);
         fputs(" -e        print environment variables matching ARGUMENTS\n", os);
         fputs("           if no ARGUMENTS are provided print all variables.\n", os);
-        fputs("To file bugs, visit " PROJECT_URL, os);
+        fputs("\nTo file bugs, visit " PROJECT_URL, os);
     }
     return rv;
 }
@@ -1182,7 +1173,6 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
 
     int dupenvc = 0;
     int dupargc = 0;
-    int clreenv = 1;
     int envc    = 0;
     int opt     = 0;
     int haseopt = 0;
@@ -1200,16 +1190,10 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     dupwargv[0] = realappname(wargv[0]);
 
     if (dupwargv[0] == NULL) {
-        while ((opt = xwgetopt(argc, wargv, L"fkKen:psSqw:r:vVh?")) != EOF) {
+        while ((opt = xwgetopt(argc, wargv, L"AeEfKn:pqr:vVh?w:")) != EOF) {
             switch (opt) {
-                case L'f':
-                    xforcewp = 1;
-                break;
-                case L'K':
-                    xrmendps = 0;
-                break;
-                case L'k':
-                    clreenv  = 0;
+                case L'A':
+                    xskiparg = 1;
                 break;
                 case L'e':
                     xrunexec = 0;
@@ -1217,29 +1201,29 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                     xskiparg = 1;
                     haseopt += 1;
                 break;
+                case L'E':
+                    xskipenv = 1;
+                break;
+                case L'f':
+                    xforcewp = 1;
+                break;
+                case L'K':
+                    xrmendps = 0;
+                break;
+                case L'n':
+                    ppe = xwoptarg;
+                break;
                 case L'p':
                     xrunexec = 0;
                     xdumparg = 1;
                     xskipenv = 1;
                     haseopt += 1;
                 break;
-                case L'n':
-                    ppe = xwoptarg;
-                break;
-                case L'r':
-                    crp = xwoptarg;
-                break;
-                case L's':
-                    xskipenv = 1;
-                break;
-                case L'S':
-                    xskiparg = 1;
-                break;
                 case L'q':
                     xshowerr = 0;
                 break;
-                case L'w':
-                    cwd = xwcsdup(xwoptarg);
+                case L'r':
+                    crp = xwoptarg;
                 break;
                 case L'v':
                     return version(0);
@@ -1251,6 +1235,9 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                 case L'?':
                     xshowerr = 1;
                     return usage(0);
+                break;
+                case L'w':
+                    cwd = xwcsdup(xwoptarg);
                 break;
                 case EINVAL:
                     fprintf(stderr, "Error: Invalid command line option: '%C'\n", xwoption);
@@ -1345,34 +1332,18 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
 
     dupwenvp = waalloc(envc + 6);
     for (i = 0; i < envc; i++) {
-        const wchar_t **e;
+        const wchar_t **e = removeenv;
         const wchar_t  *p = wenv[i];
 
-        if (clreenv) {
-            e = removeext;
-            while (*e != NULL) {
-                if (xwcsisenvvar(p, *e, 0)) {
-                    /**
-                     * Skip posix extra environment variable
-                     */
-                    p = NULL;
-                    break;
-                }
-                e++;
+        while (*e != NULL) {
+            if (xwcsisenvvar(p, *e, 1)) {
+                /**
+                 * Skip private environment variable
+                 */
+                p = NULL;
+                break;
             }
-        }
-        if (p != NULL) {
-            e = removeenv;
-            while (*e != NULL) {
-                if (xwcsisenvvar(p, *e, 1)) {
-                    /**
-                     * Skip private environment variable
-                     */
-                    p = NULL;
-                    break;
-                }
-                e++;
-            }
+            e++;
         }
         if (p != NULL) {
             const wchar_t *v = wcschr(p + 1, L'=');

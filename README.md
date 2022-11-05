@@ -40,13 +40,12 @@ Execute PROGRAM [ARGUMENTS]...
 Options are:
  -r <DIR>  use DIR as posix root
  -w <DIR>  change working directory to DIR before calling PROGRAM
- -k        keep extra posix environment variables.
- -K        keep trailing path separators for paths.
- -f        convert all unknown posix absolute paths
  -n <ENV>  do not translate ENV variable(s)
            multiple variables are comma separated.
- -s        do not translate environment variables.
- -S        do not translate arguments.
+ -A        do not translate arguments.
+ -E        do not translate environment variables.
+ -K        keep trailing path separators for paths.
+ -f        convert all unknown posix absolute paths.
  -q        do not print errors to stderr.
  -v        print version information and exit.
  -V        print detailed version information and exit.
