@@ -125,10 +125,8 @@ static int usage(int rv)
         fputs(" -w <DIR>  change working directory to DIR before calling PROGRAM\n", os);
         fputs(" -n <ENV>  do not translate ENV variable(s)\n", os);
         fputs("           multiple variables are comma separated.\n", os);
-        fputs(" -A        do not translate arguments.\n", os);
-        fputs(" -E        do not translate environment variables.\n", os);
-        fputs(" -K        keep trailing path separators for paths.\n", os);
         fputs(" -f        convert all unknown posix absolute paths.\n", os);
+        fputs(" -K        keep trailing path separators for paths.\n", os);
         fputs(" -q        do not print errors to stderr.\n", os);
         fputs(" -v        print version information and exit.\n", os);
         fputs(" -V        print detailed version information and exit.\n", os);
@@ -1180,19 +1178,13 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         ++envc;
     }
 
-    while ((opt = xwgetopt(argc, wargv, L"AeEfKn:pqr:vVh?w:")) != EOF) {
+    while ((opt = xwgetopt(argc, wargv, L"efKn:pqr:vVh?w:")) != EOF) {
         switch (opt) {
-            case L'A':
-                xprocarg = 0;
-            break;
             case L'e':
                 xrunexec = 0;
                 xdumpenv = 1;
                 xprocarg = 0;
                 haseopt += 1;
-            break;
-            case L'E':
-                xskipenv = envc;
             break;
             case L'f':
                 xforcewp = 1;
