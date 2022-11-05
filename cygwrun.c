@@ -656,7 +656,7 @@ static int envsort(const void *arg1, const void *arg2)
     return _wcsicoll(*((wchar_t **)arg1), *((wchar_t **)arg2));
 }
 
-static void cleanpath(wchar_t *s)
+static wchar_t *cleanpath(wchar_t *s)
 {
     int n;
     int c;
@@ -689,6 +689,7 @@ static void cleanpath(wchar_t *s)
                 break;
         }
     }
+    return s;
 }
 
 static wchar_t **xsplitstr(const wchar_t *s, wchar_t sc)
@@ -794,8 +795,7 @@ static wchar_t *posixtowin(wchar_t *pp, int m)
         rv = xwcsdup(L"\\\\.\\NUL");
     }
     else if (m == 300) {
-        cleanpath(pp);
-        return pp;
+        return cleanpath(pp);
     }
     else if (m == 301) {
         rv = xwcsdup(posixroot);
@@ -946,8 +946,7 @@ static wchar_t *getposixroot(const wchar_t *rp, const wchar_t *sp)
         /**
          * Trust user provided root
          */
-        cleanpath(r);
-        return r;
+        return cleanpath(r);
     }
     else {
         const wchar_t **e = posixrenv;
