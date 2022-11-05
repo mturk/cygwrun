@@ -609,10 +609,6 @@ static int isanypath(const wchar_t *s)
     if (IS_EMPTY_WCS(s))
         return 0;
     switch (s[0]) {
-        case L'"':
-        case L'\'':
-            r = 0;
-        break;
         case L'/':
             r = isposixpath(s);
         break;
@@ -1006,6 +1002,8 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
 
             v = cmdoptionval(a);
             if (v != NULL) {
+                if (*v == L'"')
+                    v++;
                 m = isanypath(v);
                 if (m != 0) {
                     wchar_t *p = towinpaths(v, m);
