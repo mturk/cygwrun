@@ -35,7 +35,7 @@ static int      xrunexec  = 1;
 static int      xdumparg  = 0;
 static int      xdumpenv  = 0;
 static int      xskipenv  = 0;
-static int      xskiparg  = 0;
+static int      xprocarg  = 1;
 static int      xshowerr  = 1;
 static int      xforcewp  = 0;
 static int      xrmendps  = 1;
@@ -1013,7 +1013,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     int i, m, rc = 0;
     intptr_t rp;
 
-    if (xskiparg == 0) {
+    if (xprocarg) {
         if (xdumparg && (argc == 0))
             return usage(EINVAL);
         for (i = xrunexec; i < argc; i++) {
@@ -1202,12 +1202,12 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         while ((opt = xwgetopt(argc, wargv, L"AeEfKn:pqr:vVh?w:")) != EOF) {
             switch (opt) {
                 case L'A':
-                    xskiparg = 1;
+                    xprocarg = 0;
                 break;
                 case L'e':
                     xrunexec = 0;
                     xdumpenv = 1;
-                    xskiparg = 1;
+                    xprocarg = 0;
                     haseopt += 1;
                 break;
                 case L'E':
