@@ -842,7 +842,7 @@ static wchar_t *towinpaths(const wchar_t *ps, int m)
 
         if (pa != NULL) {
             for (i = 0; pa[i] != NULL; i++) {
-                int m = isposixpath(pa[i]);
+                m = isposixpath(pa[i]);
                 if (m == 0) {
                     waafree(pa);
                     return xwcsdup(ps);
