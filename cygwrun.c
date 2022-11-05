@@ -1025,13 +1025,15 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
 
             v = cmdoptionval(a);
             if (v != NULL) {
-                wchar_t *p = xwcsdup(v);
+                m = isanypath(v);
+                if (m != 0) {
+                    wchar_t *p = towinpaths(v, m);
 
-                p = pathtowin(p);
-                v[0] = WNUL;
-                wargv[i] = xwcsconcat(a, p);
-                xfree(p);
-                xfree(a);
+                    v[0] = WNUL;
+                    wargv[i] = xwcsconcat(a, p);
+                    xfree(a);
+                    xfree(p);
+                }
             }
             else {
                 wargv[i] = pathtowin(a);

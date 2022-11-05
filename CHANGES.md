@@ -12,6 +12,7 @@ For a full list of changes, see the [git commit log][log]
  * Fix path splitting for environment variables
  * Cleanup command line options
  * Always trust user provided `-r` parameter
+ * Convert arguments with multiple paths the same way as environment variables
 
 ## v1.1.5
 

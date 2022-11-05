@@ -113,7 +113,7 @@ test "x$rv" = "x-I=$tmpdir\\foo" || xbexit 1 "Failed #7.4: \`$rv'"
 rv="`$_cygwrun -p --I=/tmp/foo`"
 test "x$rv" = "x--I=$tmpdir\\foo" || xbexit 1 "Failed #7.5: \`$rv'"
 rv="`$_cygwrun -p I=/tmp/foo:/tmp/bar`"
-test "x$rv" = "xI=$tmpdir\\foo:\\tmp\\bar" || xbexit 1 "Failed #7.6: \`$rv'"
+test "x$rv" = "xI=$tmpdir\\foo;$tmpdir\\bar" || xbexit 1 "Failed #7.6: \`$rv'"
 
 rv="`$_cygwrun -p ./tmp`"
 test "x$rv" = "x.\\tmp" || xbexit 1 "Failed #8.1: \`$rv'"
