@@ -995,8 +995,6 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     intptr_t rp;
 
     if (xprocarg) {
-        if (xdumparg && (argc == 0))
-            return usage(EINVAL);
         for (i = xrunexec; i < argc; i++) {
             wchar_t *v;
             wchar_t *a = wargv[i];
