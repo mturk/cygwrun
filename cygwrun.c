@@ -1240,10 +1240,8 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             fputs("Error: Options -p and -e are mutually exclusive\n", stderr);
         return usage(EINVAL);
     }
-    if (xdumparg)
-        xprocarg = 1;
-    argc  -= xwoptind;
-    wargv += xwoptind;
+    argc    -= xwoptind;
+    wargv   += xwoptind;
     dupwargv = waalloc(argc + 4);
     if (xrunexec) {
         if (argc > 0) {
