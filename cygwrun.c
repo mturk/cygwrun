@@ -987,25 +987,6 @@ static wchar_t *getposixroot(const wchar_t *rp, const wchar_t *sp)
     return r;
 }
 
-static wchar_t *realappname(const wchar_t *path)
-{
-    int i;
-    const wchar_t *p = path;
-
-    i = (int)xwcslen(path);
-    while (--i > 0) {
-        if (IS_PSW(path[i])) {
-            /** Found path separator */
-            p = path + i + 1;
-            break;
-        }
-    }
-    if ((p[0] == L'_') && (p[1] == L'_'))
-        return xwcsdup(p + 2);
-    else
-        return NULL;
-}
-
 static BOOL WINAPI consolehandler(DWORD ctrl)
 {
     return TRUE;
@@ -1198,78 +1179,69 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         ++envc;
     }
 
-    dupwargv = waalloc(argc + 4);
-    /**
-     * Check if we are renamed to __someapp.exe
-     * Use someapp.exe as PROGRAM to execute
-     **/
-    dupwargv[0] = realappname(wargv[0]);
+    while ((opt = xwgetopt(argc, wargv, L"AeEfKn:pqr:vVh?w:")) != EOF) {
+        switch (opt) {
+            case L'A':
+                xprocarg = 0;
+            break;
+            case L'e':
+                xrunexec = 0;
+                xdumpenv = 1;
+                xprocarg = 0;
+                haseopt += 1;
+            break;
+            case L'E':
+                xskipenv = envc;
+            break;
+            case L'f':
+                xforcewp = 1;
+            break;
+            case L'K':
+                xrmendps = 0;
+            break;
+            case L'n':
+                ppe = xwoptarg;
+            break;
+            case L'p':
+                xrunexec = 0;
+                xdumparg = 1;
+                xskipenv = envc;
+                haseopt += 1;
+            break;
+            case L'q':
+                xshowerr = 0;
+            break;
+            case L'r':
+                crp = xwoptarg;
+            break;
+            case L'v':
+                return version(0);
+            break;
+            case L'V':
+                return version(1);
+            break;
+            case L'h':
+            case L'?':
+                xshowerr = 1;
+                return usage(0);
+            break;
+            case L'w':
+                cwd = xwcsdup(xwoptarg);
+            break;
+            case EINVAL:
+                fprintf(stderr, "Error: Invalid command line option: '%C'\n", xwoption);
+                return usage(opt);
+            break;
+            case ENOENT:
+                fprintf(stderr, "Error: Missing argument for option: '%C'\n", xwoption);
+                return usage(opt);
+            break;
+            default:
+                /* Should never happen */
+                fprintf(stderr, "Error: Unknown return from xwgetopt: %d\n", opt);
+                return opt;
+            break;
 
-    if (dupwargv[0] == NULL) {
-        while ((opt = xwgetopt(argc, wargv, L"AeEfKn:pqr:vVh?w:")) != EOF) {
-            switch (opt) {
-                case L'A':
-                    xprocarg = 0;
-                break;
-                case L'e':
-                    xrunexec = 0;
-                    xdumpenv = 1;
-                    xprocarg = 0;
-                    haseopt += 1;
-                break;
-                case L'E':
-                    xskipenv = envc;
-                break;
-                case L'f':
-                    xforcewp = 1;
-                break;
-                case L'K':
-                    xrmendps = 0;
-                break;
-                case L'n':
-                    ppe = xwoptarg;
-                break;
-                case L'p':
-                    xrunexec = 0;
-                    xdumparg = 1;
-                    xskipenv = envc;
-                    haseopt += 1;
-                break;
-                case L'q':
-                    xshowerr = 0;
-                break;
-                case L'r':
-                    crp = xwoptarg;
-                break;
-                case L'v':
-                    return version(0);
-                break;
-                case L'V':
-                    return version(1);
-                break;
-                case L'h':
-                case L'?':
-                    xshowerr = 1;
-                    return usage(0);
-                break;
-                case L'w':
-                    cwd = xwcsdup(xwoptarg);
-                break;
-                case EINVAL:
-                    fprintf(stderr, "Error: Invalid command line option: '%C'\n", xwoption);
-                    return usage(opt);
-                break;
-                case ENOENT:
-                    fprintf(stderr, "Error: Missing argument for option: '%C'\n", xwoption);
-                    return usage(opt);
-                break;
-                default:
-                    /* Should never happen */
-                    fprintf(stderr, "Error: Unknown return from xwgetopt: %d\n", opt);
-                    return opt;
-                break;
-
-            }
         }
     }
     if (haseopt > 1) {
@@ -1281,7 +1253,8 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         xprocarg = 1;
     argc  -= xwoptind;
     wargv += xwoptind;
-    if (xrunexec && (dupwargv[0] == NULL)) {
+    dupwargv = waalloc(argc + 4);
+    if (xrunexec) {
         if (argc > 0) {
             dupwargv[0] = xwcsdup(wargv[0]);
             argc--;
