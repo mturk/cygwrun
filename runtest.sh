@@ -84,7 +84,7 @@ rv="`$_cygwrun -e FOO`"
 test "x$rv" = "xFOO=$FOO" || xbexit 1 "Failed #5.1: \`$rv'"
 export FOO="/tmp/foo/bar::/unknown:/usr/local"
 rv="`$_cygwrun -e FOO`"
-test "x$rv" = "xFOO=$tmpdir\\foo\\bar;/unknown;$usrdir\\local" || xbexit 1 "Failed #5.2: \`$rv'"
+test "x$rv" = "xFOO=$FOO" || xbexit 1 "Failed #5.2: \`$rv'"
 rv="`$_cygwrun -f -e FOO`"
 test "x$rv" = "xFOO=$tmpdir\\foo\\bar;$rootdir\\unknown;$usrdir\\local" || xbexit 1 "Failed #5.3: \`$rv'"
 
