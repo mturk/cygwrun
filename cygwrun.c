@@ -1039,6 +1039,8 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 fputws(wargv[i], stdout);
             }
         }
+        if (xdumparg)
+            return 0;
         if (xisbatch && (argc > xrunexec)) {
             int     x;
             size_t  s[32];
@@ -1270,6 +1272,8 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             fputs("Error: Options -p and -e are mutually exclusive\n", stderr);
         return usage(EINVAL);
     }
+    if (xdumparg)
+        xprocarg = 1;
     argc  -= xwoptind;
     wargv += xwoptind;
     if (xrunexec && (dupwargv[0] == NULL)) {
