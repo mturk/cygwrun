@@ -129,11 +129,11 @@ to be converted to it's windows format.
     $ FOO=C:\cygwin64\usr;C:\cygwin64\sbin;C:\cygwin64\unknown;..\dir
 ```
 
-Note that some environment variables are allways removed from the
+Note that some environment variables are always removed from the
 current environment variable list that is passed to child process,
 such as `CYGWIN_ROOT` or `PWD`.
 
-The full list of variables that are allways removed is defined
+The full list of variables that are always removed is defined
 with `removeenv[]` array in [cygwrun.c](cygwrun.c) source file.
 
 
