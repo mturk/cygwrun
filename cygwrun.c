@@ -1075,33 +1075,31 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             }
         }
     }
-    if (xskipenv == 0) {
-        for (i = 0; i < (envc - 5); i++) {
-            wchar_t *e = wenvp[i];
-            const wchar_t **s = xrawenvs;
+    for (i = xskipenv; i < (envc - 5); i++) {
+        wchar_t *e = wenvp[i];
+        const wchar_t **s = xrawenvs;
 
-            while (*s != NULL) {
-                if (xwcsisenvvar(e, *s, 0)) {
-                    /**
-                     * Do not convert specified environment variables
-                     */
-                    e = NULL;
-                    break;
-                }
-                s++;
+        while (*s != NULL) {
+            if (xwcsisenvvar(e, *s, 0)) {
+                /**
+                 * Do not convert specified environment variables
+                 */
+                e = NULL;
+                break;
             }
-            if (e != NULL) {
-                wchar_t *v = wcschr(e + 1, L'=');
-                if (IS_VALID_WCS(v)) {
-                    m = isanypath(++v);
-                    if (m != 0) {
-                        wchar_t *p = towinpaths(v, m);
+            s++;
+        }
+        if (e != NULL) {
+            wchar_t *v = wcschr(e + 1, L'=');
+            if (IS_VALID_WCS(v)) {
+                m = isanypath(++v);
+                if (m != 0) {
+                    wchar_t *p = towinpaths(v, m);
 
-                        v[0] = WNUL;
-                        wenvp[i] = xwcsconcat(e, p);
-                        xfree(e);
-                        xfree(p);
-                    }
+                    v[0] = WNUL;
+                    wenvp[i] = xwcsconcat(e, p);
+                    xfree(e);
+                    xfree(p);
                 }
             }
         }
@@ -1189,6 +1187,10 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         fputs("\nMissing environment\n", stderr);
         return EBADF;
     }
+    while (wenv[envc] != NULL) {
+        ++envc;
+    }
+
     dupwargv = waalloc(argc + 4);
     /**
      * Check if we are renamed to __someapp.exe
@@ -1209,7 +1211,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                     haseopt += 1;
                 break;
                 case L'E':
-                    xskipenv = 1;
+                    xskipenv = envc;
                 break;
                 case L'f':
                     xforcewp = 1;
@@ -1223,7 +1225,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                 case L'p':
                     xrunexec = 0;
                     xdumparg = 1;
-                    xskipenv = 1;
+                    xskipenv = envc;
                     haseopt += 1;
                 break;
                 case L'q':
@@ -1333,9 +1335,6 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     npe = xwcsconcat(specialenv, ppe);
     xrawenvs = xsplitstr(npe, L',');
     xfree(npe);
-    while (wenv[envc] != NULL) {
-        ++envc;
-    }
 
     dupwenvp = waalloc(envc + 6);
     for (i = 0; i < envc; i++) {
