@@ -60,9 +60,9 @@ test $? -ne 0 && xbexit 1 "Failed #1.3"
 usrdir="`$_cygwrun -p /usr`"
 test $? -ne 0 && xbexit 1 "Failed #1.4"
 
-rv="`$_cygwrun -r C:/cygwin64/ -p /`"
+rv="`$_cygwrun -r $rootdir\\\\ -p /`"
 test "x$rv" = "x$rootdir" || xbexit 1 "Failed #2.1: \`$rv'"
-export CYGWIN_ROOT="C:/cygwin64//; ;"
+export CYGWIN_ROOT="$rootdir//; ;"
 rv="`$_cygwrun -p /`"
 test "x$rv" = "x$rootdir" || xbexit 1 "Failed #2.2: \`$rv'"
 unset CYGWIN_ROOT
