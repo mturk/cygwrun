@@ -9,11 +9,8 @@ For a full list of changes, see the [git commit log][log]
 ## v1.1.6
 
  * In development
- * Drop `-k` command line option
- * Rename command line options
-   renamed `-s` to `-E`
-   renamed `-S` to `-A`
-
+ * Fix path splitting for environment variables
+ * Cleanup command line option
 
 ## v1.1.5
 
