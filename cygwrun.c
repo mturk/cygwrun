@@ -942,7 +942,14 @@ static wchar_t *getposixroot(const wchar_t *rp, const wchar_t *sp)
     wchar_t *d;
     wchar_t *r = xwcsdup(rp);
 
-    if (r == NULL) {
+    if (r != NULL) {
+        /**
+         * Trust user provided root
+         */
+        cleanpath(r);
+        return r;
+    }
+    else {
         const wchar_t **e = posixrenv;
 
         while (*e != NULL) {

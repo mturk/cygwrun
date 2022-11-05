@@ -10,7 +10,8 @@ For a full list of changes, see the [git commit log][log]
 
  * In development
  * Fix path splitting for environment variables
- * Cleanup command line option
+ * Cleanup command line options
+ * Always trust user provided `-r` parameter
 
 ## v1.1.5
 
