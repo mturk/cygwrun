@@ -811,18 +811,16 @@ static wchar_t *posixtowin(wchar_t *pp, int m)
 static wchar_t *pathtowin(wchar_t *pp)
 {
     int m;
-    wchar_t *rv = pp;
 
     m = isanypath(pp);
     if (m == 0)
         return pp;
     if (m < 100) {
-        cleanpath(pp);
+        return cleanpath(pp);
     }
     else {
-        rv = posixtowin(pp, m);
+        return posixtowin(pp, m);
     }
-    return rv;
 }
 
 static wchar_t *towinpaths(const wchar_t *ps, int m)
@@ -982,8 +980,7 @@ static wchar_t *getposixroot(const wchar_t *rp, const wchar_t *sp)
     }
     else {
         /* Ensure that path exists */
-        d = r;
-        cleanpath(d);
+        d = cleanpath(r);
         r = getrealpathname(d, 1);
         xfree(d);
     }
