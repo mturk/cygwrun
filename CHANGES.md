@@ -8,8 +8,7 @@ For a full list of changes, see the [git commit log][log]
 
 ## v1.1.6
 
- * In development
- * Fix path splitting for environment variables
+ * Fix path split for environment variables
  * Cleanup command line options
  * Always trust user provided `-r` parameter
  * Convert arguments with multiple paths the same way as environment variables
