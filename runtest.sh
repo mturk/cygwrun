@@ -101,6 +101,9 @@ test "x$rv" = "xFOO=$FOO" || xbexit 1 "Failed #6.3: \`$rv'"
 export BAR="/usr/bin"
 rv="`$_cygwrun -nFOO,,BAR -e BAR`"
 test "x$rv" = "xBAR=$BAR" || xbexit 1 "Failed #6.4: \`$rv'"
+export FOO=
+rv="`$_cygwrun -qe FOO`"
+test "x$rv" = "x" || xbexit 1 "Failed #6.5: \`$rv'"
 
 rv="`$_cygwrun -f -p /usr=/tmp/foo`"
 test "x$rv" = "x$usrdir=\\tmp\\foo" || xbexit 1 "Failed #7.1: \`$rv'"
