@@ -352,15 +352,29 @@ static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
 static wchar_t *xwcsquote(wchar_t *s)
 {
     wchar_t *r;
-    size_t   n;
+    size_t   i, n;
+    int      x = 0;
+    int      q = 0;
+    int      c = 0;
 
-    if ((*s == L'"') || (wcspbrk(s, L" \t") == NULL))
-        return s;
     n = xwcslen(s);
-    r = xwmalloc(n + 2);
-    r[0] = L'"';
-    wmemcpy(r + 1, s, n);
-    r[n + 1] = L'"';
+    for (i = 0; i < n; i++) {
+        if (s[i] == L'"')
+            x++;
+        else if (iswspace(s[i]))
+            q = 1;
+    }
+    if ((x + q) == 0)
+        return s;
+    r = xwmalloc(n + x + 2);
+    r[c++] = L'"';
+    for (i = 0; i < n; i++) {
+        if (s[i] == L'"')
+            r[c++] = L'\\';
+        r[c++] = s[i];
+    }
+    r[c++] = L'"';
+    r[c]   = L'\0';
 
     xfree(s);
     return r;
