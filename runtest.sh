@@ -143,6 +143,8 @@ test "x$rv" = "xFOO=$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #10.1: \`$rv'"
 
 rv="`$_cygwrun $srcdir/test/echoargs.bat /tmp /usr/a | tr -d '\r'`"
 test "x$rv" = "x$tmpdir $usrdir\\a" || xbexit 1 "Failed #11.1: \`$rv'"
+rv="`$_cygwrun $srcdir/test/echoargs.bat \"/tmp/some location\" | tr -d '\r'`"
+test "x$rv" = "x\"$tmpdir\\some location\"" || xbexit 1 "Failed #11.2: \`$rv'"
 
 
 echo "All tests passed!"
