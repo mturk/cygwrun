@@ -1066,7 +1066,8 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 wmemcpy(p, wargv[i], n);
                 p += n;
             }
-            wmemcpy(p, L"\"\0", 2);
+            *(p++) = L'"';
+            *(p++) = WNUL;
             xfree(b);
             for (i = xrunexec; i < argc; i++) {
                 xfree(wargv[i]);
@@ -1089,7 +1090,14 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             s++;
         }
         if (e != NULL) {
-            wchar_t *v = wcschr(e + 1, L'=');
+            int  q = 0;
+            wchar_t *v;
+
+            while (e[q] == L'=') {
+                /* Skip leading '=' */
+                q++;
+            }
+            v = wcschr(e + q, L'=');
             if (IS_VALID_WCS(v)) {
                 m = isanypath(++v);
                 if (m != 0) {
