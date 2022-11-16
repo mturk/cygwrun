@@ -70,6 +70,25 @@
 #endif
 
 /**
+ * Construct build stamp
+ */
+#if defined(_MSC_VER)
+# define PROJECT_BUILD_CC       "msc " CPP_TOSTR(_MSC_FULL_VER) "."     \
+                                CPP_TOSTR(_MSC_BUILD)
+#elif defined(__GNUC__)
+# define PROJECT_BUILD_CC       "gcc " CPP_TOSTR(__GNUC__) "."          \
+                                CPP_TOSTR(__GNUC_MINOR__) "."           \
+                                CPP_TOSTR(__GNUC_PATCHLEVEL__)
+#else
+# define PROJECT_BUILD_CC       "unknown"
+#endif
+#if defined(_BUILD_TIMESTAMP)
+#define PROJECT_BUILD_STAMP     "(" CPP_TOSTR(_BUILD_TIMESTAMP) " " PROJECT_BUILD_CC ")"
+#else
+#define PROJECT_BUILD_STAMP     "(" __DATE__ " " __TIME__ " " PROJECT_BUILD_CC ")"
+#endif
+
+/**
  * Macro for .rc files using numeric csv representation
  */
 #define PROJECT_VERSION_CSV     PROJECT_MAJOR_VERSION,                          \
@@ -82,6 +101,10 @@
                                 CPP_TOSTR(PROJECT_MINOR_VERSION) "."            \
                                 CPP_TOSTR(PROJECT_PATCH_VERSION)                \
                                 PROJECT_VERSION_SFX
+
+#define PROJECT_VERSION_TXT                                                     \
+                                PROJECT_VERSION_STR " "                         \
+                                PROJECT_BUILD_STAMP
 
 #define PROJECT_NAME            "cygwrun"
 #define PROJECT_COPYRIGHT       "Copyright(c) 1964-2022 Mladen Turk"

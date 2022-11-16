@@ -27,7 +27,11 @@ set "ProjectName=cygwrun"
 set "BuildDir=x64"
 set "ReleaseArch=win-x64"
 set "ReleaseVersion=%~1"
-set "MakefileFlags=_STATIC_MSVCRT=1"
+rem
+rem Get timestamp using Powershell
+for /f "delims=" %%# in ('powershell get-date -format "{yyyyddMMHHmmss}"') do @set BuildTimestamp=%%#
+set "MakefileFlags=_BUILD_TIMESTAMP=%BuildTimestamp%"
+set "MakefileFlags=%MakefileFlags% _STATIC_MSVCRT=1"
 shift
 :setArgs
 if "x%~1" == "x" goto doneArgs
