@@ -6,6 +6,11 @@ For a full list of changes, see the [git commit log][log]
   [log]: https://github.com/mturk/cygwrun/commits/
 
 
+## v1.1.8
+
+ * In development
+
+
 ## v1.1.7
 
  * Make `--` option to behave the same way as single `-`
