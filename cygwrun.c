@@ -441,12 +441,10 @@ static wchar_t *xwcsctok(wchar_t *s, wchar_t d, wchar_t **c)
 int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
 {
     const wchar_t *oli = NULL;
-    static int optcnt = 0;
     static const wchar_t *place = zerostring;
 
     xwoptarg = NULL;
     if (*place == WNUL) {
-        optcnt = 0;
         if (xwoptind >= nargc) {
             /* No more arguments */
             place = zerostring;
@@ -472,12 +470,8 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
     }
     if (oli == NULL) {
         place = zerostring;
-        if (optcnt)
-            return EINVAL;
-        else
-            return EOF;
+        return EINVAL;
     }
-    optcnt++;
     /* Does this option need an argument? */
     if (oli[1] == L':') {
         /*
