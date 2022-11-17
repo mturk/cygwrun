@@ -456,17 +456,11 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
             place = zerostring;
             return EOF;
         }
-        if (*place == L'-') {
-            place++;
-            if (*place != WNUL) {
-                /* We have --option ... stop processing */
-                place = zerostring;
-                return EOF;
-            }
-        }
-        if (*place == WNUL) {
-            /* Single or double '-' ... skip and stop processing */
-            xwoptind++;
+        if ((*place == WNUL) || (*place == L'-')) {
+            if (*place == '-')
+                place++;
+            if (*place == WNUL)
+                xwoptind++;
             place = zerostring;
             return EOF;
         }
