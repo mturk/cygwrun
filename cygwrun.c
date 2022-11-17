@@ -1235,6 +1235,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                 return usage(0);
             break;
             case L'w':
+                xfree(cwd);
                 cwd = xwcsdup(xwoptarg);
             break;
             case EINVAL:
