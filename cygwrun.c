@@ -1238,16 +1238,19 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                 cwd = xwcsdup(xwoptarg);
             break;
             case EINVAL:
-                fprintf(stderr, "Error: Invalid command line option: '%C'\n", xwoption);
+                if (xshowerr)
+                    fprintf(stderr, "Error: Invalid command line option: '%C'\n", xwoption);
                 return usage(opt);
             break;
             case ENOENT:
-                fprintf(stderr, "Error: Missing argument for option: '%C'\n", xwoption);
+                if (xshowerr)
+                    fprintf(stderr, "Error: Missing argument for option: '%C'\n", xwoption);
                 return usage(opt);
             break;
             default:
                 /* Should never happen */
-                fprintf(stderr, "Error: Unknown return from xwgetopt: %d\n", opt);
+                if (xshowerr)
+                    fprintf(stderr, "Error: Unknown return from xwgetopt: %d\n", opt);
                 return opt;
             break;
 
