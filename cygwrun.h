@@ -18,21 +18,15 @@
 #ifndef _CYGWRUN_H_INCLUDED_
 #define _CYGWRUN_H_INCLUDED_
 
+#if defined(_MSC_VER)
 /**
  * Disable or reduce the frequency of...
  *   C4100: unreferenced formal parameter
- *   C4702: unreachable code
  *   C4244: int to char/short - precision loss
+ *   C4702: unreachable code
  */
-#if defined(_MSC_VER)
 # pragma warning(disable: 4100 4244 4702)
 #endif
-
-#define IS_INVALID_HANDLE(h) (((h) == 0 || (h) == INVALID_HANDLE_VALUE))
-#define SAFE_CLOSE_HANDLE(_h)                                       \
-    if (((_h) != NULL) && ((_h) != INVALID_HANDLE_VALUE))           \
-        CloseHandle((_h));                                          \
-    (_h) = NULL
 
 /**
  * Version info
@@ -45,6 +39,10 @@
 #else
 # define PROJECT_MICRO_VERSION  0
 #endif
+/**
+ * Set to zero for non dev versions
+ */
+#define PROJECT_ISDEV_VERSION   1
 
 /**
  * Helper macros for properly quoting a value as a
@@ -53,20 +51,22 @@
 #define CPP_TOSTR_HELPER(n)     #n
 #define CPP_TOSTR(n)            CPP_TOSTR_HELPER(n)
 
+#define IS_INVALID_HANDLE(_h)   (((_h) == NULL) || ((_h) == INVALID_HANDLE_VALUE))
+#define SAFE_CLOSE_HANDLE(_h)                                           \
+    if (((_h) != NULL) && ((_h) != INVALID_HANDLE_VALUE))               \
+        CloseHandle((_h));                                              \
+    (_h) = NULL
+
 #if defined(_VENDOR_SFX)
 # define PROJECT_VENDOR_SFX     CPP_TOSTR(_VENDOR_SFX)
 #else
 # define PROJECT_VENDOR_SFX     ""
 #endif
-/**
- * Set to zero for non dev versions
- */
-#define PROJECT_ISDEV_VERSION   1
 
 #if PROJECT_ISDEV_VERSION
-# define PROJECT_VERSION_SFX    PROJECT_VENDOR_SFX "-dev"
+# define PROJECT_VERSION_DEV    " (dev)"
 #else
-# define PROJECT_VERSION_SFX    PROJECT_VENDOR_SFX
+# define PROJECT_VERSION_DEV    ""
 #endif
 
 /**
@@ -83,38 +83,47 @@
 # define PROJECT_BUILD_CC       "unknown"
 #endif
 #if defined(_BUILD_TIMESTAMP)
-#define PROJECT_BUILD_STAMP     "(" CPP_TOSTR(_BUILD_TIMESTAMP) " " PROJECT_BUILD_CC ")"
+#define PROJECT_BUILD_TSTAMP    "(" CPP_TOSTR(_BUILD_TIMESTAMP) " " PROJECT_BUILD_CC ")"
 #else
-#define PROJECT_BUILD_STAMP     "(" __DATE__ " " __TIME__ " " PROJECT_BUILD_CC ")"
+#define PROJECT_BUILD_TSTAMP    "(" __DATE__ " " __TIME__ " " PROJECT_BUILD_CC ")"
 #endif
 
 /**
  * Macro for .rc files using numeric csv representation
  */
-#define PROJECT_VERSION_CSV     PROJECT_MAJOR_VERSION,                          \
-                                PROJECT_MINOR_VERSION,                          \
-                                PROJECT_PATCH_VERSION,                          \
+#define PROJECT_VERSION_CSV     PROJECT_MAJOR_VERSION,                  \
+                                PROJECT_MINOR_VERSION,                  \
+                                PROJECT_PATCH_VERSION,                  \
                                 PROJECT_MICRO_VERSION
 
-#define PROJECT_VERSION_STR                                                     \
-                                CPP_TOSTR(PROJECT_MAJOR_VERSION) "."            \
-                                CPP_TOSTR(PROJECT_MINOR_VERSION) "."            \
-                                CPP_TOSTR(PROJECT_PATCH_VERSION)                \
-                                PROJECT_VERSION_SFX
+#define PROJECT_VERSION_STR                                             \
+                                CPP_TOSTR(PROJECT_MAJOR_VERSION) "."    \
+                                CPP_TOSTR(PROJECT_MINOR_VERSION) "."    \
+                                CPP_TOSTR(PROJECT_PATCH_VERSION)        \
+                                PROJECT_VENDOR_SFX
 
-#define PROJECT_VERSION_TXT                                                     \
-                                PROJECT_VERSION_STR " "                         \
-                                PROJECT_BUILD_STAMP
+#define PROJECT_VERSION_TXT                                             \
+                                PROJECT_VERSION_STR                     \
+                                PROJECT_VERSION_DEV " "                 \
+                                PROJECT_BUILD_TSTAMP
 
 #define PROJECT_NAME            "cygwrun"
-#define PROJECT_COPYRIGHT       "Copyright(c) 1964-2022 Mladen Turk"
 #define PROJECT_COMPANY_NAME    "Acme Corporation"
-#define PROJECT_DESCRIPTION     "Run windows applications under posix environment"
-#define PROJECT_URL             "https://github.com/mturk/cygwrun"
 
-#define PROJECT_LICENSE_SHORT \
+#define PROJECT_COPYRIGHT       \
+    "Copyright (c) 1964-2022 The Acme Corporation or its "              \
+    "licensors, as applicable."
+
+#define PROJECT_DESCRIPTION     \
+    "Run windows applications under posix environment"
+
+#define PROJECT_URL             \
+    "https://github.com/mturk/cygwrun"
+
+#define PROJECT_LICENSE_SHORT   \
     "Licensed under the Apache-2.0 License"
-#define PROJECT_LICENSE \
+
+#define PROJECT_LICENSE         \
   "Licensed under the Apache License, Version 2.0 (the ""License"");\n"         \
   "you may not use this file except in compliance with the License.\n"          \
   "You may obtain a copy of the License at\n\n"                                 \
