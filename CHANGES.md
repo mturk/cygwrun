@@ -8,7 +8,6 @@ For a full list of changes, see the [git commit log][log]
 
 ## v1.1.7
 
- * In development
  * Make `--` option to behave the same way as single `-`
  * Fix processing arguments for batch files
 
