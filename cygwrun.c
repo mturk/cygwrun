@@ -134,6 +134,9 @@ static int usage(int rv)
         fputs(" -p        print arguments instead executing PROGRAM.\n", os);
         fputs(" -e        print environment variables matching ARGUMENTS\n", os);
         fputs("           if no ARGUMENTS are provided print all variables.\n", os);
+#if PROJECT_ISDEV_VERSION
+        fputs("\n" PROJECT_NAME " version " PROJECT_VERSION_TXT, os);
+#endif
         fputs("\nTo file bugs, visit " PROJECT_URL, os);
     }
     return rv;
