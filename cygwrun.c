@@ -456,8 +456,10 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
             place = zerostring;
             return EOF;
         }
+        if (*place == L'-')
+            place++;
         if (*place == WNUL) {
-            /* Single '-' skip and stop processing */
+            /* Single or double '-' ... skip and stop processing */
             xwoptind++;
             place = zerostring;
             return EOF;
