@@ -30,6 +30,11 @@
 #define IS_PSW(_c)        (((_c) == L'/') || ((_c)  == L'\\'))
 #define IS_EMPTY_WCS(_s)  (((_s) == NULL) || (*(_s) == WNUL))
 #define IS_VALID_WCS(_s)  (((_s) != NULL) && (*(_s) != WNUL))
+#define BBUFSIZ           512
+#define SBUFSIZ           1024
+#define MBUFSIZ           2048
+#define HBUFSIZ           8192
+#define EBUFSIZ           32768
 
 static int      xrunexec  = 1;
 static int      xdumparg  = 0;
@@ -219,12 +224,42 @@ static wchar_t *xwcsndup(const wchar_t *s, size_t len)
 
 static wchar_t *xgetenv(const wchar_t *s)
 {
-    wchar_t *d;
+    DWORD    n;
+    wchar_t  e[BBUFSIZ];
+    wchar_t *d = NULL;
 
     if (IS_EMPTY_WCS(s))
         return NULL;
-    d = _wgetenv(s);
-    return xwcsdup(d);
+    n =  GetEnvironmentVariableW(s, e, BBUFSIZ);
+    if (n != 0) {
+        d = xwmalloc(n);
+        if (n > BBUFSIZ) {
+            GetEnvironmentVariableW(s, d, n);
+        }
+        else {
+            wmemcpy(d, e, n);
+        }
+    }
+    return d;
+}
+
+static wchar_t *xgetcwd(void)
+{
+    DWORD    n;
+    wchar_t  e[BBUFSIZ];
+    wchar_t *d = NULL;
+
+    n =  GetCurrentDirectoryW(BBUFSIZ, e);
+    if (n != 0) {
+        d = xwmalloc(n);
+        if (n > BBUFSIZ) {
+            GetCurrentDirectoryW(n, d);
+        }
+        else {
+            wmemcpy(d, e, n);
+        }
+    }
+    return d;
 }
 
 static size_t xwcslen(const wchar_t *s)
@@ -1299,14 +1334,14 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
 
     if (cwd != NULL) {
         cwd = pathtowin(cwd);
-        if (_wchdir(cwd) != 0) {
+        if (!SetCurrentDirectoryW(cwd)) {
             if (xshowerr)
                 fprintf(stderr, "Invalid working directory: '%S'\n", cwd);
             return ENOENT;
         }
         xfree(cwd);
     }
-    cwd = _wgetcwd(NULL, 0);
+    cwd = xgetcwd();
     if (cwd == NULL) {
         if (xshowerr)
             fputs("Cannot get current working directory\n", stderr);
