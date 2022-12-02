@@ -1483,7 +1483,6 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             dupwargv[dupargc++] = xgetenv(L"COMSPEC");
             dupwargv[dupargc++] = xwcsdup(L"/D");
             dupwargv[dupargc++] = xwcsdup(L"/C");
-            sch = xquotearg(sch);
             xisbatch = 1;
         }
         dupwargv[dupargc++] = sch;
