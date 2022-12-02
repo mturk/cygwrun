@@ -751,6 +751,40 @@ static int envsort(const void *arg1, const void *arg2)
     return _wcsicoll(*((wchar_t **)arg1), *((wchar_t **)arg2));
 }
 
+static wchar_t *xarrblk(int cnt, const wchar_t **arr, wchar_t sep)
+{
+    int      i, x;
+    size_t   n;
+    size_t   len = 0;
+    size_t   siz[64];
+    wchar_t *ep;
+    wchar_t *bp;
+
+
+    for (i = 0, x = 0; i < cnt; i++, x++) {
+        n = wcslen(arr[i]);
+        if (x < 64)
+            siz[x] = n;
+        len += n;
+    }
+
+    bp = xwmalloc(len + cnt + 1);
+    for (i = 0, x = 0, ep = bp; i < cnt; i++, x++) {
+        if (x < 64)
+            n = siz[x];
+        else
+            n = xwcslen(arr[i]);
+        if (i > 0)
+            *(ep++) = sep;
+        wmemcpy(ep, arr[i], n);
+        ep += n;
+    }
+    *(ep++) = WNUL;
+    *(ep)   = WNUL;
+
+    return bp;
+}
+
 static wchar_t *cleanpath(wchar_t *s)
 {
     int n;
@@ -1089,8 +1123,8 @@ static BOOL WINAPI consolehandler(DWORD ctrl)
 
 static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
 {
-    int i, m, rc = 0;
-    intptr_t rp;
+    int i, m;
+    DWORD rc = 0;
 
     if (xprocarg) {
         for (i = xrunexec; i < argc; i++) {
@@ -1122,42 +1156,6 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         }
         if (xdumparg)
             return 0;
-        if (xisbatch && (argc > xrunexec)) {
-            int     x;
-            size_t  s[32];
-            size_t  n, c = 2;
-            wchar_t *p;
-            wchar_t *b = wargv[xrunexec - 1];
-
-            s[0] = xwcslen(b);
-            for (i = xrunexec, x = 1; i < argc; i++, x++) {
-                wargv[i] = xquotearg(wargv[i]);
-                n = xwcslen(wargv[i]);
-                if (x < 32)
-                    s[x] = n;
-                c += (n + 1);
-            }
-            wargv[xrunexec - 1] = p = xwmalloc(s[0] + c);
-            *(p++) = L'"';
-            wmemcpy(p, b, s[0]);
-            p += s[0];
-            for (i = xrunexec, x = 1; i < argc; i++, x++) {
-                if (x < 32)
-                    n = s[x];
-                else
-                    n = xwcslen(wargv[i]);
-                *(p++) = L' ';
-                wmemcpy(p, wargv[i], n);
-                p += n;
-            }
-            *(p++) = L'"';
-            *(p++) = WNUL;
-            xfree(b);
-            for (i = xrunexec; i < argc; i++) {
-                xfree(wargv[i]);
-                wargv[i] = NULL;
-            }
-        }
     }
     for (i = xskipenv; i < (envc - 5); i++) {
         wchar_t *e = wenvp[i];
@@ -1229,27 +1227,44 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         }
     }
     if (xrunexec) {
-        _flushall();
-        rp = _wspawnvpe(_P_NOWAIT, wargv[0], wargv, wenvp);
-        if (rp == (intptr_t)-1) {
-            rc = errno;
-            if (xshowerr)
-                fprintf(stderr, "Failed to execute: '%S'\n", wargv[0]);
-        }
-        else {
+        wchar_t *cmdexe;
+        wchar_t *cmdblk;
+        wchar_t *envblk;
+        PROCESS_INFORMATION cp;
+        STARTUPINFOW si;
+
+        memset(&cp, 0, sizeof(PROCESS_INFORMATION));
+        memset(&si, 0, sizeof(STARTUPINFOW));
+
+        si.cb = (DWORD)sizeof(STARTUPINFOW);
+
+        cmdexe = xwcsdup(wargv[0]);
+        for (i = 0; i < argc; i++) {
             /**
-             * wait for child to exit
+             * Qoute argumets
              */
-            SetConsoleCtrlHandler(consolehandler, TRUE);
-            if (_cwait(&rc, rp, 0) == (intptr_t)-1) {
-                rc = errno;
-                if (xshowerr) {
-                    fprintf(stderr, "Execute failed: %S\nFatal error: %S\n\n",
-                            wargv[0], _wcserror(rc));
-                }
-            }
-            SetConsoleCtrlHandler(consolehandler, FALSE);
+            wargv[i] = xquotearg(wargv[i]);
         }
+        cmdblk = xarrblk(argc, wargv, L' ');
+        envblk = xarrblk(envc, wenvp, WNUL);
+
+        if (!CreateProcessW(cmdexe, cmdblk,
+                            NULL, NULL, TRUE,
+                            CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT,
+                            envblk, NULL,
+                           &si, &cp)) {
+            rc = GetLastError();
+            if (xshowerr)
+                fprintf(stderr, "Failed to execute: '%S'\n",cmdblk);
+            return rc;
+        }
+        SetConsoleCtrlHandler(consolehandler, TRUE);
+        ResumeThread(cp.hThread);
+        WaitForSingleObject(cp.hProcess, INFINITE);
+        SetConsoleCtrlHandler(consolehandler, FALSE);
+
+        GetExitCodeProcess(cp.hProcess, &rc);
+        CloseHandle(cp.hProcess);
     }
     return rc;
 }
