@@ -386,37 +386,6 @@ static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
     return (*wstr != WNUL);
 }
 
-static wchar_t *xwcsquote(wchar_t *s)
-{
-    wchar_t *r;
-    size_t   i, n;
-    int      x = 0;
-    int      q = 0;
-    int      c = 0;
-
-    n = xwcslen(s);
-    for (i = 0; i < n; i++) {
-        if (s[i] == L'"')
-            x++;
-        else if (iswspace(s[i]))
-            q = 1;
-    }
-    if ((x + q) == 0)
-        return s;
-    r = xwmalloc(n + x + 2);
-    r[c++] = L'"';
-    for (i = 0; i < n; i++) {
-        if (s[i] == L'"')
-            r[c++] = L'\\';
-        r[c++] = s[i];
-    }
-    r[c++] = L'"';
-    r[c]   = L'\0';
-
-    xfree(s);
-    return r;
-}
-
 /**
  * Count the number of tokens delimited by d
  */
@@ -471,6 +440,88 @@ static wchar_t *xwcsctok(wchar_t *s, wchar_t d, wchar_t **c)
         s++;
     }
     return p;
+}
+
+/**
+ * Quote one command line argument if needed. See documentation for
+ * CommandLineToArgV() for details:
+ * https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-commandlinetoargvw
+ */
+static wchar_t *xquotearg(wchar_t *s)
+{
+    wchar_t *c;
+    size_t   n;
+    wchar_t *e;
+    wchar_t *d;
+
+    /* Perform quoting only if neccessary. */
+    if (IS_EMPTY_WCS(s))
+        return s;
+    if (wcspbrk(s, L" \f\n\r\t\v\"") == NULL)
+        return s;
+
+    for (n = 0, c = s; ; c++) {
+        size_t b = 0;
+
+        while (*c == L'\\') {
+            b++;
+            c++;
+        }
+
+        if (*c == WNUL) {
+            /* Escape backslashes. */
+            n += b * 2;
+            break;
+        }
+        else if (*c == L'"') {
+            /* Escape backslashes. */
+            n += b * 2 + 1;
+            /* Double quote char. */
+            n += 1;
+        }
+        else {
+            /* Unescaped backslashes. */
+            n += b;
+            /* Original character. */
+            n += 1;
+        }
+    }
+    /* For quotes */
+    n += 2;
+    e = xwmalloc(n + 1);
+    d = e;
+
+    *(d++) = L'"';
+    for (c = s; ; c++) {
+        size_t b = 0;
+
+        while (*c == '\\') {
+            b++;
+            c++;
+        }
+
+        if (*c == WNUL) {
+            wmemset(d, L'\\', b * 2);
+            d += b * 2;
+            break;
+        }
+        else if (*c == L'"') {
+            wmemset(d, L'\\', b * 2 + 1);
+            d += b * 2 + 1;
+            *(d++) = *c;
+        }
+        else {
+            wmemset(d, L'\\', b);
+            d += b;
+            *(d++) = *c;
+        }
+    }
+    xfree(s);
+
+    *(d++) = L'"';
+    *(d)   = WNUL;
+
+    return e;
 }
 
 int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
@@ -1080,7 +1131,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
 
             s[0] = xwcslen(b);
             for (i = xrunexec, x = 1; i < argc; i++, x++) {
-                wargv[i] = xwcsquote(wargv[i]);
+                wargv[i] = xquotearg(wargv[i]);
                 n = xwcslen(wargv[i]);
                 if (x < 32)
                     s[x] = n;
@@ -1413,7 +1464,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             dupwargv[dupargc++] = xgetenv(L"COMSPEC");
             dupwargv[dupargc++] = xwcsdup(L"/D");
             dupwargv[dupargc++] = xwcsdup(L"/C");
-            sch = xwcsquote(sch);
+            sch = xquotearg(sch);
             xisbatch = 1;
         }
         dupwargv[dupargc++] = sch;
