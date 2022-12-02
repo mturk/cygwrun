@@ -1241,7 +1241,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         cmdexe = xwcsdup(wargv[0]);
         for (i = 0; i < argc; i++) {
             /**
-             * Qoute argumets
+             * Quote argumets
              */
             wargv[i] = xquotearg(wargv[i]);
         }
