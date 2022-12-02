@@ -8,8 +8,8 @@ For a full list of changes, see the [git commit log][log]
 
 ## v1.1.8
 
- * In development
  * Use WIN32 API for running programs
+ * Fix argument quoting
 
 ## v1.1.7
 
