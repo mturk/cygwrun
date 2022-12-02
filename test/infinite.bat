@@ -16,12 +16,21 @@ rem limitations under the License.
 rem
 rem --------------------------------------------------
 rem
+rem Batch file that never returns
+rem Used to verify if cygwrun correctly passes CTRL+C
+rem to child process
+rem
 rem Example usage:
-rem ./x64/cygwrun.exe cmd.exe /D /C ./test/infinite.bat
+rem ./x64/cygwrun.exe test/infinite.bat
 rem
 setlocal
 rem
 echo %~nx0 %*
+echo.
+rem Dump environment variables
+set
+echo.
+echo.
 echo Press CTRL+C to stop
 echo Hit Y when prompted for "Terminate batch job (Y/N)?"
 echo.
@@ -29,7 +38,7 @@ echo.
 rem
 echo [%TIME%] ... running
 rem Simulate work by sleeping for 5 seconds
-ping -n 6 localhost >NUL
+ping -n 6 127.0.0.1 >NUL
 goto doRepeat
-
+rem Never returns
 exit /B 0
