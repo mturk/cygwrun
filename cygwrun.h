@@ -33,7 +33,7 @@
  */
 #define PROJECT_MAJOR_VERSION   1
 #define PROJECT_MINOR_VERSION   1
-#define PROJECT_PATCH_VERSION   8
+#define PROJECT_PATCH_VERSION   9
 #if defined(_VENDOR_NUM)
 # define PROJECT_MICRO_VERSION  _VENDOR_NUM
 #else
@@ -42,7 +42,7 @@
 /**
  * Set to zero for non dev versions
  */
-#define PROJECT_ISDEV_VERSION   0
+#define PROJECT_ISDEV_VERSION   1
 
 /**
  * Helper macros for properly quoting a value as a

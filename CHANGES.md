@@ -6,6 +6,11 @@ For a full list of changes, see the [git commit log][log]
   [log]: https://github.com/mturk/cygwrun/commits/
 
 
+## v1.1.9
+
+ * In development
+
+
 ## v1.1.8
 
  * Use WIN32 API for running programs
