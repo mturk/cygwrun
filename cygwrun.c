@@ -1260,6 +1260,10 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         }
         SetConsoleCtrlHandler(consolehandler, TRUE);
         ResumeThread(cp.hThread);
+        CloseHandle(cp.hThread);
+        /**
+         * Wait for child to finish
+         */
         WaitForSingleObject(cp.hProcess, INFINITE);
         SetConsoleCtrlHandler(consolehandler, FALSE);
 
