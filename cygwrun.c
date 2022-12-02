@@ -769,7 +769,8 @@ static wchar_t *xarrblk(int cnt, const wchar_t **arr, wchar_t sep)
     }
 
     bp = xwmalloc(len + cnt + 1);
-    for (i = 0, x = 0, ep = bp; i < cnt; i++, x++) {
+    ep = bp;
+    for (i = 0, x = 0; i < cnt; i++, x++) {
         if (x < 64)
             n = siz[x];
         else
@@ -779,8 +780,7 @@ static wchar_t *xarrblk(int cnt, const wchar_t **arr, wchar_t sep)
         wmemcpy(ep, arr[i], n);
         ep += n;
     }
-    *(ep++) = WNUL;
-    *(ep)   = WNUL;
+    *(ep) = WNUL;
 
     return bp;
 }
