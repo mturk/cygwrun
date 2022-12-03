@@ -41,7 +41,6 @@ static int      xdumparg  = 0;
 static int      xshowerr  = 1;
 static int      xforcewp  = 0;
 static int      xrmendps  = 1;
-static int      xisbatch  = 0;
 static int      xwoptind  = 1;   /* Index into parent argv vector */
 static int      xwoption  = 0;   /* Character checked for validity */
 static const wchar_t  *xwoptarg = NULL;
@@ -1442,7 +1441,6 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         dupwargv[dupargc++] = xgetenv(L"COMSPEC");
         dupwargv[dupargc++] = xwcsdup(L"/D");
         dupwargv[dupargc++] = xwcsdup(L"/C");
-        xisbatch = 1;
     }
     dupwargv[dupargc++] = sch;
     xrunexec = dupargc;
