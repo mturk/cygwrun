@@ -830,8 +830,7 @@ static wchar_t **xsplitstr(const wchar_t *s, wchar_t sc)
     sa = waalloc(c);
     es = xwcsctok(ws, sc, &cx);
     while (es != NULL) {
-        if (IS_VALID_WCS(es))
-            sa[x++] = xwcsdup(es);
+        sa[x++] = xwcsdup(es);
         es = xwcsctok(NULL, sc, &cx);
     }
     xfree(ws);
@@ -854,8 +853,7 @@ static wchar_t **splitpath(const wchar_t *s, wchar_t ps)
 
     es = xwcsctok(ws, ps, &cx);
     while (es != NULL) {
-        if (IS_VALID_WCS(es))
-            sa[x++] = xwcsdup(es);
+        sa[x++] = xwcsdup(es);
         es = xwcsctok(NULL, ps, &cx);
     }
     xfree(ws);
@@ -1177,12 +1175,12 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 q++;
             }
             v = wcschr(e + q, L'=');
-            if (IS_VALID_WCS(v)) {
+            if (v != NULL) {
                 wchar_t *c = NULL;
                 v++;
                 if (*v == L'/') {
                     c = wcschr(v, L':');
-                    if (IS_VALID_WCS(c)) {
+                    if (c != NULL) {
                         *c = WNUL;
                     }
                 }
