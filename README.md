@@ -49,8 +49,6 @@ Options are:
  -V        print detailed version information and exit.
  -h | -?   print this screen and exit.
  -p        print arguments instead executing PROGRAM.
- -e        print environment variables matching ARGUMENTS
-           if no ARGUMENTS are provided print all variables.
 
 ```
 
@@ -106,7 +104,7 @@ it will be translated to windows path(s).
 
 ```sh
     $ export FOO=/usr:/sbin:../dir
-    $ cygwrun -e FOO
+    $ cygwrun dumpenvp.exe FOO
     $ FOO=C:\cygwin64\usr;C:\cygwin64\sbin;..\dir
 ```
 
@@ -116,7 +114,7 @@ regardless if all other path elements can be translated.
 
 ```sh
     $ export FOO=/usr:/sbin:/unknown:../dir
-    $ cygwrun -e FOO
+    $ cygwrun dumpenvp.exe FOO
     $ FOO=/usr:/sbin:/unknown:../dir
 ```
 
@@ -125,7 +123,7 @@ to be converted to it's windows format.
 
 ```sh
     $ export FOO=/usr:/sbin:/unknown:../dir
-    $ cygwrun -f -e FOO
+    $ cygwrun -f dumpenvp.exe FOO
     $ FOO=C:\cygwin64\usr;C:\cygwin64\sbin;C:\cygwin64\unknown;..\dir
 ```
 

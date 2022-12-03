@@ -38,9 +38,6 @@
 
 static int      xrunexec  = 1;
 static int      xdumparg  = 0;
-static int      xdumpenv  = 0;
-static int      xskipenv  = 0;
-static int      xprocarg  = 1;
 static int      xshowerr  = 1;
 static int      xforcewp  = 0;
 static int      xrmendps  = 1;
@@ -137,8 +134,6 @@ static int usage(int rv)
         fputs(" -V        print detailed version information and exit.\n", os);
         fputs(" -h | -?   print this screen and exit.\n", os);
         fputs(" -p        print arguments instead executing PROGRAM.\n", os);
-        fputs(" -e        print environment variables matching ARGUMENTS\n", os);
-        fputs("           if no ARGUMENTS are provided print all variables.\n", os);
 #if PROJECT_ISDEV_VERSION
         fputs("\n" PROJECT_NAME " version " PROJECT_VERSION_TXT, os);
 #endif
@@ -663,7 +658,6 @@ static int isdotpath(const wchar_t *s)
         if ((s[1] == L'.') && IS_PSW(s[2]))
             return 300;
     }
-
     return 0;
 }
 
@@ -1123,41 +1117,44 @@ static BOOL WINAPI consolehandler(DWORD ctrl)
 
 static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
 {
-    int i, m;
+    int   i, m;
     DWORD rc = 0;
+    wchar_t *cmdexe;
+    wchar_t *cmdblk;
+    wchar_t *envblk;
+    PROCESS_INFORMATION cp;
+    STARTUPINFOW si;
 
-    if (xprocarg) {
-        for (i = xrunexec; i < argc; i++) {
-            wchar_t *v;
-            wchar_t *a = wargv[i];
+    for (i = xrunexec; i < argc; i++) {
+        wchar_t *v;
+        wchar_t *a = wargv[i];
 
-            v = cmdoptionval(a);
-            if (v != NULL) {
-                if (*v == L'"')
-                    v++;
-                m = isanypath(v);
-                if (m != 0) {
-                    wchar_t *p = towinpaths(v, m);
+        v = cmdoptionval(a);
+        if (v != NULL) {
+            if (*v == L'"')
+                v++;
+            m = isanypath(v);
+            if (m != 0) {
+                wchar_t *p = towinpaths(v, m);
 
-                    v[0] = WNUL;
-                    wargv[i] = xwcsconcat(a, p);
-                    xfree(a);
-                    xfree(p);
-                }
-            }
-            else {
-                wargv[i] = pathtowin(a);
-            }
-            if (xdumparg) {
-                if (i > 0)
-                    fputwc(L'\n', stdout);
-                fputws(wargv[i], stdout);
+                v[0] = WNUL;
+                wargv[i] = xwcsconcat(a, p);
+                xfree(a);
+                xfree(p);
             }
         }
-        if (xdumparg)
-            return 0;
+        else {
+            wargv[i] = pathtowin(a);
+        }
+        if (xdumparg) {
+            if (i > 0)
+                fputwc(L'\n', stdout);
+            fputws(wargv[i], stdout);
+        }
     }
-    for (i = xskipenv; i < (envc - 5); i++) {
+    if (xdumparg)
+        return 0;
+    for (i = 0; i < (envc - 5); i++) {
         wchar_t *e = wenvp[i];
         const wchar_t **s = xrawenvs;
 
@@ -1181,7 +1178,17 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             }
             v = wcschr(e + q, L'=');
             if (IS_VALID_WCS(v)) {
-                m = isanypath(++v);
+                wchar_t *c = NULL;
+                v++;
+                if (*v == L'/') {
+                    c = wcschr(v, L':');
+                    if (IS_VALID_WCS(c)) {
+                        *c = WNUL;
+                    }
+                }
+                m = isanypath(v);
+                if (c != NULL)
+                    *c = L':';
                 if (m != 0) {
                     wchar_t *p = towinpaths(v, m);
 
@@ -1194,70 +1201,31 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         }
     }
     qsort((void *)wenvp, envc, sizeof(wchar_t *), envsort);
-    if (xdumpenv) {
-        if (argc > 0) {
-            int n, x;
-            for (n = 0, x = 0; n < argc; n++) {
-                for (i = 0; i < envc; i++) {
-                    if (xwcsisenvvar(wenvp[i], wargv[n], 0)) {
-                        if (x++ > 0)
-                            fputc('\n', stdout);
-                        fputws(wenvp[i], stdout);
-                        break;
-                    }
-                }
-                if (i == envc) {
-                    if (xshowerr) {
-                        if (x > 0)
-                            fputc(L'\n', stderr);
-                        fprintf(stderr,
-                                "Error: Environment variable '%S' cannot be found",
-                                wargv[n]);
-                    }
-                    return ENOENT;
-                }
-            }
-        }
-        else {
-            for (i = 0; i < envc; i++) {
-                if (i > 0)
-                    fputc('\n', stdout);
-                fputws(wenvp[i], stdout);
-            }
-        }
+
+    memset(&cp, 0, sizeof(PROCESS_INFORMATION));
+    memset(&si, 0, sizeof(STARTUPINFOW));
+
+    si.cb = (DWORD)sizeof(STARTUPINFOW);
+
+    cmdexe = xwcsdup(wargv[0]);
+    for (i = 0; i < argc; i++) {
+        /**
+         * Quote argumets
+         */
+        wargv[i] = xquotearg(wargv[i]);
     }
-    if (xrunexec) {
-        wchar_t *cmdexe;
-        wchar_t *cmdblk;
-        wchar_t *envblk;
-        PROCESS_INFORMATION cp;
-        STARTUPINFOW si;
-
-        memset(&cp, 0, sizeof(PROCESS_INFORMATION));
-        memset(&si, 0, sizeof(STARTUPINFOW));
-
-        si.cb = (DWORD)sizeof(STARTUPINFOW);
-
-        cmdexe = xwcsdup(wargv[0]);
-        for (i = 0; i < argc; i++) {
-            /**
-             * Quote argumets
-             */
-            wargv[i] = xquotearg(wargv[i]);
-        }
-        cmdblk = xarrblk(argc, wargv, L' ');
-        envblk = xarrblk(envc, wenvp, WNUL);
-
-        if (!CreateProcessW(cmdexe, cmdblk,
-                            NULL, NULL, TRUE,
-                            CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT,
-                            envblk, NULL,
-                           &si, &cp)) {
-            rc = GetLastError();
-            if (xshowerr)
-                fprintf(stderr, "Failed to execute: '%S'\n",cmdblk);
-            return rc;
-        }
+    cmdblk = xarrblk(argc, wargv, L' ');
+    envblk = xarrblk(envc, wenvp, WNUL);
+    if (!CreateProcessW(cmdexe, cmdblk,
+                        NULL, NULL, TRUE,
+                        CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT,
+                        envblk, NULL,
+                       &si, &cp)) {
+        rc = GetLastError();
+        if (xshowerr)
+            fprintf(stderr, "Failed to execute: '%S'\n",cmdblk);
+    }
+    else {
         SetConsoleCtrlHandler(consolehandler, TRUE);
         ResumeThread(cp.hThread);
         CloseHandle(cp.hThread);
@@ -1270,6 +1238,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         GetExitCodeProcess(cp.hProcess, &rc);
         CloseHandle(cp.hProcess);
     }
+
     return rc;
 }
 
@@ -1285,30 +1254,22 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     wchar_t *wtd;
     wchar_t *ptd;
     wchar_t *npe;
+    wchar_t *sch;
+    wchar_t *exe;
 
     int dupenvc = 0;
     int dupargc = 0;
     int envc    = 0;
     int opt     = 0;
-    int haseopt = 0;
 
 
     if (wenv == NULL) {
         fputs("\nMissing environment\n", stderr);
         return EBADF;
     }
-    while (wenv[envc] != NULL) {
-        ++envc;
-    }
 
-    while ((opt = xwgetopt(argc, wargv, L"efKn:pqr:vVh?w:")) != EOF) {
+    while ((opt = xwgetopt(argc, wargv, L"fKn:pqr:vVh?w:")) != EOF) {
         switch (opt) {
-            case L'e':
-                xrunexec = 0;
-                xdumpenv = 1;
-                xprocarg = 0;
-                haseopt += 1;
-            break;
             case L'f':
                 xforcewp = 1;
             break;
@@ -1321,8 +1282,6 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             case L'p':
                 xrunexec = 0;
                 xdumparg = 1;
-                xskipenv = envc;
-                haseopt += 1;
             break;
             case L'q':
                 xshowerr = 0;
@@ -1364,11 +1323,6 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
 
         }
     }
-    if (haseopt > 1) {
-        if (xshowerr)
-            fputs("Error: Options -p and -e are mutually exclusive\n", stderr);
-        return usage(EINVAL);
-    }
     argc    -= xwoptind;
     wargv   += xwoptind;
     dupwargv = waalloc(argc + 4);
@@ -1401,7 +1355,13 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             fputs("Cannot find valid POSIX_ROOT\n", stderr);
         return ENOENT;
     }
-
+    if (xdumparg) {
+        for (i = 0; i < argc; i++) {
+            if (IS_VALID_WCS(wargv[i]))
+                dupwargv[dupargc++] = xwcsdup(wargv[i]);
+        }
+        return posixmain(dupargc, dupwargv, 0, NULL);
+    }
     if (cwd != NULL) {
         cwd = pathtowin(cwd);
         if (!SetCurrentDirectoryW(cwd)) {
@@ -1436,6 +1396,9 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     xrawenvs = xsplitstr(npe, L',');
     xfree(npe);
 
+    while (wenv[envc] != NULL) {
+        ++envc;
+    }
     dupwenvp = waalloc(envc + 6);
     for (i = 0; i < envc; i++) {
         const wchar_t **e = removeenv;
@@ -1454,40 +1417,38 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         if (p != NULL)
             dupwenvp[dupenvc++] = xwcsdup(p);
     }
-    if (xrunexec) {
-        wchar_t *sch;
-        wchar_t *exe = pathtowin(dupwargv[0]);
 
-        sch = getrealpathname(exe, 0);
+    exe = pathtowin(dupwargv[0]);
+    sch = getrealpathname(exe, 0);
+    if (sch == NULL) {
+        wchar_t *pps;
+        /**
+         * PROGRAM is not an absolute path.
+         * Add current directory as first PATH element
+         * and search for PROGRAM[.exe]
+         */
+        pps = xwcscpaths(cwd, cpp);
+        sch = xsearchexe(pps, exe);
         if (sch == NULL) {
-            wchar_t *pps;
-            /**
-             * PROGRAM is not an absolute path.
-             * Add current directory as first PATH element
-             * and search for PROGRAM[.exe]
-             */
-            pps = xwcscpaths(cwd, cpp);
-            sch = xsearchexe(pps, exe);
-            if (sch == NULL) {
-                if (xshowerr)
-                    fprintf(stderr, "Cannot find PROGRAM '%S'\n", exe);
-                return ENOENT;
-            }
-            xfree(pps);
+            if (xshowerr)
+                fprintf(stderr, "Cannot find PROGRAM '%S'\n", exe);
+            return ENOENT;
         }
-        xfree(exe);
-        if (xisbatchfile(sch)) {
-            /**
-             * Execute batch file using cmd.exe
-             */
-            dupwargv[dupargc++] = xgetenv(L"COMSPEC");
-            dupwargv[dupargc++] = xwcsdup(L"/D");
-            dupwargv[dupargc++] = xwcsdup(L"/C");
-            xisbatch = 1;
-        }
-        dupwargv[dupargc++] = sch;
-        xrunexec = dupargc;
+        xfree(pps);
     }
+    xfree(exe);
+    if (xisbatchfile(sch)) {
+        /**
+         * Execute batch file using cmd.exe
+         */
+        dupwargv[dupargc++] = xgetenv(L"COMSPEC");
+        dupwargv[dupargc++] = xwcsdup(L"/D");
+        dupwargv[dupargc++] = xwcsdup(L"/C");
+        xisbatch = 1;
+    }
+    dupwargv[dupargc++] = sch;
+    xrunexec = dupargc;
+
     for (i = 0; i < argc; i++) {
         if (IS_VALID_WCS(wargv[i]))
             dupwargv[dupargc++] = xwcsdup(wargv[i]);
