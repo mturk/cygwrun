@@ -132,11 +132,8 @@ static int usage(int rv)
         fputs(" -v        print version information and exit.\n", os);
         fputs(" -V        print detailed version information and exit.\n", os);
         fputs(" -h | -?   print this screen and exit.\n", os);
-        fputs(" -p        print arguments instead executing PROGRAM.\n", os);
-#if PROJECT_ISDEV_VERSION
-        fputs("\n" PROJECT_NAME " version " PROJECT_VERSION_TXT, os);
-#endif
-        fputs("\nTo file bugs, visit " PROJECT_URL, os);
+        fputs(" -p        print arguments instead executing PROGRAM.\n\n", os);
+        fputs("To file bugs, visit " PROJECT_URL, os);
     }
     return rv;
 }
