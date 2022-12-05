@@ -281,6 +281,28 @@ static wchar_t *xwcsconcat(const wchar_t *s1, const wchar_t *s2)
     return rv;
 }
 
+/**
+ * Remove trailing spaces and return a pointer
+ * to the first non white space character
+ */
+static wchar_t *xwcstrim(wchar_t *s)
+{
+    size_t i = xwcslen(s);
+
+    while (i > 0) {
+        i--;
+        if (s[i] < L'!')
+            s[i] = WNUL;
+        else
+            break;
+    }
+    if (i > 0) {
+        while ((*s > WNUL) && (*s < L'!'))
+            s++;
+    }
+    return s;
+}
+
 static wchar_t *xwcscpaths(const wchar_t *s1, const wchar_t *s2)
 {
     wchar_t *rv;
@@ -745,20 +767,20 @@ static wchar_t *xarrblk(int cnt, const wchar_t **arr, wchar_t sep)
 {
     int      i, x;
     size_t   n;
-    size_t   len = 0;
+    size_t   len = cnt;
     size_t   siz[64];
     wchar_t *ep;
     wchar_t *bp;
 
 
     for (i = 0, x = 0; i < cnt; i++, x++) {
-        n = wcslen(arr[i]);
+        n = xwcslen(arr[i]);
         if (x < 64)
             siz[x] = n;
         len += n;
     }
 
-    bp = xwmalloc(len + cnt + 1);
+    bp = xwmalloc(len + 1);
     ep = bp;
     for (i = 0, x = 0; i < cnt; i++, x++) {
         if (x < 64)
@@ -783,6 +805,8 @@ static wchar_t *cleanpath(wchar_t *s)
 
 
     i = (int)xwcslen(s);
+    if (i == 0)
+        return s;
     for (n = 0, c = 0; n < i; n++) {
         if (IS_PSW(s[n]))  {
             if ((n > 0) && IS_PSW(s[n + 1])) {
@@ -826,7 +850,9 @@ static wchar_t **xsplitstr(const wchar_t *s, wchar_t sc)
     sa = waalloc(c);
     es = xwcsctok(ws, sc, &cx);
     while (es != NULL) {
-        sa[x++] = xwcsdup(es);
+        es = xwcstrim(es);
+        if (*es != WNUL)
+            sa[x++] = xwcsdup(es);
         es = xwcsctok(NULL, sc, &cx);
     }
     xfree(ws);
@@ -849,7 +875,9 @@ static wchar_t **splitpath(const wchar_t *s, wchar_t ps)
 
     es = xwcsctok(ws, ps, &cx);
     while (es != NULL) {
-        sa[x++] = xwcsdup(es);
+        es = xwcstrim(es);
+        if (*es != WNUL)
+            sa[x++] = xwcsdup(es);
         es = xwcsctok(NULL, ps, &cx);
     }
     xfree(ws);
