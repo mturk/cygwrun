@@ -281,6 +281,19 @@ static wchar_t *xwcsconcat(const wchar_t *s1, const wchar_t *s2)
     return rv;
 }
 
+static wchar_t *xwcsappend(wchar_t *s, wchar_t ch)
+{
+    wchar_t *p;
+    size_t   n = xwcslen(s);
+
+    p = xwmalloc(n + 1);
+    wmemcpy(p, s, n);
+    p[n] = ch;
+
+    xfree(s);
+    return p;
+}
+
 /**
  * Remove trailing spaces and return a pointer
  * to the first non white space character
@@ -1153,16 +1166,26 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
 
         v = cmdoptionval(a);
         if (v != NULL) {
-            if (*v == L'"')
-                v++;
+            wchar_t *q = NULL;
+            if (*v == L'"') {
+                q = wcsrchr(v + 1, L'"');
+                if (q != NULL) {
+                    v++;
+                    *q = WNUL;
+                }
+            }
             m = isanypath(v);
             if (m != 0) {
                 wchar_t *p = towinpaths(v, m);
+
+                if (q != NULL)
+                    p = xwcsappend(p, L'"');
 
                 v[0] = WNUL;
                 wargv[i] = xwcsconcat(a, p);
                 xfree(a);
                 xfree(p);
+
             }
         }
         else {

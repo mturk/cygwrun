@@ -12,6 +12,7 @@ For a full list of changes, see the [git commit log][log]
  * Drop useles **-e** command line option
  * Fix parsing environment variables
  * Skip empty entries when parsing variables with multiple paths
+ * Fix parsing quoted arguments
 
 ## v1.1.8
 
