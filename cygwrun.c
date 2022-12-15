@@ -281,15 +281,26 @@ static wchar_t *xwcsconcat(const wchar_t *s1, const wchar_t *s2)
     return rv;
 }
 
-static wchar_t *xwcsappend(wchar_t *s, wchar_t ch)
+static wchar_t *xwcsappend(wchar_t *s, wchar_t ch, const wchar_t *a)
 {
     wchar_t *p;
+    wchar_t *e;
     size_t   n = xwcslen(s);
+    size_t   x = xwcslen(a);
 
-    p = xwmalloc(n + 1);
-    wmemcpy(p, s, n);
-    p[n] = ch;
+    p = xwmalloc(n + x + 1);
+    e = p;
 
+    if (n > 0) {
+        wmemcpy(e, s, n);
+        e += n;
+    }
+    *(e++) = ch;
+    if (x > 0) {
+        wmemcpy(e, a, x);
+        e += x;
+    }
+    *e = WNUL;
     xfree(s);
     return p;
 }
@@ -793,7 +804,7 @@ static wchar_t *xarrblk(int cnt, const wchar_t **arr, wchar_t sep)
         len += n;
     }
 
-    bp = xwmalloc(len + 1);
+    bp = xwmalloc(len + 2);
     ep = bp;
     for (i = 0, x = 0; i < cnt; i++, x++) {
         if (x < 64)
@@ -805,7 +816,8 @@ static wchar_t *xarrblk(int cnt, const wchar_t **arr, wchar_t sep)
         wmemcpy(ep, arr[i], n);
         ep += n;
     }
-    *(ep) = WNUL;
+    ep[0] = WNUL;
+    ep[1] = WNUL;
 
     return bp;
 }
@@ -1179,7 +1191,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 wchar_t *p = towinpaths(v, m);
 
                 if (q != NULL)
-                    p = xwcsappend(p, L'"');
+                    p = xwcsappend(p, L'"', NULL);
 
                 v[0] = WNUL;
                 wargv[i] = xwcsconcat(a, p);
@@ -1293,7 +1305,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     wchar_t **dupwargv = NULL;
     wchar_t **dupwenvp = NULL;
     const wchar_t *crp = NULL;
-    const wchar_t *ppe = NULL;
+    wchar_t *ppe       = NULL;
     wchar_t *cwd       = NULL;
     wchar_t *cpp;
     wchar_t *wtd;
@@ -1322,7 +1334,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                 xrmendps = 0;
             break;
             case L'n':
-                ppe = xwoptarg;
+                ppe = xwcsappend(ppe, L',', xwoptarg);
             break;
             case L'p':
                 xrunexec = 0;
@@ -1440,6 +1452,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     npe = xwcsconcat(specialenv, ppe);
     xrawenvs = xsplitstr(npe, L',');
     xfree(npe);
+    xfree(ppe);
 
     while (wenv[envc] != NULL) {
         ++envc;
