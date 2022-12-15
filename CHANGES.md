@@ -6,6 +6,10 @@ For a full list of changes, see the [git commit log][log]
   [log]: https://github.com/mturk/cygwrun/commits/
 
 
+## v1.2.0
+
+ * In development
+
 ## v1.1.9
 
  * Drop useles **-e** command line option
