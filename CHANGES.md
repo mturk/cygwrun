@@ -9,10 +9,11 @@ For a full list of changes, see the [git commit log][log]
 ## v1.2.0
 
  * In development
+ * Enable relative paths with **-w** command line option
 
 ## v1.1.9
 
- * Drop useles **-e** command line option
+ * Drop useless **-e** command line option
  * Fix parsing environment variables
  * Skip empty entries when parsing variables with multiple paths
  * Fix parsing quoted arguments
