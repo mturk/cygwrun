@@ -111,7 +111,7 @@
 #define PROJECT_COMPANY_NAME    "Acme Corporation"
 
 #define PROJECT_COPYRIGHT       \
-    "Copyright (c) 1964-2022 The Acme Corporation or its "              \
+    "Copyright (c) 1964-2023 The Acme Corporation or its "              \
     "licensors, as applicable."
 
 #define PROJECT_DESCRIPTION     \
