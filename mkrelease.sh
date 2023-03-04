@@ -19,8 +19,9 @@
 # --------------------------------------------------
 # Cygwrun release helper script
 #
-# Usage: mkrelease.sh version [options]
-#    eg: mkrelease.sh 1.1.9_1 _VENDOR_SFX=_1
+# Usage: mkrelease.sh version [make arguments]
+#    eg: mkrelease.sh 1.2.3
+#        mkrelease.sh 1.2.3_45 _VENDOR_SFX=_1.acme _VENDOR_NUM=45
 #
 
 eexit()
@@ -28,8 +29,8 @@ eexit()
     e=$1; shift;
     echo "$@" 1>&2
     echo 1>&2
-    echo "Usage: mkrelease.sh version [options]" 1>&2
-    echo "   eg: mkrelease.sh 1.1.9_1 _VENDOR_SFX=_1" 1>&2
+    echo "Usage: mkrelease.sh version [make arguments]" 1>&2
+    echo "   eg: mkrelease.sh 1.2.3" 1>&2
     exit $e
 }
 
