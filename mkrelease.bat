@@ -17,25 +17,40 @@ rem
 rem --------------------------------------------------
 rem Cygwrun release helper script
 rem
-rem Usage: mkrelease.bat version [options]
-rem    eg: mkrelease 1.1.9_1 "_VENDOR_SFX=_1"
+rem Usage: mkrelease.bat [options] version [make arguments]
+rem    eg: mkrelease 1.2.3
+rem        mkrelease 1.3.3_45 "_VENDOR_SFX=_1.acme" "_VENDOR_NUM=45"
+rem        mkrelease /s ...   compile with static msvcrt
+
 rem
 setlocal
-if "x%~1" == "x" goto Einval
 rem
 set "ProjectName=cygwrun"
 set "BuildDir=x64"
 set "ReleaseArch=win-x64"
-set "ReleaseVersion=%~1"
 rem
 rem Get timestamp using Powershell
 for /f "delims=" %%# in ('powershell get-date -format "{yyyyddMMHHmmss}"') do @set BuildTimestamp=%%#
-set "MakefileFlags=_BUILD_TIMESTAMP=%BuildTimestamp%"
-set "MakefileFlags=%MakefileFlags% _STATIC_MSVCRT=1"
+set "MakefileArgs=_BUILD_TIMESTAMP=%BuildTimestamp%"
+rem
+if /i "x%~1" == "x/s" goto setStatic
+rem
+goto doneOpts
+rem
+:setStatic
+set "MakefileArgs=%MakefileArgs% _STATIC_MSVCRT=1"
 shift
+rem
+:doneOpts
+rem
+if "x%~1" == "x" goto Einval
+rem
+set "ReleaseVersion=%~1"
+shift
+rem
 :setArgs
 if "x%~1" == "x" goto doneArgs
-set "MakefileFlags=%MakefileFlags% %~1"
+set "MakefileArgs=%MakefileArgs% %~1"
 shift
 goto setArgs
 rem
@@ -46,7 +61,7 @@ set "ReleaseLog=%ReleaseName%.txt
 rem
 rem Create builds
 nmake /nologo clean
-nmake /nologo %MakefileFlags%
+nmake /nologo %MakefileArgs%
 if not %ERRORLEVEL% == 0 goto Failed
 rem
 pushd "%BuildDir%"
@@ -61,7 +76,7 @@ echo ## Binary release v%ReleaseVersion% > %ReleaseLog%
 echo. >> %ReleaseLog%
 echo ```no-highlight >> %ReleaseLog%
 echo Compiled using: >> %ReleaseLog%
-echo nmake %MakefileFlags% >> %ReleaseLog%
+echo nmake %MakefileArgs% >> %ReleaseLog%
 findstr /B /C:"Microsoft (R) " %ProjectName%.p >> %ReleaseLog%
 echo. >> %ReleaseLog%
 rem
@@ -78,13 +93,13 @@ goto End
 rem
 :Einval
 echo Error: Invalid parameter
-echo Usage: %~nx0 version [options]
+echo Usage: %~nx0 [options] version [make arguments]
 exit /b 1
-
+rem
 :Failed
 echo.
 echo Error: Cannot build %ProjectName%.exe
 exit /b 1
-
+rem
 :End
 exit /b 0
