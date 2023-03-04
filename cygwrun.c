@@ -341,24 +341,6 @@ static wchar_t *xwcstrim(wchar_t *s)
     return s;
 }
 
-static wchar_t *xwcscpaths(const wchar_t *s1, const wchar_t *s2)
-{
-    wchar_t *rv;
-    size_t l1, l2;
-
-    l1 = xwcslen(s1);
-    l2 = xwcslen(s2);
-
-    if ((l1 == 0) || (l2 == 0))
-        return NULL;
-    rv = xwmalloc(l1 + l2 + 1);
-
-    wmemcpy(rv, s1, l1);
-    rv[l1++] = L';';
-    wmemcpy(rv + l1 , s2, l2);
-    return rv;
-}
-
 static int xisvarchar(int c)
 {
     if ((c < 32) || (c > 127))
@@ -500,8 +482,8 @@ static wchar_t *xwcsctok(wchar_t *s, wchar_t d, wchar_t **c)
  */
 static wchar_t *xquotearg(wchar_t *s)
 {
+    size_t   n = 0;
     wchar_t *c;
-    size_t   n;
     wchar_t *e;
     wchar_t *d;
 
@@ -511,7 +493,7 @@ static wchar_t *xquotearg(wchar_t *s)
     if (wcspbrk(s, L" \f\n\r\t\v\"") == NULL)
         return s;
 
-    for (n = 0, c = s; ; c++) {
+    for (c = s; ; c++) {
         size_t b = 0;
 
         while (*c == L'\\') {
@@ -539,7 +521,7 @@ static wchar_t *xquotearg(wchar_t *s)
     }
     /* For quotes */
     n += 2;
-    e = xwmalloc(n + 1);
+    e = xwmalloc(n);
     d = e;
 
     *(d++) = L'"';
@@ -643,8 +625,8 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
 static int xwcsisenvvar(const wchar_t *str, const wchar_t *var, int icase)
 {
     while (*str != WNUL) {
-        wchar_t cs = icase ? tolower(*str) : *str;
-        wchar_t cv = icase ? tolower(*var) : *var;
+        wchar_t cs = icase ? towupper(*str) : *str;
+        wchar_t cv = icase ? towupper(*var) : *var;
 
         if (cs != cv)
             break;
@@ -768,6 +750,18 @@ static int isanypath(const wchar_t *s)
     }
     return r;
 }
+
+static int isrelativepath(const wchar_t *p)
+{
+    if (IS_EMPTY_WCS(p))
+        return 0;
+    if (p[0] < 128) {
+        if (IS_PSW(p[0]) || (isalpha(p[0]) && (p[1] == L':')))
+            return 0;
+    }
+    return 1;
+}
+
 
 /**
  * If argument starts with '[--]name=' the
@@ -1416,6 +1410,16 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         cpp = towinpaths(p, 0);
         xfree(p);
     }
+    if (isrelativepath(cwd)) {
+        cleanpath(cwd);
+        if (!SetCurrentDirectoryW(cwd)) {
+            if (xshowerr)
+                fprintf(stderr, "Invalid working directory: '%S'\n", cwd);
+            return ENOENT;
+        }
+        xfree(cwd);
+        cwd = NULL;
+    }
     posixroot = getposixroot(crp, cpp);
     if (posixroot == NULL) {
         if (xshowerr)
@@ -1489,20 +1493,16 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     exe = pathtowin(dupwargv[0]);
     sch = getrealpathname(exe, 0);
     if (sch == NULL) {
-        wchar_t *pps;
         /**
-         * PROGRAM is not an absolute path.
-         * Add current directory as first PATH element
-         * and search for PROGRAM[.exe]
+         * PROGRAM is not inside PATH.
+         * Search inside current directory
          */
-        pps = xwcscpaths(cwd, cpp);
-        sch = xsearchexe(pps, exe);
-        if (sch == NULL) {
-            if (xshowerr)
-                fprintf(stderr, "Cannot find PROGRAM '%S'\n", exe);
-            return ENOENT;
-        }
-        xfree(pps);
+        sch = xsearchexe(cwd, exe);
+    }
+    if (sch == NULL) {
+        if (xshowerr)
+            fprintf(stderr, "Cannot find PROGRAM '%S'\n", exe);
+        return ENOENT;
     }
     xfree(exe);
     if (xisbatchfile(sch)) {
