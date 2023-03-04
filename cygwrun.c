@@ -151,19 +151,33 @@ static int version(int verbose)
     return 0;
 }
 
+
 static wchar_t *xwmalloc(size_t size)
 {
-    wchar_t *p = (wchar_t *)malloc((size + 1) * sizeof(wchar_t));
+    wchar_t *p = (wchar_t *)malloc((size + 2) * sizeof(wchar_t));
     if (p == NULL) {
         _wperror(L"xwmalloc");
         _exit(1);
     }
-    p[size] = WNUL;
+    p[size++] = WNUL;
+    p[size]   = WNUL;
+    return p;
+}
+
+static void *xcalloc(size_t number, size_t size)
+{
+    void *p = calloc(number + 2, size);
+    if (p == NULL) {
+        _wperror(L"xcalloc");
+        _exit(1);
+    }
     return p;
 }
 
 static wchar_t **waalloc(size_t size)
 {
+    return (wchar_t **)xcalloc(size, sizeof(wchar_t *));
+
     wchar_t **p = (wchar_t **)calloc(size + 2, sizeof(wchar_t *));
     if (p == NULL) {
         _wperror(L"waalloc");
@@ -606,10 +620,8 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
         if (*place != WNUL) {
             xwoptarg = place;
         }
-        else if (oli[2] != L':') {
-            if (nargc > ++xwoptind) {
-                xwoptarg = nargv[xwoptind];
-            }
+        else if (nargc > ++xwoptind) {
+            xwoptarg = nargv[xwoptind];
         }
         ++xwoptind;
         place = zerostring;
@@ -789,33 +801,29 @@ static int envsort(const void *arg1, const void *arg2)
 
 static wchar_t *xarrblk(int cnt, const wchar_t **arr, wchar_t sep)
 {
-    int      i, x;
-    size_t   n;
-    size_t   len = cnt;
-    size_t   siz[64];
+    int      i;
+    size_t   len = 0;
+    size_t  *ssz;
     wchar_t *ep;
     wchar_t *bp;
 
-
-    for (i = 0, x = 0; i < cnt; i++, x++) {
-        n = xwcslen(arr[i]);
-        if (x < 64)
-            siz[x] = n;
-        len += n;
+    ssz = (size_t *)xcalloc(cnt, sizeof(size_t));
+    for (i = 0; i < cnt; i++) {
+        size_t n = xwcslen(arr[i]);
+        ssz[i]   = n++;
+        len     += n;
     }
 
     bp = xwmalloc(len + 2);
     ep = bp;
-    for (i = 0, x = 0; i < cnt; i++, x++) {
-        if (x < 64)
-            n = siz[x];
-        else
-            n = xwcslen(arr[i]);
+    for (i = 0; i < cnt; i++) {
+        size_t n = ssz[i];
         if (i > 0)
             *(ep++) = sep;
         wmemcpy(ep, arr[i], n);
         ep += n;
     }
+    xfree(ssz);
     ep[0] = WNUL;
     ep[1] = WNUL;
 
@@ -1267,12 +1275,14 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     cmdexe = xwcsdup(wargv[0]);
     for (i = 0; i < argc; i++) {
         /**
-         * Quote argumets
+         * Quote arguments
          */
         wargv[i] = xquotearg(wargv[i]);
     }
     cmdblk = xarrblk(argc, wargv, L' ');
     envblk = xarrblk(envc, wenvp, WNUL);
+    waafree(wargv);
+    waafree(wenvp);
     if (!CreateProcessW(cmdexe, cmdblk,
                         NULL, NULL, TRUE,
                         CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT,
