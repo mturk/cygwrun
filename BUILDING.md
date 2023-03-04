@@ -48,7 +48,7 @@ terminal and cd to cygwrun source directory and type
 
 ```sh
 
-$ make -f Makefile.gmk
+$ make -f
 ```
 
 In case there are no compile errors the cygwrun.exe is located
@@ -67,7 +67,7 @@ eg, `C:\Program Files\Visual Studio 2017\VC\Auxiliary\Build`
 
 ```cmd
 > cd C:\Some\Location\cygwrun
-> nmake
+> nmake /f Makefile.mak
 
 ```
 
@@ -78,7 +78,7 @@ as statically linked to the MSVCRT library.
 
 Add `_STATIC_MSVCRT=1` as nmake parameter:
 ```cmd
-> nmake _STATIC_MSVCRT=1
+> nmake /f Makefile.mak _STATIC_MSVCRT=1
 
 ```
 
@@ -89,14 +89,14 @@ Makefile has two additional targets which can be useful
 for cygwrun development and maintenance
 
 ```no-highlight
-> nmake clean
+> make clean
 ```
 
 This will remove all produced binaries and object files
 by simply deleting **x64** subdirectory.
 
 ```no-highlight
-> nmake test
+> make test
 ```
 
 This will compile two test utilities which can
@@ -110,7 +110,7 @@ At compile time you can define vendor suffix and/or version
 by using the following:
 
 ```cmd
-> nmake "_VENDOR_SFX=_1.acme"
+> make "_VENDOR_SFX=_1.acme"
 ```
 
 This will create build with version strings set to `x.y.z_1.acme` where

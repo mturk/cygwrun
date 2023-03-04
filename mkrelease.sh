@@ -60,16 +60,16 @@ ReleaseLog=$ReleaseName.txt
 #
 #
 MakefileFlags="_BUILD_TIMESTAMP=`date +%Y%m%d%H%M%S` $*"
-make -f Makefile.gmk clean
+make clean
 test "x$BuildHost" = "xcygwin" && MakefileFlags="USE_MINGW_PACKAGE_PREFIX=1 $MakefileFlags"
-make -f Makefile.gmk $MakefileFlags
+make $MakefileFlags
 #
 pushd $BuildDir >/dev/null
 echo "## Binary release v$ReleaseVersion" > $ReleaseLog
 echo >> $ReleaseLog
 echo '```no-highlight' >> $ReleaseLog
 echo "Compiled on $BuildHost host:" >> $ReleaseLog
-echo "make -f Makefile.gmk $MakefileFlags" >> $ReleaseLog
+echo "make $MakefileFlags" >> $ReleaseLog
 echo "using: `gcc --version | head -1`" >> $ReleaseLog
 echo >> $ReleaseLog
 echo >> $ReleaseLog

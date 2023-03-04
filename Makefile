@@ -13,101 +13,110 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Originally contributed by Mladen Turk <mturk apache.org>
+# Compile native Windows binary using mingw64
+# make -f Makefile.gmk
 #
-CC = cl.exe
-LN = link.exe
-RC = rc.exe
+# To compile from Cygwin environment
+# make -f Makefile.gmk USE_MINGW_PACKAGE_PREFIX=1
+#
+# the following packages need to be installed:
+#
+# mingw64-x86_64-binutils,
+# mingw64-x86_64-gcc-core,
+# mingw64-x86_64-headers,
+# mingw64-x86_64-runtime
+#
 
-MACHINE = x64
+ifdef USE_MINGW_PACKAGE_PREFIX
+CC = x86_64-w64-mingw32-gcc
+RC = x86_64-w64-mingw32-windres
+RL = x86_64-w64-mingw32-strip
+else
+CC = gcc
+RC = windres
+RL = strip
+endif
+LN = $(CC)
+
 SRCDIR  = .
 PROJECT = cygwrun
+TARGET  = $(PROJECT).exe
+WORKDIR = $(SRCDIR)/x64
+OUTPUT  = $(WORKDIR)/$(TARGET)
+TESTDA  = $(WORKDIR)/dumpargs.exe
+TESTDE  = $(WORKDIR)/dumpenvp.exe
+
 WINVER  = 0x0601
-EXEVER  = 1.1
+CFLAGS  = -DNDEBUG -D_WIN32_WINNT=$(WINVER) -DWINVER=$(WINVER) -DWIN32_LEAN_AND_MEAN \
+	-D_CRT_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_DEPRECATE \
+	-DUNICODE -D_UNICODE $(EXTRA_CFLAGS)
+LNOPTS  = -m64 -O2 -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -Wno-incompatible-pointer-types -municode -mconsole
+RCOPTS  = -l 0x409 -F pe-x86-64 -O coff
+RFLAGS  = -D NDEBUG -D _WIN32_WINNT=$(WINVER) -D WINVER=$(WINVER) $(EXTRA_RFLAGS)
+CLOPTS  = $(LNOPTS) -c
+LDLIBS  = -lkernel32
+RLOPTS  = --strip-unneeded
 
-!IF DEFINED(_STATIC_MSVCRT)
-CRT_CFLAGS = -MT
-EXTRA_LIBS =
-!ELSE
-CRT_CFLAGS = -MD
-!ENDIF
-
-WORKDIR = $(SRCDIR)\$(MACHINE)
-OUTPUT  = $(WORKDIR)\$(PROJECT).exe
-TESTDA  = $(WORKDIR)\dumpargs.exe
-TESTDE  = $(WORKDIR)\dumpenvp.exe
-
-CFLAGS = -DNDEBUG -D_WIN32_WINNT=$(WINVER) -DWINVER=$(WINVER) -DWIN32_LEAN_AND_MEAN
-CFLAGS = $(CFLAGS) -D_CRT_SECURE_NO_WARNINGS  -D_CRT_SECURE_NO_DEPRECATE
-CFLAGS = $(CFLAGS) -DUNICODE -D_UNICODE $(DFLAGS) $(EXTRA_CFLAGS)
-CLOPTS = -c -nologo $(CRT_CFLAGS) -W4 -O2 -Ob2
-RCOPTS = -l 0x409 -n
-RFLAGS = -d NDEBUG -d WINVER=$(WINVER) -d _WIN32_WINNT=$(WINVER) -d WIN32_LEAN_AND_MEAN $(EXTRA_RFLAGS)
-LFLAGS = -nologo -INCREMENTAL:NO -OPT:REF -SUBSYSTEM:CONSOLE -MACHINE:$(MACHINE) -VERSION:$(EXEVER) $(EXTRA_LFLAGS)
-LDLIBS = kernel32.lib $(EXTRA_LIBS)
-
-!IF DEFINED(VSCMD_VER)
-RCOPTS = -nologo $(RCOPTS)
-!ENDIF
-
-!IF DEFINED(_VENDOR_SFX)
-CFLAGS = $(CFLAGS) -D_VENDOR_SFX=$(_VENDOR_SFX)
-RFLAGS = $(RFLAGS) /d _VENDOR_SFX=$(_VENDOR_SFX)
-!ENDIF
-!IF DEFINED(_VENDOR_NUM)
-CFLAGS = $(CFLAGS) -D_VENDOR_NUM=$(_VENDOR_NUM)
-RFLAGS = $(RFLAGS) /d _VENDOR_NUM=$(_VENDOR_NUM)
-!ENDIF
-
-!IF DEFINED(_BUILD_TIMESTAMP)
-CFLAGS = $(CFLAGS) -D_BUILD_TIMESTAMP=$(_BUILD_TIMESTAMP)
-RFLAGS = $(RFLAGS) /d _BUILD_TIMESTAMP=$(_BUILD_TIMESTAMP)
-!ENDIF
+ifdef _VENDOR_SFX
+CFLAGS += -D_VENDOR_SFX=$(_VENDOR_SFX)
+RFLAGS += -D _VENDOR_SFX=$(_VENDOR_SFX)
+endif
+ifdef _VENDOR_NUM
+CFLAGS += -D_VENDOR_NUM=$(_VENDOR_NUM)
+RFLAGS += -D _VENDOR_NUM=$(_VENDOR_NUM)
+endif
+ifdef _BUILD_TIMESTAMP
+CFLAGS += -D_BUILD_TIMESTAMP=$(_BUILD_TIMESTAMP)
+RFLAGS += -D _BUILD_TIMESTAMP=$(_BUILD_TIMESTAMP)
+endif
 
 OBJECTS = \
-	$(WORKDIR)\$(PROJECT).obj \
-	$(WORKDIR)\$(PROJECT).res
+	$(WORKDIR)/$(PROJECT).o \
+	$(WORKDIR)/$(PROJECT).res
 
 TESTDA_OBJECTS = \
-	$(WORKDIR)\dumpargs.obj
+	$(WORKDIR)/dumpargs.o
 
 TESTDE_OBJECTS = \
-	$(WORKDIR)\dumpenvp.obj
-
+	$(WORKDIR)/dumpenvp.o
 
 all : $(WORKDIR) $(OUTPUT)
+	@:
 
 $(WORKDIR):
-	@-md $(WORKDIR)
+	@mkdir -p $@
 
-{$(SRCDIR)}.c{$(WORKDIR)}.obj:
-	$(CC) $(CLOPTS) $(CFLAGS) -Fo$(WORKDIR)\ $<
+$(WORKDIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/%.h
+	$(CC) $(CLOPTS) -o $@ $(CFLAGS) -I$(SRCDIR) $<
 
-{$(SRCDIR)\test}.c{$(WORKDIR)}.obj:
-	$(CC) $(CLOPTS) $(CFLAGS) -Fo$(WORKDIR)\ $<
+$(WORKDIR)/%.o: $(SRCDIR)/test/%.c
+	$(CC) $(CLOPTS) -o $@ $(CFLAGS) -I$(SRCDIR) $<
 
-{$(SRCDIR)}.rc{$(WORKDIR)}.res:
-	$(RC) $(RCOPTS) $(RFLAGS) -fo $@ $<
+$(WORKDIR)/%.res: $(SRCDIR)/%.rc $(SRCDIR)/%.h
+	$(RC) $(RCOPTS) -o $@ $(RFLAGS) -I $(SRCDIR) $<
 
 $(OUTPUT): $(WORKDIR) $(OBJECTS)
-	$(LN) $(LFLAGS) $(OBJECTS) $(LDLIBS) -out:$@
+	$(LN) $(LNOPTS) -o $@ $(OBJECTS) $(LDLIBS)
+	$(RL) $(RLOPTS) $@
 
 $(TESTDA): $(WORKDIR) $(TESTDA_OBJECTS)
-	$(LN) $(LFLAGS) $(TESTDA_OBJECTS) $(LDLIBS) -out:$@
+	$(LN) $(LNOPTS) -o $@ $(TESTDA_OBJECTS) $(LDLIBS)
 
 $(TESTDE): $(WORKDIR) $(TESTDE_OBJECTS)
-	$(LN) $(LFLAGS) $(TESTDE_OBJECTS) $(LDLIBS) -out:$@
+	$(LN) $(LNOPTS) -o $@ $(TESTDE_OBJECTS) $(LDLIBS)
 
 test: all $(TESTDA) $(TESTDE)
-	@echo.
+	@echo
 	@echo Running simple verification tests ...
-	@echo.
-	@$(OUTPUT) $(TESTDE) MAKEDIR
-	@echo.
-	@$(OUTPUT) $(TESTDA) /tmp
-	@echo.
-	@echo.
-	@echo You can now call runtest.sh from Cygwin environment
+	@echo
+	@$(OUTPUT) $(TESTDE) SHELL
+	@echo
+	@$(OUTPUT) $(TESTDA) //tmp
+	@echo
+	@echo
+	@echo You can now run runtest.sh from Cygwin environment
 
 clean:
-	@-rd /S /Q $(WORKDIR) 2>NUL
+	@rm -rf $(WORKDIR)
+
+.PHONY: all clean

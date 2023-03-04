@@ -60,8 +60,8 @@ set "ReleaseName=%ProjectName%-%ReleaseVersion%-%ReleaseArch%"
 set "ReleaseLog=%ReleaseName%.txt
 rem
 rem Create builds
-nmake /nologo clean
-nmake /nologo %MakefileArgs%
+nmake /nologo /f Makefile.mak clean
+nmake /nologo /f Makefile.mak %MakefileArgs%
 if not %ERRORLEVEL% == 0 goto Failed
 rem
 pushd "%BuildDir%"
@@ -76,7 +76,7 @@ echo ## Binary release v%ReleaseVersion% > %ReleaseLog%
 echo. >> %ReleaseLog%
 echo ```no-highlight >> %ReleaseLog%
 echo Compiled using: >> %ReleaseLog%
-echo nmake %MakefileArgs% >> %ReleaseLog%
+echo nmake /f Makefile.mak %MakefileArgs% >> %ReleaseLog%
 findstr /B /C:"Microsoft (R) " %ProjectName%.p >> %ReleaseLog%
 echo. >> %ReleaseLog%
 rem

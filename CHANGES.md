@@ -10,6 +10,7 @@ For a full list of changes, see the [git commit log][log]
 
  * In development
  * Enable relative paths with **-w** command line option
+ * Rename Makefile to Makefile.mak and Makefile.gmk to Makefile 
 
 ## v1.1.9
 
