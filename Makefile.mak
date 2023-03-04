@@ -13,7 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Originally contributed by Mladen Turk <mturk apache.org>
+# Compile native Windows binary using Visual Studio
+#
 #
 CC = cl.exe
 LN = link.exe
@@ -23,7 +24,7 @@ MACHINE = x64
 SRCDIR  = .
 PROJECT = cygwrun
 WINVER  = 0x0601
-EXEVER  = 1.1
+EXEVER  = 1.2
 
 !IF DEFINED(_STATIC_MSVCRT)
 CRT_CFLAGS = -MT

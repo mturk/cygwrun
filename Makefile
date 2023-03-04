@@ -14,10 +14,9 @@
 # limitations under the License.
 #
 # Compile native Windows binary using mingw64
-# make -f Makefile.gmk
 #
 # To compile from Cygwin environment
-# make -f Makefile.gmk USE_MINGW_PACKAGE_PREFIX=1
+# make USE_MINGW_PACKAGE_PREFIX=1
 #
 # the following packages need to be installed:
 #
