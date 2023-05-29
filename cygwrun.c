@@ -141,12 +141,12 @@ static int usage(int rv)
 static int version(int verbose)
 {
     if (verbose) {
-        fputs(PROJECT_NAME " version " PROJECT_VERSION_TXT "\n\n", stdout);
+        fputs(PROJECT_NAME " version " PROJECT_VERSION_ALL "\n\n", stdout);
         fputs(PROJECT_LICENSE_SHORT "\n\n", stdout);
         fputs("Visit " PROJECT_URL " for more details", stdout);
     }
     else {
-        fputs(PROJECT_NAME " version " PROJECT_VERSION_STR, stdout);
+        fputs(PROJECT_NAME " version " PROJECT_VERSION_TXT, stdout);
     }
     return 0;
 }

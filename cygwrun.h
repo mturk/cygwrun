@@ -110,7 +110,10 @@
 #define PROJECT_VERSION_TXT                                             \
                                 PROJECT_VERSION_MIN                     \
                                 PROJECT_VENDOR_SFX                      \
-                                PROJECT_VERSION_DEV " "                 \
+                                PROJECT_VERSION_DEV
+
+#define PROJECT_VERSION_ALL                                             \
+                                PROJECT_VERSION_TXT " "                 \
                                 PROJECT_BUILD_TSTAMP
 
 #define PROJECT_NAME            "cygwrun"
