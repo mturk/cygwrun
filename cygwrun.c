@@ -590,6 +590,7 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
         oli = wcschr(opts, (wchar_t)xwoption);
     }
     if (oli == NULL) {
+        xwoptind++;
         place = zerostring;
         return EINVAL;
     }
@@ -599,6 +600,11 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
          * Option-argument is either the rest of this argument
          * or the entire next argument.
          */
+        if (*place) {
+            /* Skip blanks */
+            while (iswblank(*place))
+                ++place;
+        }
         if (*place != WNUL) {
             xwoptarg = place;
         }
