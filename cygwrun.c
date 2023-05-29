@@ -1491,13 +1491,18 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     }
 
     exe = pathtowin(dupwargv[0]);
-    sch = getrealpathname(exe, 0);
-    if (sch == NULL) {
-        /**
-         * PROGRAM is not inside PATH.
-         * Search inside current directory
-         */
+    if (isrelativepath(exe)) {
         sch = xsearchexe(cwd, exe);
+        if (sch == NULL) {
+            /**
+             * PROGRAM was not found.
+             * Search inside PATH
+             */
+            sch = xsearchexe(cpp, exe);
+        }
+    }
+    else {
+        sch = getrealpathname(exe, 0);
     }
     if (sch == NULL) {
         if (xshowerr)
