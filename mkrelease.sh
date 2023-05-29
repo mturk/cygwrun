@@ -21,7 +21,7 @@
 #
 # Usage: mkrelease.sh version [make arguments]
 #    eg: mkrelease.sh 1.2.3
-#        mkrelease.sh 1.2.3_45 _VENDOR_SFX=_1.acme _VENDOR_NUM=45
+#        mkrelease.sh 1.2.3_1 _VENDOR_SFX=_1.acme _BUILD_NUMBER=`date +%y%j`
 #
 
 eexit()

@@ -34,8 +34,8 @@
 #define PROJECT_MAJOR_VERSION   1
 #define PROJECT_MINOR_VERSION   2
 #define PROJECT_PATCH_VERSION   0
-#if defined(_VENDOR_NUM)
-# define PROJECT_MICRO_VERSION  _VENDOR_NUM
+#if defined(_BUILD_NUMBER)
+# define PROJECT_MICRO_VERSION  _BUILD_NUMBER
 #else
 # define PROJECT_MICRO_VERSION  0
 #endif
@@ -96,14 +96,20 @@
                                 PROJECT_PATCH_VERSION,                  \
                                 PROJECT_MICRO_VERSION
 
-#define PROJECT_VERSION_STR                                             \
+#define PROJECT_VERSION_MIN                                             \
                                 CPP_TOSTR(PROJECT_MAJOR_VERSION) "."    \
                                 CPP_TOSTR(PROJECT_MINOR_VERSION) "."    \
                                 CPP_TOSTR(PROJECT_PATCH_VERSION)        \
-                                PROJECT_VENDOR_SFX
+
+#define PROJECT_VERSION_STR                                             \
+                                CPP_TOSTR(PROJECT_MAJOR_VERSION) "."    \
+                                CPP_TOSTR(PROJECT_MINOR_VERSION) "."    \
+                                CPP_TOSTR(PROJECT_PATCH_VERSION) "."    \
+                                CPP_TOSTR(PROJECT_MICRO_VERSION)
 
 #define PROJECT_VERSION_TXT                                             \
-                                PROJECT_VERSION_STR                     \
+                                PROJECT_VERSION_MIN                     \
+                                PROJECT_VENDOR_SFX                      \
                                 PROJECT_VERSION_DEV " "                 \
                                 PROJECT_BUILD_TSTAMP
 

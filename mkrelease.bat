@@ -19,7 +19,7 @@ rem Cygwrun release helper script
 rem
 rem Usage: mkrelease.bat [options] version [make arguments]
 rem    eg: mkrelease 1.2.3
-rem        mkrelease 1.3.3_45 "_VENDOR_SFX=_1.acme" "_VENDOR_NUM=45"
+rem        mkrelease 1.3.3_45 "_VENDOR_SFX=_1.acme" "_BUILD_NUMBER=45"
 rem        mkrelease /s ...   compile with static msvcrt
 
 rem

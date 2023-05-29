@@ -50,12 +50,12 @@ BEGIN
             VALUE "Comments",         PROJECT_URL
             VALUE "CompanyName",      PROJECT_COMPANY_NAME
             VALUE "FileDescription",  PROJECT_DESCRIPTION
-            VALUE "FileVersion",      PROJECT_VERSION_STR
+            VALUE "FileVersion",      PROJECT_VERSION_STR PROJECT_VENDOR_SFX
             VALUE "InternalName",     PROJECT_NAME
             VALUE "LegalCopyright",   PROJECT_COPYRIGHT
             VALUE "OriginalFilename", PROJECT_NAME ".exe"
             VALUE "ProductName",      PROJECT_NAME
-            VALUE "ProductVersion",   PROJECT_VERSION_STR
+            VALUE "ProductVersion",   PROJECT_VERSION_MIN
         END
     END
     BLOCK "VarFileInfo"
