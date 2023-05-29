@@ -1045,7 +1045,7 @@ static wchar_t *towinpaths(const wchar_t *ps, int m)
 static wchar_t *getrealpathname(const wchar_t *path, int isdir)
 {
     wchar_t    *buf  = NULL;
-    DWORD       siz  = _MAX_FNAME;
+    DWORD       siz  = MAX_PATH;
     DWORD       len  = 0;
     HANDLE      fh;
     DWORD       fa   = isdir ? FILE_FLAG_BACKUP_SEMANTICS : FILE_ATTRIBUTE_NORMAL;
@@ -1093,7 +1093,7 @@ static wchar_t *xsearchexe(const wchar_t *paths, const wchar_t *name)
     wchar_t  *sp = NULL;
     wchar_t  *rp = NULL;
     DWORD     ln = 0;
-    DWORD     sz = _MAX_PATH;
+    DWORD     sz = MAX_PATH;
 
     while (sp == NULL) {
         sp = xwmalloc(sz);
@@ -1133,6 +1133,11 @@ static wchar_t *getposixroot(const wchar_t *rp, const wchar_t *sp)
                 break;
             }
             e++;
+        }
+        if (r == NULL) {
+            /* Check for default installation directory */
+            if (GetFileAttributesW(L"C:\\cygwin64\\bin") == FILE_ATTRIBUTE_DIRECTORY)
+                return xwcsdup(L"C:\\cygwin64");
         }
         if (r == NULL) {
             r = xsearchexe(sp, L"bash.exe");
