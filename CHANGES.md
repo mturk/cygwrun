@@ -8,7 +8,6 @@ For a full list of changes, see the [git commit log][log]
 
 ## v1.2.0
 
- * In development
  * Fix searching for programs having relative paths
  * Enable relative paths with **-w** command line option
  * Rename Makefile to Makefile.mak and Makefile.gmk to Makefile 
