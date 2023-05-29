@@ -6,6 +6,11 @@ For a full list of changes, see the [git commit log][log]
   [log]: https://github.com/mturk/cygwrun/commits/
 
 
+## v1.2.1
+
+ * In development
+
+
 ## v1.2.0
 
  * Fix searching for programs having relative paths
