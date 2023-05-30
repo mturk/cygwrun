@@ -50,7 +50,7 @@ echo "Running cygwrun test suite on: $phost"
 export POSIX_ROOT="c:\\windows/"
 v=/tmp
 rv="`$_cygwrun -p $v`"
-test "x$rv" = "xC:\\Windows\\tmp" || xbexit 1 "Failed #1.1: \`$rv'"
+test "x$rv" = "xc:\\windows\\tmp" || xbexit 1 "Failed #1.1: \`$rv'"
 unset POSIX_ROOT
 
 rootdir="`$_cygwrun -p /`"

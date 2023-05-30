@@ -1171,14 +1171,7 @@ static wchar_t *getposixroot(const wchar_t *rp)
         /**
          * Trust user provided root
          */
-        d = xwcsdup(rp);
-        d = cleanpath(d);
-        r = getrealpathname(d, 1);
-        if (r == NULL)
-            r = d;
-        else
-            xfree(d);
-        return r;
+        return cleanpath(xwcsdup(rp));
     }
     else {
         const wchar_t **e = posixrenv;
@@ -1186,7 +1179,10 @@ static wchar_t *getposixroot(const wchar_t *rp)
         while (*e != NULL) {
             r = xgetenv(*e);
             if (r != NULL) {
-                break;
+                /**
+                 * Trust user provided root environment variable
+                 */
+                return cleanpath(r);
             }
             e++;
         }
