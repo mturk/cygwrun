@@ -83,11 +83,12 @@ static const wchar_t *pathfixed[] = {
     NULL
 };
 
-static const wchar_t *specialenv = L"!::,!;,PS1,OLDPWD,ORIGINAL_PATH,ORIGINAL_TEMP,ORIGINAL_TMP,";
+static const wchar_t *specialenv = L"!::,!;,PS1,ORIGINAL_TEMP,ORIGINAL_TMP,";
 
 static const wchar_t *removeenv[] = {
     L"_",
     L"CYGWIN_ROOT",
+    L"OLDPWD",
     L"ORIGINAL_PATH",
     L"PATH",
     L"POSIX_PATH",
@@ -1006,10 +1007,20 @@ static wchar_t *pathtowin(wchar_t *pp)
 static wchar_t *towinpaths(const wchar_t *ps, int m)
 {
     int i;
+    int sc = 0;
     wchar_t **pa;
     wchar_t  *wp = NULL;
 
     if (m < 100) {
+        if (m == 0) {
+            if (wcschr(ps, L';') || iswinpath(ps))
+                sc = 1;
+        }
+        else {
+            sc = 1;
+        }
+    }
+    if (sc) {
         pa = splitpath(ps, L';');
 
         if (pa != NULL) {
@@ -1419,7 +1430,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     cpp = xgetenv(L"POSIX_PATH");
     if (cpp) {
         wchar_t *p = cpp;
-        cpp = towinpaths(p, 100);
+        cpp = towinpaths(p, 0);
         xfree(p);
     }
     else {
@@ -1433,16 +1444,6 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             fputs("Missing PATH environment variable\n", stderr);
         return ENOENT;
     }
-    if (isrelativepath(cwd)) {
-        cleanpath(cwd);
-        if (!SetCurrentDirectoryW(cwd)) {
-            if (xshowerr)
-                fprintf(stderr, "Invalid working directory: '%S'\n", cwd);
-            return ENOENT;
-        }
-        xfree(cwd);
-        cwd = NULL;
-    }
     if (xdumparg) {
         for (i = 0; i < argc; i++) {
             if (IS_VALID_WCS(wargv[i]))
@@ -1451,7 +1452,10 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         return posixmain(dupargc, dupwargv, 0, NULL);
     }
     if (cwd != NULL) {
-        cwd = pathtowin(cwd);
+        if (isrelativepath(cwd))
+            cwd = cleanpath(cwd);
+        else
+            cwd = pathtowin(cwd);
         if (!SetCurrentDirectoryW(cwd)) {
             if (xshowerr)
                 fprintf(stderr, "Invalid working directory: '%S'\n", cwd);
