@@ -16,6 +16,7 @@
  */
 
 #include <windows.h>
+#include <tlhelp32.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1126,7 +1127,42 @@ static wchar_t *xsearchexe(const wchar_t *paths, const wchar_t *name)
     return rp;
 }
 
-static wchar_t *getposixroot(const wchar_t *rp, const wchar_t *sp)
+static wchar_t *getparentname(void)
+{
+    DWORD  pid;
+    HANDLE h;
+    HANDLE p;
+    wchar_t *n = NULL;
+    PROCESSENTRY32W e;
+
+    h = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (IS_INVALID_HANDLE(h))
+        return NULL;
+    e.dwSize = (DWORD)sizeof(PROCESSENTRY32W);
+    if (!Process32FirstW(h, &e)) {
+        CloseHandle(h);
+        return NULL;
+    }
+    pid = GetCurrentProcessId();
+    do {
+        if (e.th32ProcessID == pid) {
+            DWORD s = MAX_PATH;
+            wchar_t b[MAX_PATH];
+
+            p = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, e.th32ParentProcessID);
+            if (p != NULL) {
+                if (QueryFullProcessImageNameW(p, 0, b, &s))
+                    n = xwcsdup(b);
+                CloseHandle(p);
+            }
+            break;
+        }
+    } while (Process32NextW(h, &e));
+    CloseHandle(h);
+    return n;
+}
+
+static wchar_t *getposixroot(const wchar_t *rp)
 {
     wchar_t *d;
     wchar_t *r = xwcsdup(rp);
@@ -1148,13 +1184,17 @@ static wchar_t *getposixroot(const wchar_t *rp, const wchar_t *sp)
             e++;
         }
         if (r == NULL) {
-            r = xsearchexe(sp, L"bash.exe");
+            r = getparentname();
             if (r != NULL) {
-                d = wcsstr(r, L"\\usr\\bin\\bash.exe");
+                d = wcsrchr(r, L'\\');
+                if (d != NULL)
+                    *d = L':';
+                d = wcsstr(r, L"\\usr\\bin:");
                 if (d == NULL)
-                    d = wcsstr(r, L"\\bin\\bash.exe");
+                    d = wcsstr(r, L"\\bin:");
                 if (d != NULL) {
                     *d = WNUL;
+                    return r;
                 }
                 else {
                     xfree(r);
@@ -1417,7 +1457,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             return usage(1);
         }
     }
-    posixroot = getposixroot(crp, NULL);
+    posixroot = getposixroot(crp);
     if (posixroot == NULL) {
         if (xshowerr)
             fputs("Cannot find valid POSIX_ROOT\n", stderr);
