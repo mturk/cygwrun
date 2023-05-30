@@ -88,7 +88,9 @@ static const wchar_t *specialenv = L"!::,!;,PS1,OLDPWD,ORIGINAL_PATH,ORIGINAL_TE
 static const wchar_t *removeenv[] = {
     L"_",
     L"CYGWIN_ROOT",
+    L"ORIGINAL_PATH",
     L"PATH",
+    L"POSIX_PATH",
     L"POSIX_ROOT",
     L"PWD",
     L"TEMP",
@@ -1135,11 +1137,6 @@ static wchar_t *getposixroot(const wchar_t *rp, const wchar_t *sp)
             e++;
         }
         if (r == NULL) {
-            /* Check for default installation directory */
-            if (GetFileAttributesW(L"C:\\cygwin64\\bin") == FILE_ATTRIBUTE_DIRECTORY)
-                return xwcsdup(L"C:\\cygwin64");
-        }
-        if (r == NULL) {
             r = xsearchexe(sp, L"bash.exe");
             if (r != NULL) {
                 d = wcsstr(r, L"\\usr\\bin\\bash.exe");
@@ -1322,7 +1319,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     const wchar_t *crp = NULL;
     wchar_t *ppe       = NULL;
     wchar_t *cwd       = NULL;
-    wchar_t *cpp;
+    wchar_t *cpp       = NULL;
     wchar_t *wtd;
     wchar_t *ptd;
     wchar_t *npe;
@@ -1333,7 +1330,6 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     int dupargc = 0;
     int envc    = 0;
     int opt     = 0;
-
 
     if (wenv == NULL) {
         fputs("\nMissing environment\n", stderr);
@@ -1410,16 +1406,32 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             return usage(1);
         }
     }
-    cpp = xgetenv(L"PATH");
+    posixroot = getposixroot(crp, NULL);
+    if (posixroot == NULL) {
+        if (xshowerr)
+            fputs("Cannot find valid POSIX_ROOT\n", stderr);
+        return ENOENT;
+    }
+    /**
+     * Check if there is POSIX_PATH variable
+     * and use it instead PATH
+     */
+    cpp = xgetenv(L"POSIX_PATH");
+    if (cpp) {
+        wchar_t *p = cpp;
+        cpp = towinpaths(p, 100);
+        xfree(p);
+    }
+    else {
+        wchar_t *p;
+        p = xgetenv(L"PATH");
+        cpp = towinpaths(p, 0);
+        xfree(p);
+    }
     if (cpp == NULL) {
         if (xshowerr)
             fputs("Missing PATH environment variable\n", stderr);
         return ENOENT;
-    }
-    else {
-        wchar_t *p = cpp;
-        cpp = towinpaths(p, 0);
-        xfree(p);
     }
     if (isrelativepath(cwd)) {
         cleanpath(cwd);
@@ -1430,12 +1442,6 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         }
         xfree(cwd);
         cwd = NULL;
-    }
-    posixroot = getposixroot(crp, cpp);
-    if (posixroot == NULL) {
-        if (xshowerr)
-            fputs("Cannot find valid POSIX_ROOT\n", stderr);
-        return ENOENT;
     }
     if (xdumparg) {
         for (i = 0; i < argc; i++) {
