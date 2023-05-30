@@ -1165,13 +1165,20 @@ static wchar_t *getparentname(void)
 static wchar_t *getposixroot(const wchar_t *rp)
 {
     wchar_t *d;
-    wchar_t *r = xwcsdup(rp);
+    wchar_t *r = NULL;
 
-    if (r != NULL) {
+    if (rp != NULL) {
         /**
          * Trust user provided root
          */
-        return cleanpath(r);
+        d = xwcsdup(rp);
+        d = cleanpath(d);
+        r = getrealpathname(d, 1);
+        if (r == NULL)
+            r = d;
+        else
+            xfree(d);
+        return r;
     }
     else {
         const wchar_t **e = posixrenv;
