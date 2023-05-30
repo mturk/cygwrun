@@ -8,8 +8,8 @@ For a full list of changes, see the [git commit log][log]
 
 ## v1.2.1
 
- * In development
-
+ * Fix detection of the path separators
+ * Set PATH to POSIX_PATH if set by user
 
 ## v1.2.0
 
