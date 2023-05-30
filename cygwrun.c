@@ -1206,13 +1206,7 @@ static wchar_t *getposixroot(const wchar_t *rp)
             }
         }
     }
-    if (r == NULL) {
-        /* Probably not usable */
-        r = xgetenv(L"APPDATA");
-        if (r == NULL)
-            r = xgetenv(L"SystemRoot");
-    }
-    else {
+    if (r != NULL) {
         /* Ensure that path exists */
         d = cleanpath(r);
         r = getrealpathname(d, 1);
