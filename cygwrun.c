@@ -84,7 +84,7 @@ static const wchar_t *pathfixed[] = {
     NULL
 };
 
-static const wchar_t *specialenv = L"!::,!;,PS1,ORIGINAL_TEMP,ORIGINAL_TMP,";
+static const wchar_t *specialenv = L"!::,!;,PS1,ORIGINAL_TEMP,ORIGINAL_TMP";
 
 static const wchar_t *removeenv[] = {
     L"_",
@@ -765,7 +765,7 @@ static int isrelativepath(const wchar_t *p)
 {
     if (IS_EMPTY_WCS(p))
         return 0;
-    if (p[0] < 128) {
+    if (p[0] < 127) {
         if (IS_PSW(p[0]) || (isalpha(p[0]) && (p[1] == L':')))
             return 0;
     }
@@ -836,7 +836,7 @@ static wchar_t *xarrblk(int cnt, const wchar_t **arr, wchar_t sep)
 
 static wchar_t *cleanpath(wchar_t *s)
 {
-    int n;
+    int n = 0;
     int c;
     int i;
 
@@ -844,7 +844,14 @@ static wchar_t *cleanpath(wchar_t *s)
     i = (int)xwcslen(s);
     if (i == 0)
         return s;
-    for (n = 0, c = 0; n < i; n++) {
+    if (i > 2) {
+        if ((s[0] < 127) && isalpha(s[0]) && (s[1] == L':') && IS_PSW(s[2])) {
+            s[0] = towupper(s[0]);
+            s[2] = L'\\';
+            n = 3;
+        }
+    }
+    for (c = n; n < i; n++) {
         if (IS_PSW(s[n]))  {
             if ((n > 0) && IS_PSW(s[n + 1])) {
                 continue;
@@ -1066,7 +1073,7 @@ static wchar_t *getrealpathname(const wchar_t *path, int isdir)
 
     if (IS_EMPTY_WCS(path))
         return NULL;
-    fh = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL,
+    fh = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
                      OPEN_EXISTING, fa, NULL);
     if (IS_INVALID_HANDLE(fh))
         return NULL;
@@ -1371,8 +1378,8 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     wchar_t *wtd;
     wchar_t *ptd;
     wchar_t *npe;
-    wchar_t *sch;
     wchar_t *exe;
+    wchar_t *prg;
 
     int dupenvc = 0;
     int dupargc = 0;
@@ -1441,7 +1448,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     }
     argc    -= xwoptind;
     wargv   += xwoptind;
-    dupwargv = waalloc(argc + 4);
+    dupwargv = waalloc(argc + 6);
     if (xrunexec) {
         if (argc > 0) {
             dupwargv[0] = xwcsdup(wargv[0]);
@@ -1548,35 +1555,35 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             dupwenvp[dupenvc++] = xwcsdup(p);
     }
 
-    exe = pathtowin(dupwargv[0]);
-    if (isrelativepath(exe)) {
-        sch = xsearchexe(cwd, exe);
-        if (sch == NULL) {
+    prg = pathtowin(dupwargv[0]);
+    exe = getrealpathname(prg, 0);
+    if (exe == NULL) {
+        exe = xsearchexe(cwd, prg);
+        if (exe == NULL) {
             /**
              * PROGRAM was not found.
              * Search inside PATH
              */
-            sch = xsearchexe(cpp, exe);
+            exe = xsearchexe(cpp, prg);
         }
     }
-    else {
-        sch = getrealpathname(exe, 0);
-    }
-    if (sch == NULL) {
+    if (exe == NULL) {
         if (xshowerr)
-            fprintf(stderr, "Cannot find PROGRAM '%S'\n", exe);
+            fprintf(stderr, "Cannot find PROGRAM '%S'\n", prg);
         return ENOENT;
     }
-    xfree(exe);
-    if (xisbatchfile(sch)) {
+    xfree(prg);
+    if (xisbatchfile(exe)) {
         /**
          * Execute batch file using cmd.exe
          */
         dupwargv[dupargc++] = xgetenv(L"COMSPEC");
         dupwargv[dupargc++] = xwcsdup(L"/D");
+        dupwargv[dupargc++] = xwcsdup(L"/E:ON");
+        dupwargv[dupargc++] = xwcsdup(L"/V:OFF");
         dupwargv[dupargc++] = xwcsdup(L"/C");
     }
-    dupwargv[dupargc++] = sch;
+    dupwargv[dupargc++] = exe;
     xrunexec = dupargc;
 
     for (i = 0; i < argc; i++) {
