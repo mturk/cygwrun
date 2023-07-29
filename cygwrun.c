@@ -364,6 +364,14 @@ static __inline int xisalpha(int ch)
         return 0;
 }
 
+static __inline int xisblank(int ch)
+{
+    if ((ch == 32) || (ch == 9))
+        return 1;
+    else
+        return 0;
+}
+
 static __inline int xtoupper(int ch)
 {
     if ((ch > 96) && (ch < 123))
@@ -633,7 +641,7 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
          */
         if (*place) {
             /* Skip blanks */
-            while (iswblank(*place))
+            while (xisblank(*place))
                 ++place;
         }
         if (*place != WNUL) {
@@ -1619,8 +1627,12 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     xrunexec = dupargc;
 
     for (i = 0; i < argc; i++) {
-        if (IS_VALID_WCS(wargv[i]))
-            dupwargv[dupargc++] = xwcsdup(wargv[i]);
+        const wchar_t *p = wargv[i];
+
+        while (xisblank(*p))
+            ++p;
+        if (*p)
+            dupwargv[dupargc++] = xwcsdup(p);
     }
 
     /**
