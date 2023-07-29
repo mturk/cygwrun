@@ -141,6 +141,7 @@ static int usage(int rv)
         fputs(" -w <DIR>  change working directory to DIR before calling PROGRAM\n", os);
         fputs(" -n <ENV>  do not translate ENV variable(s)\n", os);
         fputs("           multiple variables are comma separated.\n", os);
+        fputs(" -o        use ORIGINAL_PATH instead PATH.\n\n", os);
         fputs(" -f        convert all unknown posix absolute paths.\n", os);
         fputs(" -K        keep trailing path separators for paths.\n", os);
         fputs(" -q        do not print errors to stderr.\n", os);
@@ -1431,7 +1432,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         return EBADF;
     }
 
-    while ((opt = xwgetopt(argc, wargv, L"fKn:pqr:vVh?w:")) != EOF) {
+    while ((opt = xwgetopt(argc, wargv, L"fKn:opqr:vVh?w:")) != EOF) {
         switch (opt) {
             case L'f':
                 xforcewp = 1;
@@ -1441,6 +1442,14 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             break;
             case L'n':
                 ppe = xwcsappend(ppe, L',', xwoptarg);
+            break;
+            case L'o':
+                cpp = xgetenv(L"ORIGINAL_PATH");
+                if (cpp == NULL) {
+                    if (xshowerr)
+                        fputs("The ORIGINAL_PATH environment variable does not exists\n", stderr);
+                    return ENOENT;
+                }
             break;
             case L'p':
                 xrunexec = 0;
@@ -1507,28 +1516,25 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
             fputs("Cannot find valid POSIX_ROOT\n", stderr);
         return ENOENT;
     }
+    if (cpp) {
+        wchar_t *p = cpp;
+        cpp = towinpaths(p, 0);
+        xfree(p);
+    }
     /**
      * Check if there is CYGWRUN_POSIX_PATH variable
      * and use it instead PATH
      */
-    cpp = xgetenv(L"CYGWRUN_POSIX_PATH");
-    if (cpp) {
-        wchar_t *p = cpp;
-        if (wcscmp(p, L"ORIGINAL_PATH") == 0) {
-            xfree(cpp);
-            p = xgetenv(L"ORIGINAL_PATH");
-            if (p == NULL) {
-                if (xshowerr)
-                    fputs("The ORIGINAL_PATH does not exists\n", stderr);
-                return ENOENT;
-            }
+    if (cpp == NULL) {
+        cpp = xgetenv(L"CYGWRUN_POSIX_PATH");
+        if (cpp) {
+            wchar_t *p = cpp;
+            cpp = towinpaths(p, 0);
+            xfree(p);
         }
-        cpp = towinpaths(p, 0);
-        xfree(p);
     }
-    else {
-        wchar_t *p;
-        p = xgetenv(L"PATH");
+    if (cpp == NULL) {
+        wchar_t *p = xgetenv(L"PATH");
         cpp = towinpaths(p, 0);
         xfree(p);
     }

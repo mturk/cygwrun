@@ -42,6 +42,7 @@ Options are:
  -w <DIR>  change working directory to DIR before calling PROGRAM
  -n <ENV>  do not translate ENV variable(s)
            multiple variables are comma separated.
+ -o        use ORIGINAL_PATH instead PATH.
  -f        convert all unknown posix absolute paths.
  -K        keep trailing path separators for paths.
  -q        do not print errors to stderr.
