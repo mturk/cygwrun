@@ -51,9 +51,10 @@ static wchar_t **xrawenvs = NULL;
 
 static const wchar_t *pathmatches[] = {
     L"/cygdrive/?/+*",
-    L"/clang64/*",
-    L"/bin/*",
+    L"/?/+*",
     L"/dev/*",
+    L"/bin/*",
+    L"/clang64/*",
     L"/etc/*",
     L"/home/*",
     L"/lib/*",
@@ -353,7 +354,31 @@ static wchar_t *xwcstrim(wchar_t *s)
     return s;
 }
 
-static int xisvarchar(int c)
+static __inline int xisalpha(int ch)
+{
+    if (((ch > 64) && (ch < 91)) || ((ch > 96) && (ch < 123)))
+        return 1;
+    else
+        return 0;
+}
+
+static __inline int xtolower(int ch)
+{
+    if ((ch > 64) && (ch < 91))
+        return ch + 32;
+    else
+        return ch;
+}
+
+static __inline int xtoupper(int ch)
+{
+    if ((ch > 96) && (ch < 123))
+        return ch - 32;
+    else
+        return ch;
+}
+
+static __inline int xisvarchar(int c)
 {
     if ((c < 32) || (c > 127))
         return 0;
@@ -499,10 +524,10 @@ static wchar_t *xquotearg(wchar_t *s)
     wchar_t *e;
     wchar_t *d;
 
-    /* Perform quoting only if neccessary. */
+    /* Perform quoting only if necessary. */
     if (IS_EMPTY_WCS(s))
         return s;
-    if (wcspbrk(s, L" \f\n\r\t\v\"") == NULL)
+    if (wcspbrk(s, L" \n\r\t\"") == NULL)
         return s;
 
     for (c = s; ; c++) {
@@ -643,8 +668,8 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
 static int xwcsisenvvar(const wchar_t *str, const wchar_t *var, int icase)
 {
     while (*str != WNUL) {
-        wchar_t cs = icase ? towupper(*str) : *str;
-        wchar_t cv = icase ? towupper(*var) : *var;
+        wchar_t cs = icase ? xtoupper(*str) : *str;
+        wchar_t cv = icase ? xtoupper(*var) : *var;
 
         if (cs != cv)
             break;
@@ -771,13 +796,13 @@ static int isanypath(const wchar_t *s)
 
 static int isrelativepath(const wchar_t *p)
 {
-    if (IS_EMPTY_WCS(p))
-        return 0;
-    if (p[0] < 127) {
-        if (IS_PSW(p[0]) || (isalpha(p[0]) && (p[1] == L':')))
+    if ((p != NULL) && (*p != WNUL)) {
+        if (IS_PSW(p[0]) || (xisalpha(p[0]) && (p[1] == L':')))
             return 0;
+        else
+            return 1;
     }
-    return 1;
+    return 0;
 }
 
 
@@ -853,8 +878,8 @@ static wchar_t *cleanpath(wchar_t *s)
     if (i == 0)
         return s;
     if (i > 2) {
-        if ((s[0] < 127) && isalpha(s[0]) && (s[1] == L':') && IS_PSW(s[2])) {
-            s[0] = towupper(s[0]);
+        if (xisalpha(s[0]) && (s[1] == L':') && IS_PSW(s[2])) {
+            s[0] = xtoupper(s[0]);
             s[2] = L'\\';
             n = 3;
         }
@@ -981,8 +1006,16 @@ static wchar_t *posixtowin(wchar_t *pp, int m)
         /**
          * /cygdrive/x/... absolute path
          */
-        windrive[0] = towupper(pp[10]);
+        windrive[0] = xtoupper(pp[10]);
         rv = xwcsconcat(windrive, pp + 12);
+        cleanpath(rv + 3);
+    }
+    else if (m == 101) {
+        /**
+         * /x/... msys2 absolute path
+         */
+        windrive[0] = xtoupper(pp[1]);
+        rv = xwcsconcat(windrive, pp + 3);
         cleanpath(rv + 3);
     }
     else if (m == 102) {

@@ -9,7 +9,7 @@ For a full list of changes, see the [git commit log][log]
 ## v1.2.2
 
  * In development
-
+ * Add support to run under MSYS2 environment
 
 ## v1.2.1
 

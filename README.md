@@ -134,6 +134,56 @@ such as `CYGWIN_ROOT` or `PWD`.
 The full list of variables that are always removed is defined
 with `removeenv[]` array in [cygwrun.c](cygwrun.c) source file.
 
+If running inside MSYS2 environment, MSYS2 will try to convert
+environment variables and program arguments to native windows paths.
+
+This can sometimes produce false paths.
+For example if trying to pass `/Q` argument to native application
+MSYS2 will actually pass the `Q:\'
+
+```sh
+    $ dumpargs.exe /Q
+    $ Q:\
+```
+
+To handle this you can use the following
+
+```sh
+    $ MSYS2_ARG_CONV_EXCL=* dumpargs.exe /Q
+    $ /Q
+```
+
+However if trying to pass `/Q /tmp` this will not resolve correctly
+
+```sh
+    $ dumpargs.exe /Q /tmp
+    $ Q:/
+    $ C:/msys64/tmp
+    ...
+    $ MSYS2_ARG_CONV_EXCL=* dumpargs.exe /Q /tmp
+    $ /Q
+    $ /tmp
+```
+
+Use Cygwrun will solve the arguments correctly
+
+```sh
+    $ MSYS2_ARG_CONV_EXCL=* cygwrun.exe dumpargs.exe /Q /tmp
+    $ /Q
+    $ C:\msys64\tmp
+```
+
+The same applies to the environment variables.
+The best practice when running native applications
+inside MSYS2 is to use Cygwrun as following
+
+```sh
+    $ MSYS2_ARG_CONV_EXCL=* MSYS2_ENV_CONV_EXCL=* cygwrun.exe myapp.exe [arguments]
+```
+
+This will ensure that arguments and environment variables
+are properly converted to native Windows paths.
+
 
 ## Command line arguments
 
