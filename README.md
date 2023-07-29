@@ -136,11 +136,12 @@ to be converted to it's windows format.
 ```
 
 Note that some environment variables are always removed from the
-current environment variable list that is passed to child process,
-such as `CYGWRUN_POSIX_ROOT` or `PWD`.
+current environment variable list that is passed to child process
+such as `_`, `CYGWRUN_POSIX_PATH`, `OLDPWD`, `ORIGINAL_PATH`,
+`ORIGINAL_TEMP` and `ORIGINAL_TMP`.
 
-The full list of variables that are always removed is defined
-with `removeenv[]` array in [cygwrun.c](cygwrun.c) source file.
+
+## Running from MSYS2
 
 If running inside MSYS2 environment, MSYS2 will try to convert
 environment variables and program arguments to native windows paths.

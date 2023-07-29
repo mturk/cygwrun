@@ -93,15 +93,17 @@ static const wchar_t *pathfixed[] = {
     NULL
 };
 
-static const wchar_t *specialenv = L"!::,!;,PS1,ORIGINAL_TEMP,ORIGINAL_TMP";
+static const wchar_t *specialenv = L"!::,!;,PS1";
 
 static const wchar_t *removeenv[] = {
     L"_",
     L"CYGWRUN_POSIX_ROOT",
+    L"CYGWRUN_POSIX_PATH",
     L"OLDPWD",
     L"ORIGINAL_PATH",
+    L"ORIGINAL_TEMP",
+    L"ORIGINAL_TMP",
     L"PATH",
-    L"POSIX_PATH",
     L"PWD",
     L"TEMP",
     L"TMP",
@@ -1504,10 +1506,10 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         return ENOENT;
     }
     /**
-     * Check if there is POSIX_PATH variable
+     * Check if there is CYGWRUN_POSIX_PATH variable
      * and use it instead PATH
      */
-    cpp = xgetenv(L"POSIX_PATH");
+    cpp = xgetenv(L"CYGWRUN_POSIX_PATH");
     if (cpp) {
         wchar_t *p = cpp;
         cpp = towinpaths(p, 0);
@@ -1631,7 +1633,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
      * Add back environment variables
      */
     dupwenvp[dupenvc++] = xwcsconcat(L"PATH=", cpp);
-    dupwenvp[dupenvc++] = xwcsconcat(L"POSIX_ROOT=", posixroot);
+    dupwenvp[dupenvc++] = xwcsconcat(L"CYGWRUN_POSIX_ROOT=", posixroot);
     dupwenvp[dupenvc++] = xwcsconcat(L"PWD=",  cwd);
     dupwenvp[dupenvc++] = xwcsconcat(L"TEMP=", wtd);
     dupwenvp[dupenvc++] = xwcsconcat(L"TMP=",  ptd);

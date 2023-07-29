@@ -11,6 +11,7 @@ For a full list of changes, see the [git commit log][log]
  * In development
  * Add support to run under MSYS2 environment
  * Use CYGWRUN_POSIX_ROOT instead deprecated CYGWIN_ROOT and POSIX_ROOT
+ * Set PATH to CYGWRUN_POSIX_PATH if set by user
 
 ## v1.2.1
 
