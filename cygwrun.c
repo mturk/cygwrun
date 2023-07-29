@@ -1649,7 +1649,13 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         /**
          * Execute batch file using cmd.exe
          */
-        dupwargv[dupargc++] = xgetenv(L"COMSPEC");
+        wchar_t *p = xgetenv(L"COMSPEC");
+        if (p == NULL) {
+            if (xshowerr)
+                fputs("Missing COMSPEC environment variable\n", stderr);
+            return ENOENT;
+        }
+        dupwargv[dupargc++] = p;
         dupwargv[dupargc++] = xwcsdup(L"/D");
         dupwargv[dupargc++] = xwcsdup(L"/E:ON");
         dupwargv[dupargc++] = xwcsdup(L"/V:OFF");
