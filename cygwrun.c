@@ -97,12 +97,11 @@ static const wchar_t *specialenv = L"!::,!;,PS1,ORIGINAL_TEMP,ORIGINAL_TMP";
 
 static const wchar_t *removeenv[] = {
     L"_",
-    L"CYGWIN_ROOT",
+    L"CYGWRUN_POSIX_ROOT",
     L"OLDPWD",
     L"ORIGINAL_PATH",
     L"PATH",
     L"POSIX_PATH",
-    L"POSIX_ROOT",
     L"PWD",
     L"TEMP",
     L"TMP",
@@ -110,6 +109,7 @@ static const wchar_t *removeenv[] = {
 };
 
 static const wchar_t *posixrenv[] = {
+    L"CYGWRUN_POSIX_ROOT",
     L"POSIX_ROOT",
     L"CYGWIN_ROOT",
     NULL
@@ -1237,12 +1237,7 @@ static wchar_t *getposixroot(const wchar_t *rp)
         if (r == NULL) {
             r = getparentname();
             if (r != NULL) {
-                d = wcsrchr(r, L'\\');
-                if (d != NULL)
-                    *d = L':';
-                d = wcsstr(r, L"\\usr\\bin:");
-                if (d == NULL)
-                    d = wcsstr(r, L"\\bin:");
+                d = wcschr(r + 3, L'\\');
                 if (d != NULL) {
                     *d = WNUL;
                     return r;

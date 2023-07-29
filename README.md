@@ -63,20 +63,28 @@ of the current posix subsystem.
 In case the `-r <directory>` was not specified, the program will
 check the following environment variables:
 
-First it will check `POSIX_ROOT` and then `CYGWIN_ROOT` variable.
-If none of them were defined, cygwrun will search for `bash.exe` and
-its root directory will be used.
+First it will check `CYGWRUN_POSIX_ROOT` then `POSIX_ROOT` and
+finally `CYGWIN_ROOT` variable.
+
+If none of them were defined, cygwrun will use the first directory
+part of the parent process as posix root directory.
 
 Make sure that you provide a correct posix root since it will
 be used as prefix to `/usr, /bin, /tmp` constructing an actual
 Windows path.
+
+**Notice**
+
+The `POSIX_ROOT` and `CYGWIN_ROOT` environment variables
+are deprecated starting with version **1.2.2** and might
+be removed in future releases.
 
 
 For example, if Cygwin is installed inside `C:\cygwin64` you
 can set either environment variable
 
 ```sh
-    $ export CYGWIN_ROOT=C:/cygwin64
+    $ export CYGWRUN_POSIX_ROOT=C:/cygwin64
     ...
     $ cygwrun ... --f1=/usr/local
 ```
@@ -129,7 +137,7 @@ to be converted to it's windows format.
 
 Note that some environment variables are always removed from the
 current environment variable list that is passed to child process,
-such as `CYGWIN_ROOT` or `PWD`.
+such as `CYGWRUN_POSIX_ROOT` or `PWD`.
 
 The full list of variables that are always removed is defined
 with `removeenv[]` array in [cygwrun.c](cygwrun.c) source file.

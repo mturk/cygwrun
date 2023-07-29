@@ -10,6 +10,7 @@ For a full list of changes, see the [git commit log][log]
 
  * In development
  * Add support to run under MSYS2 environment
+ * Use CYGWRUN_POSIX_ROOT instead deprecated CYGWIN_ROOT and POSIX_ROOT
 
 ## v1.2.1
 
@@ -20,7 +21,7 @@ For a full list of changes, see the [git commit log][log]
 
  * Fix searching for programs having relative paths
  * Enable relative paths with **-w** command line option
- * Rename Makefile to Makefile.mak and Makefile.gmk to Makefile 
+ * Rename Makefile to Makefile.mak and Makefile.gmk to Makefile
 
 ## v1.1.9
 

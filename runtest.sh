@@ -47,11 +47,11 @@ test -x "$_dumpenvp" || xbexit 1 "Cannot find dumpenvp.exe in \`./x64'"
 
 echo "Running cygwrun test suite on: $phost"
 
-export POSIX_ROOT="c:\\windows/"
+export CYGWRUN_POSIX_ROOT="c:\\windows/"
 v=/tmp
 rv="`$_cygwrun -p $v`"
 test "x$rv" = "xC:\\windows\\tmp" || xbexit 1 "Failed #1.1: \`$rv'"
-unset POSIX_ROOT
+unset CYGWRUN_POSIX_ROOT
 
 rootdir="`$_cygwrun -p /`"
 test $? -ne 0 && xbexit 1 "Failed #1.2"
@@ -64,10 +64,10 @@ test $? -ne 0 && xbexit 1 "Failed #1.5"
 
 rv="`$_cygwrun -r $rootdir\\\\ -p /`"
 test "x$rv" = "x$rootdir" || xbexit 1 "Failed #2.1: \`$rv'"
-export CYGWIN_ROOT="$rootdir//; ;"
+export CYGWRUN_POSIX_ROOT="$rootdir//; ;"
 rv="`$_cygwrun -p /`"
 test "x$rv" = "x$rootdir" || xbexit 1 "Failed #2.2: \`$rv'"
-unset CYGWIN_ROOT
+unset CYGWRUN_POSIX_ROOT
 rv="`$_cygwrun -r whatever/path/ -p /usr`"
 test "x$rv" = "xwhatever\\path\\usr" || xbexit 1 "Failed #2.3: \`$rv'"
 
