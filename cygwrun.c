@@ -1514,6 +1514,15 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     cpp = xgetenv(L"CYGWRUN_POSIX_PATH");
     if (cpp) {
         wchar_t *p = cpp;
+        if (wcscmp(p, L"ORIGINAL_PATH") == 0) {
+            xfree(cpp);
+            p = xgetenv(L"ORIGINAL_PATH");
+            if (p == NULL) {
+                if (xshowerr)
+                    fputs("The ORIGINAL_PATH does not exists\n", stderr);
+                return ENOENT;
+            }
+        }
         cpp = towinpaths(p, 0);
         xfree(p);
     }
