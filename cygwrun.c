@@ -392,49 +392,6 @@ static __inline int xisvarchar(int c)
 
 }
 
-static __inline int xisdigit(int ch)
-{
-    if ((ch > 47) && (ch < 58))
-        return 1;
-    else
-        return 0;
-}
-
-/**
- * Simple atoi with range between 0 and 2000000.
- * Leading white space characters are ignored.
- * Returns negative value on error.
- */
-static int xwcstoi(const wchar_t *sp)
-{
-    int rv = 0;
-    int dc = 0;
-
-    if (IS_EMPTY_WCS(sp))
-        return -1;
-    while(xisblank(*sp))
-        sp++;
-    while(xisdigit(*sp)) {
-        int dv = *sp - L'0';
-
-        if (dv || rv) {
-            rv *= 10;
-            rv += dv;
-        }
-        if (rv > 2000000) {
-            SetLastError(ERROR_INVALID_DATA);
-            return -1;
-        }
-        dc++;
-        sp++;
-    }
-    if (dc == 0) {
-        SetLastError(ERROR_INVALID_PARAMETER);
-        return -1;
-    }
-    return rv;
-}
-
 /**
  * Match = 0, NoMatch = 1, Abort = -1
  * Based loosely on sections of wildmat.c by Rich Salz
@@ -1446,7 +1403,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         ws = WaitForSingleObject(cp.hProcess, xtimeout);
         SetConsoleCtrlHandler(consolehandler, FALSE);
         if (ws == WAIT_TIMEOUT) {
-            rc = WAIT_TIMEOUT;
+            rc = ETIMEDOUT;
             TerminateProcess(cp.hProcess, WAIT_TIMEOUT);
         }
         else {
@@ -1503,13 +1460,13 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                 }
             break;
             case L't':
-                i = xwcstoi(xwoptarg);
-                if (i < 1) {
+                xtimeout = (DWORD)wcstoul(xwoptarg, NULL, 10);
+                if ((xtimeout < 1) || (xtimeout > 2000000)) {
                     if (xshowerr)
                         fputs("The -t command option value is outside valid range\n", stderr);
-                    return EINVAL;
+                    return ERANGE;
                 }
-                xtimeout = i * 1000;
+                xtimeout *= 1000;
             break;
             case L'p':
                 xrunexec = 0;
