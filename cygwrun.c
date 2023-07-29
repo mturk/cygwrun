@@ -51,17 +51,21 @@ static wchar_t **xrawenvs = NULL;
 
 static const wchar_t *pathmatches[] = {
     L"/cygdrive/?/+*",
+    L"/clang64/*",
     L"/bin/*",
     L"/dev/*",
     L"/etc/*",
     L"/home/*",
     L"/lib/*",
     L"/lib64/*",
+    L"/mingw64/*",
     L"/opt/*",
     L"/root/*",
     L"/run/*",
     L"/sbin/*",
+    L"/share/*",
     L"/tmp/*",
+    L"/ucrt64/*",
     L"/usr/*",
     L"/var/*",
     NULL
@@ -69,16 +73,20 @@ static const wchar_t *pathmatches[] = {
 
 static const wchar_t *pathfixed[] = {
     L"/bin",
+    L"/clang64",
     L"/dev",
     L"/etc",
     L"/home",
     L"/lib",
     L"/lib64",
+    L"/mingw64",
     L"/opt",
     L"/root",
     L"/run",
     L"/sbin",
+    L"/share",
     L"/tmp",
+    L"/ucrt64",
     L"/usr",
     L"/var",
     NULL
