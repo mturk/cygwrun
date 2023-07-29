@@ -364,14 +364,6 @@ static __inline int xisalpha(int ch)
         return 0;
 }
 
-static __inline int xtolower(int ch)
-{
-    if ((ch > 64) && (ch < 91))
-        return ch + 32;
-    else
-        return ch;
-}
-
 static __inline int xtoupper(int ch)
 {
     if ((ch > 96) && (ch < 123))
@@ -1378,6 +1370,8 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     envblk = xarrblk(envc, wenvp, WNUL);
     waafree(wargv);
     waafree(wenvp);
+    SetConsoleCtrlHandler(NULL, FALSE);
+
     if (!CreateProcessW(cmdexe, cmdblk,
                         NULL, NULL, TRUE,
                         CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT,
