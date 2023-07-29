@@ -137,11 +137,11 @@ static int usage(int rv)
         FILE *os = rv == 0 ? stdout : stderr;
         fputs("\nUsage " PROJECT_NAME " [OPTIONS]... PROGRAM [ARGUMENTS]...\n", os);
         fputs("Execute PROGRAM [ARGUMENTS]...\n\nOptions are:\n", os);
-        fputs(" -r <DIR>  use DIR as posix root\n", os);
-        fputs(" -w <DIR>  change working directory to DIR before calling PROGRAM\n", os);
+        fputs(" -r <DIR>  use DIR as posix root.\n", os);
+        fputs(" -w <DIR>  change working directory to DIR before calling PROGRAM.\n", os);
         fputs(" -n <ENV>  do not translate ENV variable(s)\n", os);
         fputs("           multiple variables are comma separated.\n", os);
-        fputs(" -o        use ORIGINAL_PATH instead PATH.\n\n", os);
+        fputs(" -o        use ORIGINAL_PATH instead PATH.\n", os);
         fputs(" -f        convert all unknown posix absolute paths.\n", os);
         fputs(" -K        keep trailing path separators for paths.\n", os);
         fputs(" -q        do not print errors to stderr.\n", os);

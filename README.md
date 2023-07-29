@@ -38,8 +38,8 @@ Usage cygwrun [OPTIONS]... PROGRAM [ARGUMENTS]...
 Execute PROGRAM [ARGUMENTS]...
 
 Options are:
- -r <DIR>  use DIR as posix root
- -w <DIR>  change working directory to DIR before calling PROGRAM
+ -r <DIR>  use DIR as posix root.
+ -w <DIR>  change working directory to DIR before calling PROGRAM.
  -n <ENV>  do not translate ENV variable(s)
            multiple variables are comma separated.
  -o        use ORIGINAL_PATH instead PATH.
