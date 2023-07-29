@@ -37,6 +37,7 @@
 #define HBUFSIZ           8192
 #define EBUFSIZ           32768
 
+static DWORD    xtimeout  = INFINITE;
 static int      xrunexec  = 1;
 static int      xdumparg  = 0;
 static int      xshowerr  = 1;
@@ -141,6 +142,7 @@ static int usage(int rv)
         fputs(" -w <DIR>  change working directory to DIR before calling PROGRAM.\n", os);
         fputs(" -n <ENV>  do not translate ENV variable(s)\n", os);
         fputs("           multiple variables are comma separated.\n", os);
+        fputs(" -t <SEC>  timeout in SEC (seconds) for PROGRAM to finish.\n", os);
         fputs(" -o        use ORIGINAL_PATH instead PATH.\n", os);
         fputs(" -f        convert all unknown posix absolute paths.\n", os);
         fputs(" -K        keep trailing path separators for paths.\n", os);
@@ -388,6 +390,49 @@ static __inline int xisvarchar(int c)
     else
         return xvalidvarname[c];
 
+}
+
+static __inline int xisdigit(int ch)
+{
+    if ((ch > 47) && (ch < 58))
+        return 1;
+    else
+        return 0;
+}
+
+/**
+ * Simple atoi with range between 0 and 2000000.
+ * Leading white space characters are ignored.
+ * Returns negative value on error.
+ */
+static int xwcstoi(const wchar_t *sp)
+{
+    int rv = 0;
+    int dc = 0;
+
+    if (IS_EMPTY_WCS(sp))
+        return -1;
+    while(xisblank(*sp))
+        sp++;
+    while(xisdigit(*sp)) {
+        int dv = *sp - L'0';
+
+        if (dv || rv) {
+            rv *= 10;
+            rv += dv;
+        }
+        if (rv > 2000000) {
+            SetLastError(ERROR_INVALID_DATA);
+            return -1;
+        }
+        dc++;
+        sp++;
+    }
+    if (dc == 0) {
+        SetLastError(ERROR_INVALID_PARAMETER);
+        return -1;
+    }
+    return rv;
 }
 
 /**
@@ -1391,16 +1436,22 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             fprintf(stderr, "Failed to execute: '%S'\n",cmdblk);
     }
     else {
+        DWORD ws;
         SetConsoleCtrlHandler(consolehandler, TRUE);
         ResumeThread(cp.hThread);
         CloseHandle(cp.hThread);
         /**
          * Wait for child to finish
          */
-        WaitForSingleObject(cp.hProcess, INFINITE);
+        ws = WaitForSingleObject(cp.hProcess, xtimeout);
         SetConsoleCtrlHandler(consolehandler, FALSE);
-
-        GetExitCodeProcess(cp.hProcess, &rc);
+        if (ws == WAIT_TIMEOUT) {
+            rc = WAIT_TIMEOUT;
+            TerminateProcess(cp.hProcess, WAIT_TIMEOUT);
+        }
+        else {
+            GetExitCodeProcess(cp.hProcess, &rc);
+        }
         CloseHandle(cp.hProcess);
     }
 
@@ -1432,7 +1483,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         return EBADF;
     }
 
-    while ((opt = xwgetopt(argc, wargv, L"fKn:opqr:vVh?w:")) != EOF) {
+    while ((opt = xwgetopt(argc, wargv, L"fKn:opqr:vVh?t:w:")) != EOF) {
         switch (opt) {
             case L'f':
                 xforcewp = 1;
@@ -1450,6 +1501,15 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                         fputs("The ORIGINAL_PATH environment variable does not exists\n", stderr);
                     return ENOENT;
                 }
+            break;
+            case L't':
+                i = xwcstoi(xwoptarg);
+                if (i < 1) {
+                    if (xshowerr)
+                        fputs("The -t command option value is outside valid range\n", stderr);
+                    return EINVAL;
+                }
+                xtimeout = i * 1000;
             break;
             case L'p':
                 xrunexec = 0;

@@ -13,6 +13,7 @@ For a full list of changes, see the [git commit log][log]
  * Use CYGWRUN_POSIX_ROOT instead deprecated CYGWIN_ROOT and POSIX_ROOT
  * Set PATH to CYGWRUN_POSIX_PATH if set by user
  * Add **-o** command option that sets PATH to ORIGINAL_PATH
+ * Add **-t** command option that sets PROGRAM timeout
 
 ## v1.2.1
 
