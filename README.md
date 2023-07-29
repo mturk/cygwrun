@@ -213,6 +213,28 @@ If translation fails, the original argument will be preserved.
     $ --A=C:\cygwin64\tmp
 ```
 
+## Managing PATH environment variable
+
+By default Cygwrun will use the **PATH** environment
+variable passed by calling process and translate it
+to Windows convention.
+
+Since Cygwin or MSYS2 modifies the original PATH, user
+can use the **-o** command line option to set the PATH
+to the ORIGINAL_PATH. The ORIGINAL_PATH is variable
+set by Cygwin which contains the PATH before Cygwin
+was started.
+
+This is useful when Windows PATH contains the same
+program as Cygwin, like `python.exe`, `find.exe` etc.
+
+The other solution is to set the `CYGWRUN_POSIX_PATH`
+environment variable before calling Cygwrun.
+
+This variable will be to find the PROGRAM if defined
+as relative path, and will be passed as PATH variable
+to the child process.
+
 
 ## License
 
