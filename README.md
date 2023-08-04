@@ -176,7 +176,7 @@ However if trying to pass `/Q /tmp` this will not resolve correctly
     $ /tmp
 ```
 
-Use Cygwrun will solve the arguments correctly
+Using Cygwrun will solve the arguments correctly
 
 ```sh
     $ MSYS2_ARG_CONV_EXCL=* cygwrun.exe dumpargs.exe /Q /tmp
@@ -235,6 +235,29 @@ environment variable before calling Cygwrun.
 This variable will be to find the PROGRAM if defined
 as relative path, and will be passed as PATH variable
 to the child process.
+
+## Program life cycle
+
+By default Cygwrun will execute `PROGRAM` and wait
+until it finishes.
+
+Use **-t <SEC>** command option to set the timeout
+Cygwrun will wait for program to finish.
+
+```sh
+    $ cygwrun -t20 some_program.exe
+    $ ...
+    $ echo $?
+    $ 138
+```
+
+In case the `some_program.exe` does not finish within
+20 seconds, cygwrun will terminate the `some_program.exe`
+and return `ETIMEDOUT (138)` error.
+
+The valid range for **-t** command option is between `1`
+and `2000000` seconds.
+
 
 
 ## License
