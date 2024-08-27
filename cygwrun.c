@@ -37,6 +37,7 @@
 #define MBUFSIZ           2048
 #define HBUFSIZ           8192
 #define EBUFSIZ           32768
+#define WAIT_STDIN_THREAD 500
 
 #define CYGWRUN_EFAULT     1
 #define CYGWRUN_ETIMEDOUT  2
@@ -57,11 +58,9 @@ static int      xforcewp  = 0;
 static int      xrmendps  = 1;
 static int      xwoptind  = 1;   /* Index into parent argv vector */
 static int      xwoption  = 0;   /* Character checked for validity */
-static int      stdinsize = 3;
-static HANDLE   stdinpipe = NULL;
 static wchar_t *posixroot = NULL;
 static wchar_t **xrawenvs = NULL;
-static char     stdindata[8]     = { 89, 13, 10,  0 };
+static char     YCRLF[8]  = { 'Y', '\r', '\n',  0 };
 static const wchar_t  *xwoptarg  = NULL;
 static const wchar_t  *hexwchars = L"0123456789abcdef";
 
@@ -1373,19 +1372,14 @@ static BOOL WINAPI consolehandler(DWORD ctrl)
     return TRUE;
 }
 
-static DWORD WINAPI stdinthread(void *unused)
+static DWORD WINAPI stdinthread(void *param)
 {
-    DWORD  rc = 0;
     DWORD  wr = 0;
+    HANDLE wh = (HANDLE)param;
 
-    if (WriteFile(stdinpipe, stdindata, stdinsize, &wr, NULL) && (wr != 0)) {
-        if (!FlushFileBuffers(stdinpipe))
-            rc = GetLastError();
-    }
-    else {
-        rc = GetLastError();
-    }
-    return rc;
+    if (WriteFile(wh, YCRLF, 3, &wr, NULL) && (wr != 0))
+        FlushFileBuffers(wh);
+    return 0;
 }
 
 static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
@@ -1396,6 +1390,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     wchar_t *cmdblk;
     wchar_t *envblk;
     HANDLE  hstdin = NULL;
+    HANDLE  hstdip = NULL;
     PROCESS_INFORMATION cp;
     STARTUPINFOW si;
 
@@ -1502,22 +1497,22 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     waafree(wargv);
     waafree(wenvp);
     if (xrunbatch) {
-        if (!createstdpipe(&si.hStdInput, &stdinpipe)) {
+        if (!createstdpipe(&si.hStdInput, &hstdip)) {
             rc = GetLastError();
             if (xshowerr)
                 fprintf(stderr, "Failed to create stdinput pipes\n");
             return rc + CYGWRUN_ERROR;
         }
-        hstdin = CreateThread(NULL, 0, stdinthread, NULL, CREATE_SUSPENDED, NULL);
+        hstdin = CreateThread(NULL, 0, stdinthread, hstdip, CREATE_SUSPENDED, NULL);
         if (hstdin == NULL) {
             rc = GetLastError();
             if (xshowerr)
                 fprintf(stderr, "Failed to create stdinput thread\n");
             return rc + CYGWRUN_ERROR;
         }
+        si.dwFlags    = STARTF_USESTDHANDLES;
         si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
         si.hStdError  = GetStdHandle(STD_ERROR_HANDLE);
-        si.dwFlags    = STARTF_USESTDHANDLES;
     }
     SetConsoleCtrlHandler(NULL, FALSE);
     if (!CreateProcessW(cmdexe, cmdblk,
@@ -1543,40 +1538,41 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
          * Wait for child to finish
          */
         ws = WaitForSingleObject(cp.hProcess, xtimeout);
+        if (xrunbatch && (ws == WAIT_TIMEOUT)) {
+            GenerateConsoleCtrlEvent(CTRL_C_EVENT, 0);
+            ws = WaitForSingleObject(cp.hProcess, WAIT_STDIN_THREAD);
+        }
         SetConsoleCtrlHandler(consolehandler, FALSE);
-        if (ws == WAIT_OBJECT_0) {
-            if (!GetExitCodeProcess(cp.hProcess, &rc)) {
+        switch (ws) {
+            case WAIT_OBJECT_0:
                 rc = CYGWRUN_EFAULT;
-                TerminateProcess(cp.hProcess, rc);
-            }
-            else {
-                if (rc == STILL_ACTIVE) {
-                    rc = CYGWRUN_ECANCELED;
-                    TerminateProcess(cp.hProcess, rc);
+                if (GetExitCodeProcess(cp.hProcess, &rc)) {
+                    if (rc == STILL_ACTIVE)
+                        rc = CYGWRUN_ECANCELED;
+                    if (rc != 0)
+                        rc += CYGWRUN_ERROR;
                 }
-                else if (rc != 0) {
-                    rc += CYGWRUN_ERROR;
-                }
-            }
+            break;
+            case WAIT_TIMEOUT:
+                rc = CYGWRUN_ETIMEDOUT;
+            break;
+            default:
+                rc = CYGWRUN_ENOSYS;
+            break;
         }
-        else if (ws == WAIT_TIMEOUT) {
-            rc = CYGWRUN_ETIMEDOUT;
-            TerminateProcess(cp.hProcess, rc);
-        }
-        else {
-            rc = CYGWRUN_ENOSYS;
+        if ((rc > 0) && (rc < 10)) {
             TerminateProcess(cp.hProcess, rc);
         }
         if (hstdin) {
-            ws = WaitForSingleObject(hstdin, 500);
+            ws = WaitForSingleObject(hstdin, WAIT_STDIN_THREAD);
             if (ws != WAIT_OBJECT_0) {
                 CancelSynchronousIo(hstdin);
-                ws = WaitForSingleObject(hstdin, 500);
+                ws = WaitForSingleObject(hstdin, WAIT_STDIN_THREAD);
                 if (ws != WAIT_OBJECT_0)
                     TerminateThread(hstdin, CYGWRUN_ETIMEDOUT);
             }
             CloseHandle(hstdin);
-            CloseHandle(stdinpipe);
+            CloseHandle(hstdip);
         }
         CloseHandle(cp.hProcess);
     }
