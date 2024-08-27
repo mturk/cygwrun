@@ -10,6 +10,7 @@ For a full list of changes, see the [git commit log][log]
 
  * Send 'Y' to stdin if PROGRAM is cmd.exe executing batch file
  * Properly kill PROGRAM on timeout
+ * Use custom return values on failure
 
 ## v1.2.2
 

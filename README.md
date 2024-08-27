@@ -248,16 +248,24 @@ Cygwrun will wait for program to finish.
     $ cygwrun -t20 some_program.exe
     $ ...
     $ echo $?
-    $ 138
+    $ 2
 ```
 
 In case the `some_program.exe` does not finish within
 20 seconds, cygwrun will terminate the `some_program.exe`
-and return `ETIMEDOUT (138)` error.
+and return `CYGWRUN_ETIMEDOUT (2)` error.
 
 The valid range for **-t** command option is between `1`
 and `2000000` seconds.
 
+## Return values
+
+When the `PROGRAM` finishes, the return value of the
+program is incremented by 10, in case its not zero.
+
+Return values between `1` and `9` are reserved for
+cygwrun and are returned in case it cannot start the
+`PROGRAM`, or the configuration parameters are invalid.
 
 
 ## License

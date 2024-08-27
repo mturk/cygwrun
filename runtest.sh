@@ -136,7 +136,7 @@ test "x$rv" = "x$tmpdir $usrdir\\a" || xbexit 1 "Failed #7.1: \`$rv'"
 rv="`$_cygwrun $srcdir/test/echoargs.bat \"/tmp/some location\" | tr -d '\r'`"
 test "x$rv" = "x\"$tmpdir\\some location\"" || xbexit 1 "Failed #7.2: \`$rv'"
 rv="`$_cygwrun -t 2 $srcdir/test/infinite.bat`"
-test $? -ne 138 && xbexit 1 "Failed #7.3"
+test $? -ne 2 && xbexit 1 "Failed #7.3"
 
 
 echo "All tests passed!"

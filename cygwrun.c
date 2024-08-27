@@ -38,6 +38,16 @@
 #define HBUFSIZ           8192
 #define EBUFSIZ           32768
 
+#define CYGWRUN_EFAULT     1
+#define CYGWRUN_ETIMEDOUT  2
+#define CYGWRUN_ECANCELED  3
+#define CYGWRUN_ENOSYS     4
+#define CYGWRUN_ENOENT     5
+#define CYGWRUN_EINVAL     6
+#define CYGWRUN_ERANGE     7
+#define CYGWRUN_ERROR     10
+
+
 static DWORD    xtimeout  = INFINITE;
 static int      xrunbatch = 0;
 static int      xrunexec  = 1;
@@ -188,7 +198,7 @@ static wchar_t *xwmalloc(size_t size)
     wchar_t *p = (wchar_t *)malloc((size + 2) * sizeof(wchar_t));
     if (p == NULL) {
         _wperror(L"xwmalloc");
-        _exit(1);
+        _exit(CYGWRUN_EFAULT);
     }
     p[size++] = WNUL;
     p[size]   = WNUL;
@@ -200,7 +210,7 @@ static void *xcalloc(size_t number, size_t size)
     void *p = calloc(number + 2, size);
     if (p == NULL) {
         _wperror(L"xcalloc");
-        _exit(1);
+        _exit(CYGWRUN_EFAULT);
     }
     return p;
 }
@@ -665,7 +675,7 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
     if (oli == NULL) {
         xwoptind++;
         place = zerostring;
-        return EINVAL;
+        return CYGWRUN_EINVAL;
     }
     /* Does this option need an argument? */
     if (oli[1] == L':') {
@@ -688,7 +698,7 @@ int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
         place = zerostring;
         if (IS_EMPTY_WCS(xwoptarg)) {
             /* Option-argument is absent or empty */
-            return ENOENT;
+            return CYGWRUN_ENOENT;
         }
     }
     else {
@@ -1496,14 +1506,14 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             rc = GetLastError();
             if (xshowerr)
                 fprintf(stderr, "Failed to create stdinput pipes\n");
-            return rc;
+            return rc + CYGWRUN_ERROR;
         }
         hstdin = CreateThread(NULL, 0, stdinthread, NULL, CREATE_SUSPENDED, NULL);
         if (hstdin == NULL) {
             rc = GetLastError();
             if (xshowerr)
                 fprintf(stderr, "Failed to create stdinput thread\n");
-            return rc;
+            return rc + CYGWRUN_ERROR;
         }
         si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
         si.hStdError  = GetStdHandle(STD_ERROR_HANDLE);
@@ -1518,6 +1528,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         rc = GetLastError();
         if (xshowerr)
             fprintf(stderr, "Failed to execute: '%S'\n", cmdblk);
+        return rc + CYGWRUN_ERROR;
     }
     else {
         DWORD ws;
@@ -1535,22 +1546,25 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         SetConsoleCtrlHandler(consolehandler, FALSE);
         if (ws == WAIT_OBJECT_0) {
             if (!GetExitCodeProcess(cp.hProcess, &rc)) {
-                rc = EFAULT;
+                rc = CYGWRUN_EFAULT;
                 TerminateProcess(cp.hProcess, rc);
             }
             else {
                 if (rc == STILL_ACTIVE) {
-                    rc = ECANCELED;
+                    rc = CYGWRUN_ECANCELED;
                     TerminateProcess(cp.hProcess, rc);
+                }
+                else if (rc != 0) {
+                    rc += CYGWRUN_ERROR;
                 }
             }
         }
         else if (ws == WAIT_TIMEOUT) {
-            rc = ETIMEDOUT;
+            rc = CYGWRUN_ETIMEDOUT;
             TerminateProcess(cp.hProcess, rc);
         }
         else {
-            rc = ENOSYS;
+            rc = CYGWRUN_ENOSYS;
             TerminateProcess(cp.hProcess, rc);
         }
         if (hstdin) {
@@ -1559,7 +1573,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 CancelSynchronousIo(hstdin);
                 ws = WaitForSingleObject(hstdin, 500);
                 if (ws != WAIT_OBJECT_0)
-                    TerminateThread(hstdin, ETIMEDOUT);
+                    TerminateThread(hstdin, CYGWRUN_ETIMEDOUT);
             }
             CloseHandle(hstdin);
             CloseHandle(stdinpipe);
@@ -1592,7 +1606,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
 
     if (wenv == NULL) {
         fputs("\nMissing environment\n", stderr);
-        return EBADF;
+        return CYGWRUN_EFAULT;
     }
 
     while ((opt = xwgetopt(argc, wargv, L"fKn:opqr:vVh?t:w:")) != EOF) {
@@ -1611,7 +1625,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                 if (cpp == NULL) {
                     if (xshowerr)
                         fputs("The ORIGINAL_PATH environment variable does not exists\n", stderr);
-                    return ENOENT;
+                    return CYGWRUN_ENOENT;
                 }
             break;
             case L't':
@@ -1619,7 +1633,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                 if ((xtimeout < 1) || (xtimeout > 2000000)) {
                     if (xshowerr)
                         fputs("The -t command option value is outside valid range\n", stderr);
-                    return ERANGE;
+                    return CYGWRUN_ERANGE;
                 }
                 xtimeout *= 1000;
             break;
@@ -1648,12 +1662,12 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                 xfree(cwd);
                 cwd = xwcsdup(xwoptarg);
             break;
-            case EINVAL:
+            case CYGWRUN_EINVAL:
                 if (xshowerr)
                     fprintf(stderr, "Error: Invalid command line option: '%C'\n", xwoption);
                 return usage(opt);
             break;
-            case ENOENT:
+            case CYGWRUN_ENOENT:
                 if (xshowerr)
                     fprintf(stderr, "Error: Missing argument for option: '%C'\n", xwoption);
                 return usage(opt);
@@ -1679,14 +1693,14 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         else {
             if (xshowerr)
                 fputs("Missing PROGRAM argument\n", stderr);
-            return usage(1);
+            return usage(CYGWRUN_EINVAL);
         }
     }
     posixroot = getposixroot(crp);
     if (posixroot == NULL) {
         if (xshowerr)
             fputs("Cannot find valid POSIX_ROOT\n", stderr);
-        return ENOENT;
+        return CYGWRUN_ENOENT;
     }
     if (cpp) {
         wchar_t *p = cpp;
@@ -1713,7 +1727,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     if (cpp == NULL) {
         if (xshowerr)
             fputs("Missing PATH environment variable\n", stderr);
-        return ENOENT;
+        return CYGWRUN_ENOENT;
     }
     if (xdumparg) {
         for (i = 0; i < argc; i++) {
@@ -1730,7 +1744,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         if (!SetCurrentDirectoryW(cwd)) {
             if (xshowerr)
                 fprintf(stderr, "Invalid working directory: '%S'\n", cwd);
-            return ENOENT;
+            return CYGWRUN_ENOENT;
         }
         xfree(cwd);
     }
@@ -1738,7 +1752,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     if (cwd == NULL) {
         if (xshowerr)
             fputs("Cannot get current working directory\n", stderr);
-        return ENOENT;
+        return CYGWRUN_ENOENT;
     }
     ptd = xgetenv(L"TMP");
     if (ptd != NULL)
@@ -1753,7 +1767,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     if (ptd == NULL) {
         if (xshowerr)
             fputs("Both TEMP and TMP environment variables are missing\n", stderr);
-        return ENOENT;
+        return CYGWRUN_ENOENT;
     }
     npe = xwcsconcat(specialenv, ppe);
     xrawenvs = xsplitstr(npe, L',');
@@ -1797,7 +1811,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     if (exe == NULL) {
         if (xshowerr)
             fprintf(stderr, "Cannot find PROGRAM '%S'\n", prg);
-        return ENOENT;
+        return CYGWRUN_ENOENT;
     }
     xfree(prg);
     if (xisbatchfile(exe)) {
@@ -1808,7 +1822,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         if (p == NULL) {
             if (xshowerr)
                 fputs("Missing COMSPEC environment variable\n", stderr);
-            return ENOENT;
+            return CYGWRUN_ENOENT;
         }
         dupwargv[dupargc++] = getrealpathname(p, 0);
         dupwargv[dupargc++] = xwcsdup(L"/D");
