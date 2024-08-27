@@ -43,6 +43,7 @@ Options are:
  -n <ENV>  do not translate ENV variable(s)
            multiple variables are comma separated.
  -t <SEC>  timeout in SEC (seconds) for PROGRAM to finish.
+ -i [IOE]  enable or disable standard io pipes.
  -o        use ORIGINAL_PATH instead PATH.
  -f        convert all unknown posix absolute paths.
  -K        keep trailing path separators for paths.
@@ -232,7 +233,7 @@ program as Cygwin, like `python.exe`, `find.exe` etc.
 The other solution is to set the `CYGWRUN_POSIX_PATH`
 environment variable before calling Cygwrun.
 
-This variable will be to find the PROGRAM if defined
+This variable will be used to find the PROGRAM if defined
 as relative path, and will be passed as PATH variable
 to the child process.
 

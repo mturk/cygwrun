@@ -54,10 +54,13 @@ static int      xrunbatch = 0;
 static int      xrunexec  = 1;
 static int      xdumparg  = 0;
 static int      xshowerr  = 1;
+static int      xhasstdi  = 1;
+static int      xhasstde  = 1;
+static int      xhasstdo  = 1;
 static int      xforcewp  = 0;
 static int      xrmendps  = 1;
-static int      xwoptind  = 1;   /* Index into parent argv vector */
-static int      xwoption  = 0;   /* Character checked for validity */
+static int      xwoptind  = 1;   /* Index into parent argv vector   */
+static int      xwoption  = 0;   /* Character checked for validity  */
 static wchar_t *posixroot = NULL;
 static wchar_t **xrawenvs = NULL;
 static char     YCRLF[8]  = { 'Y', '\r', '\n',  0 };
@@ -165,6 +168,7 @@ static int usage(int rv)
         fputs(" -n <ENV>  do not translate ENV variable(s)\n", os);
         fputs("           multiple variables are comma separated.\n", os);
         fputs(" -t <SEC>  timeout in SEC (seconds) for PROGRAM to finish.\n", os);
+        fputs(" -i [IOE]  enable or disable standard io pipes.\n", os);
         fputs(" -o        use ORIGINAL_PATH instead PATH.\n", os);
         fputs(" -f        convert all unknown posix absolute paths.\n", os);
         fputs(" -K        keep trailing path separators for paths.\n", os);
@@ -430,6 +434,14 @@ static __inline int xisvarchar(int c)
     else
         return xvalidvarname[c];
 
+}
+
+static __inline int xisonoff(int c)
+{
+    if ((c == L'0') || (c == L'1') || (c == L'+') || (c == L'-'))
+        return 1;
+    else
+        return 0;
 }
 
 /**
@@ -1324,6 +1336,25 @@ static LPWSTR xuuidstring(LPWSTR b, int h)
     return b;
 }
 
+static HANDLE createnulpipe(void)
+{
+    HANDLE ph;
+    SECURITY_ATTRIBUTES sa;
+
+    sa.nLength              = (DWORD)sizeof(SECURITY_ATTRIBUTES);
+    sa.lpSecurityDescriptor = NULL;
+    sa.bInheritHandle       = TRUE;
+
+    ph = CreateFileW(L"NUL",
+                     GENERIC_READ | GENERIC_WRITE,
+                     0,
+                     &sa,
+                     OPEN_EXISTING,
+                     FILE_ATTRIBUTE_NORMAL,
+                     NULL);
+    return ph;
+}
+
 static BOOL createstdpipe(LPHANDLE rd, LPHANDLE wr)
 {
     DWORD i;
@@ -1484,6 +1515,15 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     memset(&cp, 0, sizeof(PROCESS_INFORMATION));
     memset(&si, 0, sizeof(STARTUPINFOW));
     si.cb = (DWORD)sizeof(STARTUPINFOW);
+    si.dwFlags = STARTF_USESTDHANDLES;
+    if (xhasstdo)
+        si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+    else
+        si.hStdOutput = createnulpipe();
+    if (xhasstde)
+        si.hStdError  = GetStdHandle(STD_ERROR_HANDLE);
+    else
+        si.hStdError  = createnulpipe();
 
     cmdexe = xwcsdup(wargv[0]);
     for (i = 0; i < argc; i++) {
@@ -1510,14 +1550,17 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 fprintf(stderr, "Failed to create stdinput thread\n");
             return rc + CYGWRUN_ERROR;
         }
-        si.dwFlags    = STARTF_USESTDHANDLES;
-        si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
-        si.hStdError  = GetStdHandle(STD_ERROR_HANDLE);
+    }
+    else {
+        if (xhasstdi)
+            si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+        else
+            si.hStdInput = createnulpipe();
     }
     SetConsoleCtrlHandler(NULL, FALSE);
     if (!CreateProcessW(cmdexe, cmdblk,
                         NULL, NULL, TRUE,
-                        CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT,
+                        CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT | CREATE_NEW_PROCESS_GROUP,
                         envblk, NULL,
                        &si, &cp)) {
         rc = GetLastError();
@@ -1539,7 +1582,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
          */
         ws = WaitForSingleObject(cp.hProcess, xtimeout);
         if (xrunbatch && (ws == WAIT_TIMEOUT)) {
-            GenerateConsoleCtrlEvent(CTRL_C_EVENT, 0);
+            GenerateConsoleCtrlEvent(CTRL_C_EVENT, cp.dwProcessId);
             ws = WaitForSingleObject(cp.hProcess, WAIT_STDIN_THREAD);
         }
         SetConsoleCtrlHandler(consolehandler, FALSE);
@@ -1605,13 +1648,35 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         return CYGWRUN_EFAULT;
     }
 
-    while ((opt = xwgetopt(argc, wargv, L"fKn:opqr:vVh?t:w:")) != EOF) {
+    while ((opt = xwgetopt(argc, wargv, L"fKi:n:opqr:vVh?t:w:")) != EOF) {
         switch (opt) {
             case L'f':
                 xforcewp = 1;
             break;
             case L'K':
                 xrmendps = 0;
+            break;
+            case L'i':
+                if (xwcslen(xwoptarg) != 3) {
+                    if (xshowerr)
+                        fputs("The -i option is invalid\n", stderr);
+                    return CYGWRUN_EINVAL;
+                }
+                if (xisonoff(xwoptarg[0]) &&
+                    xisonoff(xwoptarg[1]) &&
+                    xisonoff(xwoptarg[2])) {
+                    if ((xwoptarg[0] == L'0') || (xwoptarg[0] == L'-'))
+                        xhasstdi = 0;
+                    if ((xwoptarg[1] == L'0') || (xwoptarg[1] == L'-'))
+                        xhasstdo = 0;
+                    if ((xwoptarg[2] == L'0') || (xwoptarg[2] == L'-'))
+                        xhasstde = 0;
+                }
+                else {
+                    if (xshowerr)
+                        fputs("The -i option is invalid\n", stderr);
+                    return CYGWRUN_EINVAL;
+                }
             break;
             case L'n':
                 ppe = xwcsappend(ppe, L',', xwoptarg);
