@@ -8,8 +8,8 @@ For a full list of changes, see the [git commit log][log]
 
 ## v1.2.3
 
- * In development
-
+ * Send 'Y' to stdin if PROGRAM is cmd.exe executing batch file
+ * Properly kill PROGRAM on timeout
 
 ## v1.2.2
 

@@ -1538,6 +1538,12 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 rc = EFAULT;
                 TerminateProcess(cp.hProcess, rc);
             }
+            else {
+                if (rc == STILL_ACTIVE) {
+                    rc = ECANCELED;
+                    TerminateProcess(cp.hProcess, rc);
+                }
+            }
         }
         else if (ws == WAIT_TIMEOUT) {
             rc = ETIMEDOUT;
@@ -1547,12 +1553,18 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             rc = ENOSYS;
             TerminateProcess(cp.hProcess, rc);
         }
-        CloseHandle(cp.hProcess);
         if (hstdin) {
-            ws = WaitForSingleObject(hstdin, 1000);
-            if (ws != WAIT_OBJECT_0)
+            ws = WaitForSingleObject(hstdin, 500);
+            if (ws != WAIT_OBJECT_0) {
                 CancelSynchronousIo(hstdin);
+                ws = WaitForSingleObject(hstdin, 500);
+                if (ws != WAIT_OBJECT_0)
+                    TerminateThread(hstdin, ETIMEDOUT);
+            }
+            CloseHandle(hstdin);
+            CloseHandle(stdinpipe);
         }
+        CloseHandle(cp.hProcess);
     }
 
     return rc;
@@ -1798,12 +1810,13 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
                 fputs("Missing COMSPEC environment variable\n", stderr);
             return ENOENT;
         }
-        dupwargv[dupargc++] = p;
+        dupwargv[dupargc++] = getrealpathname(p, 0);
         dupwargv[dupargc++] = xwcsdup(L"/D");
         dupwargv[dupargc++] = xwcsdup(L"/E:ON");
         dupwargv[dupargc++] = xwcsdup(L"/V:OFF");
         dupwargv[dupargc++] = xwcsdup(L"/C");
         xrunbatch = 1;
+        xfree(p);
     }
     dupwargv[dupargc++] = exe;
     xrunexec = dupargc;
