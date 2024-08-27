@@ -6,6 +6,10 @@ For a full list of changes, see the [git commit log][log]
   [log]: https://github.com/mturk/cygwrun/commits/
 
 
+## v1.2.4
+
+ * In development
+
 ## v1.2.3
 
  * Send 'Y' to stdin if PROGRAM is cmd.exe executing batch file
