@@ -1422,6 +1422,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     wchar_t *envblk;
     HANDLE  hstdin = NULL;
     HANDLE  hstdip = NULL;
+    HANDLE  hstdnn = NULL;
     PROCESS_INFORMATION cp;
     STARTUPINFOW si;
 
@@ -1516,14 +1517,16 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     memset(&si, 0, sizeof(STARTUPINFOW));
     si.cb = (DWORD)sizeof(STARTUPINFOW);
     si.dwFlags = STARTF_USESTDHANDLES;
+    if (!xhasstdi || !xhasstdo || !xhasstde)
+        hstdnn = createnulpipe();
     if (xhasstdo)
         si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
     else
-        si.hStdOutput = createnulpipe();
+        si.hStdOutput = hstdnn;
     if (xhasstde)
         si.hStdError  = GetStdHandle(STD_ERROR_HANDLE);
     else
-        si.hStdError  = createnulpipe();
+        si.hStdError  = hstdnn;
 
     cmdexe = xwcsdup(wargv[0]);
     for (i = 0; i < argc; i++) {
@@ -1543,6 +1546,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                 fprintf(stderr, "Failed to create stdinput pipes\n");
             return rc + CYGWRUN_ERROR;
         }
+        xhasstdi = 0;
         hstdin = CreateThread(NULL, 0, stdinthread, hstdip, CREATE_SUSPENDED, NULL);
         if (hstdin == NULL) {
             rc = GetLastError();
@@ -1555,7 +1559,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         if (xhasstdi)
             si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
         else
-            si.hStdInput = createnulpipe();
+            si.hStdInput = hstdnn;
     }
     SetConsoleCtrlHandler(NULL, FALSE);
     if (!CreateProcessW(cmdexe, cmdblk,
@@ -1577,6 +1581,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             ResumeThread(hstdin);
             CloseHandle(si.hStdInput);
         }
+        CloseHandle(hstdnn);
         /**
          * Wait for child to finish
          */
