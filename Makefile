@@ -53,7 +53,7 @@ LNOPTS  = -m64 -O2 -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -Wno
 RCOPTS  = -l 0x409 -F pe-x86-64 -O coff
 RFLAGS  = -D NDEBUG -D _WIN32_WINNT=$(WINVER) -D WINVER=$(WINVER) $(EXTRA_RFLAGS)
 CLOPTS  = $(LNOPTS) -c
-LDLIBS  = -lkernel32
+LDLIBS  = -lkernel32 -lbcrypt
 RLOPTS  = --strip-unneeded
 
 ifdef _VENDOR_SFX

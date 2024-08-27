@@ -16,6 +16,7 @@
  */
 
 #include <windows.h>
+#include <bcrypt.h>
 #include <tlhelp32.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,6 +39,7 @@
 #define EBUFSIZ           32768
 
 static DWORD    xtimeout  = INFINITE;
+static int      xrunbatch = 0;
 static int      xrunexec  = 1;
 static int      xdumparg  = 0;
 static int      xshowerr  = 1;
@@ -45,10 +47,13 @@ static int      xforcewp  = 0;
 static int      xrmendps  = 1;
 static int      xwoptind  = 1;   /* Index into parent argv vector */
 static int      xwoption  = 0;   /* Character checked for validity */
-static const wchar_t  *xwoptarg = NULL;
-
+static int      stdinsize = 3;
+static HANDLE   stdinpipe = NULL;
 static wchar_t *posixroot = NULL;
 static wchar_t **xrawenvs = NULL;
+static char     stdindata[8]     = { 89, 13, 10,  0 };
+static const wchar_t  *xwoptarg  = NULL;
+static const wchar_t  *hexwchars = L"0123456789abcdef";
 
 static const wchar_t *pathmatches[] = {
     L"/cygdrive/?/+*",
@@ -203,13 +208,6 @@ static void *xcalloc(size_t number, size_t size)
 static wchar_t **waalloc(size_t size)
 {
     return (wchar_t **)xcalloc(size, sizeof(wchar_t *));
-
-    wchar_t **p = (wchar_t **)calloc(size + 2, sizeof(wchar_t *));
-    if (p == NULL) {
-        _wperror(L"waalloc");
-        _exit(1);
-    }
-    return p;
 }
 
 static void xfree(void *m)
@@ -251,6 +249,31 @@ static wchar_t *xwcsndup(const wchar_t *s, size_t len)
     n = wcsnlen(s, len);
     p = xwmalloc(n);
     return wmemcpy(p, s, n);
+}
+
+static int xwcslcat(wchar_t *dst, int siz, int pos, const wchar_t *src)
+{
+    const wchar_t *s = src;
+    wchar_t *d = dst + pos;
+    int      c = pos;
+    int      n;
+
+    if (dst == NULL)
+        return 0;
+    n = siz - pos;
+    if (n < 2)
+        return siz;
+    *d = WNUL;
+    if (IS_EMPTY_WCS(src))
+        return c;
+    while ((n-- != 1) && (*s != WNUL)) {
+        *d++ = *s++;
+         c++;
+    }
+    *d = WNUL;
+    if (*s != WNUL)
+        c++;
+    return c;
 }
 
 static wchar_t *xgetenv(const wchar_t *s)
@@ -1271,9 +1294,88 @@ static wchar_t *getposixroot(const wchar_t *rp)
     return r;
 }
 
+static LPWSTR xuuidstring(LPWSTR b, int h)
+{
+    BYTE d[16];
+    int  i;
+    int  x;
+
+    if (BCryptGenRandom(NULL, d, 16,
+                        BCRYPT_USE_SYSTEM_PREFERRED_RNG) != 0)
+        return NULL;
+    for (i = 0, x = 0; i < 16; i++) {
+        if (h) {
+            if (i == 4 || i == 6 || i == 8 || i == 10)
+                b[x++] = L'-';
+        }
+        b[x++] = hexwchars[d[i] >> 4];
+        b[x++] = hexwchars[d[i] & 0x0F];
+    }
+    b[x] = WNUL;
+    return b;
+}
+
+static BOOL createstdpipe(LPHANDLE rd, LPHANDLE wr)
+{
+    DWORD i;
+    BYTE  b;
+    WCHAR name[BBUFSIZ];
+    SECURITY_ATTRIBUTES sa;
+
+
+    sa.nLength              = (DWORD)sizeof(SECURITY_ATTRIBUTES);
+    sa.lpSecurityDescriptor = NULL;
+    sa.bInheritHandle       = TRUE;
+
+    b = LOBYTE(GetCurrentProcessId());
+    i = xwcslcat(name, BBUFSIZ, 0, L"\\\\.\\pipe\\");
+    name[i++] = hexwchars[b >> 4];
+    name[i++] = hexwchars[b & 0x0F];
+    name[i++] = L'-';
+    if (xuuidstring(name + i, 1) == NULL)
+        return FALSE;
+    *rd = CreateNamedPipeW(name,
+                           PIPE_ACCESS_INBOUND,
+                           PIPE_TYPE_BYTE,
+                           1,
+                           0,
+                           65536,
+                           0,
+                           &sa);
+    if (IS_INVALID_HANDLE(*rd))
+        return FALSE;
+
+    *wr = CreateFileW(name,
+                      GENERIC_WRITE,
+                      0,
+                      NULL,
+                      OPEN_EXISTING,
+                      FILE_ATTRIBUTE_NORMAL,
+                      NULL);
+    if (IS_INVALID_HANDLE(*wr))
+        return FALSE;
+    else
+        return TRUE;
+}
+
 static BOOL WINAPI consolehandler(DWORD ctrl)
 {
     return TRUE;
+}
+
+static DWORD WINAPI stdinthread(void *unused)
+{
+    DWORD  rc = 0;
+    DWORD  wr = 0;
+
+    if (WriteFile(stdinpipe, stdindata, stdinsize, &wr, NULL) && (wr != 0)) {
+        if (!FlushFileBuffers(stdinpipe))
+            rc = GetLastError();
+    }
+    else {
+        rc = GetLastError();
+    }
+    return rc;
 }
 
 static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
@@ -1283,6 +1385,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     wchar_t *cmdexe;
     wchar_t *cmdblk;
     wchar_t *envblk;
+    HANDLE  hstdin = NULL;
     PROCESS_INFORMATION cp;
     STARTUPINFOW si;
 
@@ -1375,7 +1478,6 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
 
     memset(&cp, 0, sizeof(PROCESS_INFORMATION));
     memset(&si, 0, sizeof(STARTUPINFOW));
-
     si.cb = (DWORD)sizeof(STARTUPINFOW);
 
     cmdexe = xwcsdup(wargv[0]);
@@ -1389,8 +1491,25 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     envblk = xarrblk(envc, wenvp, WNUL);
     waafree(wargv);
     waafree(wenvp);
+    if (xrunbatch) {
+        if (!createstdpipe(&si.hStdInput, &stdinpipe)) {
+            rc = GetLastError();
+            if (xshowerr)
+                fprintf(stderr, "Failed to create stdinput pipes\n");
+            return rc;
+        }
+        hstdin = CreateThread(NULL, 0, stdinthread, NULL, CREATE_SUSPENDED, NULL);
+        if (hstdin == NULL) {
+            rc = GetLastError();
+            if (xshowerr)
+                fprintf(stderr, "Failed to create stdinput thread\n");
+            return rc;
+        }
+        si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+        si.hStdError  = GetStdHandle(STD_ERROR_HANDLE);
+        si.dwFlags    = STARTF_USESTDHANDLES;
+    }
     SetConsoleCtrlHandler(NULL, FALSE);
-
     if (!CreateProcessW(cmdexe, cmdblk,
                         NULL, NULL, TRUE,
                         CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT,
@@ -1398,26 +1517,42 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                        &si, &cp)) {
         rc = GetLastError();
         if (xshowerr)
-            fprintf(stderr, "Failed to execute: '%S'\n",cmdblk);
+            fprintf(stderr, "Failed to execute: '%S'\n", cmdblk);
     }
     else {
         DWORD ws;
         SetConsoleCtrlHandler(consolehandler, TRUE);
         ResumeThread(cp.hThread);
         CloseHandle(cp.hThread);
+        if (hstdin) {
+            ResumeThread(hstdin);
+            CloseHandle(si.hStdInput);
+        }
         /**
          * Wait for child to finish
          */
         ws = WaitForSingleObject(cp.hProcess, xtimeout);
         SetConsoleCtrlHandler(consolehandler, FALSE);
-        if (ws == WAIT_TIMEOUT) {
+        if (ws == WAIT_OBJECT_0) {
+            if (!GetExitCodeProcess(cp.hProcess, &rc)) {
+                rc = EFAULT;
+                TerminateProcess(cp.hProcess, rc);
+            }
+        }
+        else if (ws == WAIT_TIMEOUT) {
             rc = ETIMEDOUT;
-            TerminateProcess(cp.hProcess, WAIT_TIMEOUT);
+            TerminateProcess(cp.hProcess, rc);
         }
         else {
-            GetExitCodeProcess(cp.hProcess, &rc);
+            rc = ENOSYS;
+            TerminateProcess(cp.hProcess, rc);
         }
         CloseHandle(cp.hProcess);
+        if (hstdin) {
+            ws = WaitForSingleObject(hstdin, 1000);
+            if (ws != WAIT_OBJECT_0)
+                CancelSynchronousIo(hstdin);
+        }
     }
 
     return rc;
@@ -1668,6 +1803,7 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
         dupwargv[dupargc++] = xwcsdup(L"/E:ON");
         dupwargv[dupargc++] = xwcsdup(L"/V:OFF");
         dupwargv[dupargc++] = xwcsdup(L"/C");
+        xrunbatch = 1;
     }
     dupwargv[dupargc++] = exe;
     xrunexec = dupargc;
