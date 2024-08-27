@@ -16,7 +16,6 @@
  */
 
 #include <windows.h>
-#include <bcrypt.h>
 #include <tlhelp32.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,6 +25,7 @@
 #include <process.h>
 #include <fcntl.h>
 #include <io.h>
+#include <time.h>
 #include "cygwrun.h"
 
 #define WNUL              L'\0'
@@ -50,6 +50,7 @@
 
 
 static DWORD    xtimeout  = INFINITE;
+static DWORD    xtickcnt  = 0;
 static int      xrunbatch = 0;
 static int      xrunexec  = 1;
 static int      xdumparg  = 0;
@@ -1321,9 +1322,9 @@ static LPWSTR xuuidstring(LPWSTR b, int h)
     int  i;
     int  x;
 
-    if (BCryptGenRandom(NULL, d, 16,
-                        BCRYPT_USE_SYSTEM_PREFERRED_RNG) != 0)
-        return NULL;
+    srand((unsigned int)time(NULL) + xtickcnt);
+    for (i = 0; i < 16; i++)
+        d[i] = rand() % 256;
     for (i = 0, x = 0; i < 16; i++) {
         if (h) {
             if (i == 4 || i == 6 || i == 8 || i == 10)
@@ -1367,8 +1368,13 @@ static BOOL createstdpipe(LPHANDLE rd, LPHANDLE wr)
     sa.lpSecurityDescriptor = NULL;
     sa.bInheritHandle       = TRUE;
 
-    b = LOBYTE(GetCurrentProcessId());
     i = xwcslcat(name, BBUFSIZ, 0, L"\\\\.\\pipe\\");
+    b = LOBYTE(GetTickCount() + GetCurrentThreadId());
+    name[i++] = hexwchars[b >> 4];
+    name[i++] = hexwchars[b & 0x0F];
+    b = HIBYTE(xtickcnt + b);
+    while (b == 0)
+        b = LOBYTE(GetTickCount());
     name[i++] = hexwchars[b >> 4];
     name[i++] = hexwchars[b & 0x0F];
     name[i++] = L'-';
@@ -1651,11 +1657,15 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     int envc    = 0;
     int opt     = 0;
 
+    /**
+     * Make sure child processes are kept quiet.
+     */
+    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX | SEM_NOGPFAULTERRORBOX);
     if (wenv == NULL) {
         fputs("\nMissing environment\n", stderr);
         return CYGWRUN_EFAULT;
     }
-
+    xtickcnt = GetTickCount() + GetCurrentProcessId();
     while ((opt = xwgetopt(argc, wargv, L"fKi:n:opqr:vVh?t:w:")) != EOF) {
         switch (opt) {
             case L'f':
