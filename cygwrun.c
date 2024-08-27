@@ -1417,11 +1417,13 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
 {
     int   i, m;
     DWORD rc = 0;
+    DWORD cf = CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT;
     wchar_t *cmdexe;
     wchar_t *cmdblk;
     wchar_t *envblk;
     HANDLE  hstdin = NULL;
-    HANDLE  hstdip = NULL;
+    HANDLE  hstdir = NULL;
+    HANDLE  hstdiw = NULL;
     HANDLE  hstdnn = NULL;
     PROCESS_INFORMATION cp;
     STARTUPINFOW si;
@@ -1539,21 +1541,21 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
     envblk = xarrblk(envc, wenvp, WNUL);
     waafree(wargv);
     waafree(wenvp);
-    if (xrunbatch) {
-        if (!createstdpipe(&si.hStdInput, &hstdip)) {
+    if (xrunbatch && xhasstdi) {
+        if (!createstdpipe(&hstdir, &hstdiw)) {
             rc = GetLastError();
             if (xshowerr)
                 fprintf(stderr, "Failed to create stdinput pipes\n");
             return rc + CYGWRUN_ERROR;
         }
-        xhasstdi = 0;
-        hstdin = CreateThread(NULL, 0, stdinthread, hstdip, CREATE_SUSPENDED, NULL);
+        hstdin = CreateThread(NULL, 0, stdinthread, hstdiw, CREATE_SUSPENDED, NULL);
         if (hstdin == NULL) {
             rc = GetLastError();
             if (xshowerr)
                 fprintf(stderr, "Failed to create stdinput thread\n");
             return rc + CYGWRUN_ERROR;
         }
+        si.hStdInput = hstdir;
     }
     else {
         if (xhasstdi)
@@ -1562,9 +1564,10 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
             si.hStdInput = hstdnn;
     }
     SetConsoleCtrlHandler(NULL, FALSE);
+    if (xrunbatch)
+        cf |= CREATE_NEW_PROCESS_GROUP;
     if (!CreateProcessW(cmdexe, cmdblk,
-                        NULL, NULL, TRUE,
-                        CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT | CREATE_NEW_PROCESS_GROUP,
+                        NULL, NULL, TRUE, cf,
                         envblk, NULL,
                        &si, &cp)) {
         rc = GetLastError();
@@ -1577,10 +1580,10 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
         SetConsoleCtrlHandler(consolehandler, TRUE);
         ResumeThread(cp.hThread);
         CloseHandle(cp.hThread);
-        if (hstdin) {
+        if (hstdin)
             ResumeThread(hstdin);
-            CloseHandle(si.hStdInput);
-        }
+        if (hstdir)
+            CloseHandle( hstdir);
         CloseHandle(hstdnn);
         /**
          * Wait for child to finish
@@ -1620,7 +1623,7 @@ static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
                     TerminateThread(hstdin, CYGWRUN_ETIMEDOUT);
             }
             CloseHandle(hstdin);
-            CloseHandle(hstdip);
+            CloseHandle(hstdiw);
         }
         CloseHandle(cp.hProcess);
     }
