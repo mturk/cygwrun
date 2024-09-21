@@ -22,74 +22,67 @@
 #include <string.h>
 #include <wchar.h>
 #include <errno.h>
-#include <process.h>
-#include <fcntl.h>
-#include <io.h>
-#include <time.h>
+#include <signal.h>
 #include "cygwrun.h"
 
-#define WNUL              L'\0'
-#define IS_PSW(_c)        (((_c) == L'/') || ((_c)  == L'\\'))
-#define IS_EMPTY_WCS(_s)  (((_s) == NULL) || (*(_s) == WNUL))
-#define IS_VALID_WCS(_s)  (((_s) != NULL) && (*(_s) != WNUL))
-#define BBUFSIZ           512
-#define SBUFSIZ           1024
-#define MBUFSIZ           2048
-#define HBUFSIZ           8192
-#define EBUFSIZ           32768
-#define WAIT_STDIN_THREAD 500
+#define WNUL                    L'\0'
+#define BBUFSIZ                  512
 
-#define CYGWRUN_EFAULT     1
-#define CYGWRUN_ETIMEDOUT  2
-#define CYGWRUN_ECANCELED  3
-#define CYGWRUN_ENOSYS     4
-#define CYGWRUN_ENOENT     5
-#define CYGWRUN_EINVAL     6
-#define CYGWRUN_ERANGE     7
-#define CYGWRUN_ERROR     10
+#define CYGWRUN_ERRMAX           125
+#define CYGWRUN_FAILED           126
+#define CYGWRUN_NOEXEC           127
+#define CYGWRUN_SIGBASE          128
 
+#define CYGWRUN_KILL_DEPTH         4
+#define CYGWRUN_KILL_TIMEOUT     500
+#define CYGWRUN_CRTL_C_WAIT     1000
 
-static DWORD    xtimeout  = INFINITE;
-static DWORD    xtickcnt  = 0;
-static int      xrunbatch = 0;
-static int      xrunexec  = 1;
-static int      xdumparg  = 0;
-static int      xshowerr  = 1;
-static int      xhasstdi  = 1;
-static int      xhasstde  = 1;
-static int      xhasstdo  = 1;
-static int      xforcewp  = 0;
-static int      xrmendps  = 1;
-static int      xwoptind  = 1;   /* Index into parent argv vector   */
-static int      xwoption  = 0;   /* Character checked for validity  */
-static wchar_t *posixroot = NULL;
-static wchar_t **xrawenvs = NULL;
-static char     YCRLF[8]  = { 'Y', '\r', '\n',  0 };
-static const wchar_t  *xwoptarg  = NULL;
-static const wchar_t  *hexwchars = L"0123456789abcdef";
+#define CYGWRUN_SIGINT          (CYGWRUN_SIGBASE + SIGINT)
+#define CYGWRUN_SIGTERM         (CYGWRUN_SIGBASE + SIGTERM)
+
+#define IS_PSW(_c)              (((_c) == L'/') || ((_c)  == L'\\'))
+#define IS_EMPTY_WCS(_s)        (((_s) == NULL) || (*(_s) == WNUL))
+#define IS_VALID_WCS(_s)        (((_s) != NULL) && (*(_s) != WNUL))
+
+/**
+ * Align to 16 bytes
+ */
+#define CYGWRUN_ALIGN(_S)       (((_S) + 0x0000000F) & 0xFFFFFFF0)
+
+static DWORD    xtimeout    = INFINITE;
+static int      xshowerr    = 1;
+static int      xrmendps    = 1;
+static int      xenvcount   = 0;
+#if PROJECT_ISDEV_VERSION
+static int      xnalloc     = 0;
+static int      xnmfree     = 0;
+#endif
+static wchar_t *posixpath   = NULL;
+static wchar_t *posixroot   = NULL;
+static wchar_t *posixwork   = NULL;
+
+static wchar_t **xenvvars   = NULL;
+static wchar_t **xenvvals   = NULL;
+static wchar_t **xrawenvs   = NULL;
+static wchar_t **xdelenvs   = NULL;
+
+static wchar_t  zerostr[8]  = { 0 };
 
 static const wchar_t *pathmatches[] = {
     L"/cygdrive/?/+*",
     L"/?/+*",
-    L"/dev/*",
     L"/bin/*",
-    L"/clang64/*",
+    L"/dev/*",
     L"/etc/*",
     L"/home/*",
     L"/lib/*",
-    L"/lib64/*",
-    L"/media/*",
-    L"/mingw64/*",
     L"/mnt/*",
     L"/opt/*",
-    L"/proc/*",
-    L"/root/*",
     L"/run/*",
     L"/sbin/*",
     L"/share/*",
     L"/sys/*",
     L"/tmp/*",
-    L"/ucrt64/*",
     L"/usr/*",
     L"/var/*",
     NULL
@@ -97,113 +90,124 @@ static const wchar_t *pathmatches[] = {
 
 static const wchar_t *pathfixed[] = {
     L"/bin",
-    L"/clang64",
     L"/dev",
     L"/etc",
     L"/home",
     L"/lib",
-    L"/lib64",
-    L"/media",
-    L"/mingw64",
     L"/mnt",
     L"/opt",
-    L"/proc",
-    L"/root",
     L"/run",
     L"/sbin",
     L"/share",
     L"/sys",
     L"/tmp",
-    L"/ucrt64",
     L"/usr",
     L"/var",
     NULL
 };
 
-static const wchar_t *specialenv = L"!::,!;,PS1";
+static const wchar_t *sskipenv =
+    L"OS,PATH,PATHEXT,PRINTER,PROCESSOR_*,PROMPT,PS1,PWD,SHLVL,TERM,TZ";
 
-static const wchar_t *removeenv[] = {
-    L"_",
-    L"CYGWRUN_POSIX_ROOT",
-    L"CYGWRUN_POSIX_PATH",
-    L"OLDPWD",
-    L"ORIGINAL_PATH",
-    L"ORIGINAL_TEMP",
-    L"ORIGINAL_TMP",
+static const wchar_t *ucenvvars[] = {
+    L"COMMONPROGRAMFILES",
+    L"COMSPEC",
     L"PATH",
-    L"PWD",
+    L"PLATFORM",
+    L"PROGRAMDATA",
+    L"PROGRAMFILES",
+    L"SYSTEMDRIVE",
+    L"SYSTEMROOT",
     L"TEMP",
     L"TMP",
+    L"WINDIR",
     NULL
 };
 
-static const wchar_t *posixrenv[] = {
-    L"CYGWRUN_POSIX_ROOT",
-    L"POSIX_ROOT",
-    L"CYGWIN_ROOT",
-    NULL
-};
-
-const char xvalidvarname[128] =
+static __inline int xisalpha(int c)
 {
-    /** Reject all ctrl codes...                                          */
-        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    /**   ! " # $ % & ' ( ) * + , - . /  0 1 2 3 4 5 6 7 8 9 : ; < = > ?  */
-        0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0, 1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,
-    /** @ A B C D E F G H I J K L M N O  P Q R S T U V W X Y Z [ \ ] ^ _  */
-        0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2, 2,2,2,2,2,2,2,2,2,2,2,0,0,0,0,1,
-    /** ` a b c d e f g h i j k l m n o  p q r s t u v w x y z { | } ~    */
-        0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2, 2,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0
-};
-
-static wchar_t zerostring[4] = { WNUL, WNUL, WNUL, WNUL };
-
-static int usage(int rv)
-{
-    if (xshowerr) {
-        FILE *os = rv == 0 ? stdout : stderr;
-        fputs("\nUsage " PROJECT_NAME " [OPTIONS]... PROGRAM [ARGUMENTS]...\n", os);
-        fputs("Execute PROGRAM [ARGUMENTS]...\n\nOptions are:\n", os);
-        fputs(" -r <DIR>  use DIR as posix root.\n", os);
-        fputs(" -w <DIR>  change working directory to DIR before calling PROGRAM.\n", os);
-        fputs(" -n <ENV>  do not translate ENV variable(s)\n", os);
-        fputs("           multiple variables are comma separated.\n", os);
-        fputs(" -t <SEC>  timeout in SEC (seconds) for PROGRAM to finish.\n", os);
-        fputs(" -i [IOE]  enable or disable standard io pipes.\n", os);
-        fputs(" -o        use ORIGINAL_PATH instead PATH.\n", os);
-        fputs(" -f        convert all unknown posix absolute paths.\n", os);
-        fputs(" -K        keep trailing path separators for paths.\n", os);
-        fputs(" -q        do not print errors to stderr.\n", os);
-        fputs(" -v        print version information and exit.\n", os);
-        fputs(" -V        print detailed version information and exit.\n", os);
-        fputs(" -h | -?   print this screen and exit.\n", os);
-        fputs(" -p        print arguments instead executing PROGRAM.\n\n", os);
-        fputs("To file bugs, visit " PROJECT_URL, os);
-    }
-    return rv;
+    return ((c >= 0x41 && c <= 0x5A) || (c >= 0x61 && c <= 0x7A));
 }
 
-static int version(int verbose)
+static __inline int xisalnum(int c)
 {
-    if (verbose) {
-        fputs(PROJECT_NAME " version " PROJECT_VERSION_ALL "\n\n", stdout);
-        fputs(PROJECT_LICENSE_SHORT "\n\n", stdout);
-        fputs("Visit " PROJECT_URL " for more details", stdout);
-    }
-    else {
-        fputs(PROJECT_NAME " version " PROJECT_VERSION_TXT, stdout);
-    }
-    return 0;
+    return ((c >= 0x41 && c <= 0x5A) || (c >= 0x61 && c <= 0x7A) ||
+            (c >= 0x30 && c <= 0x39));
 }
 
+static __inline int xisblank(int c)
+{
+    return (c == 0x20 || c == 0x09);
+}
+
+static __inline int xtolower(int c)
+{
+    return (c >= 0x41 && c <= 0x5A) ? c ^ 0x20 : c;
+}
+
+static __inline int xtoupper(int c)
+{
+    return (c >= 0x61 && c <= 0x7A) ? c ^ 0x20 : c;
+}
+
+static __inline int xisnonchar(int c)
+{
+    return (c > 0 && c <= 0x20);
+}
+
+static __inline int xisvarchar(int c)
+{
+    return (xisalnum(c) || c == 0x2D || c == 0x5F);
+}
+
+static __inline int xiswcschar(const wchar_t *s, wchar_t c)
+{
+    if (s && (s[0] == c) && (s[1] == WNUL))
+        return 1;
+    else
+        return 0;
+}
+
+static __inline int xicasecmp(int i, int a, int b)
+{
+    if (i)
+        return (xtolower(a) == xtolower(b));
+    else
+        return (a == b);
+}
+
+static __inline wchar_t *xskipblanks(const wchar_t *str)
+{
+    wchar_t *s = (wchar_t *)str;
+    if (s && *s) {
+        while (xisblank(*s))
+            s++;
+    }
+    return s;
+}
+
+static __inline size_t xwcslen(const wchar_t *s)
+{
+    if (IS_EMPTY_WCS(s))
+        return 0;
+    else
+        return wcslen(s);
+}
 
 static wchar_t *xwmalloc(size_t size)
 {
-    wchar_t *p = (wchar_t *)malloc((size + 2) * sizeof(wchar_t));
+    size_t   s;
+    wchar_t *p;
+
+    s = CYGWRUN_ALIGN((size + 2) * sizeof(wchar_t));
+    p = (wchar_t *)malloc(s);
     if (p == NULL) {
         _wperror(L"xwmalloc");
-        _exit(CYGWRUN_EFAULT);
+        _exit(ENOMEM);
     }
+#if PROJECT_ISDEV_VERSION
+    xnalloc++;
+#endif
     p[size++] = WNUL;
     p[size]   = WNUL;
     return p;
@@ -211,26 +215,37 @@ static wchar_t *xwmalloc(size_t size)
 
 static void *xcalloc(size_t number, size_t size)
 {
-    void *p = calloc(number + 2, size);
+    size_t  s;
+    void   *p;
+
+    s = CYGWRUN_ALIGN((number + 2) * size);
+    p = calloc(1, s);
     if (p == NULL) {
         _wperror(L"xcalloc");
-        _exit(CYGWRUN_EFAULT);
+        _exit(ENOMEM);
     }
+#if PROJECT_ISDEV_VERSION
+    xnalloc++;
+#endif
     return p;
-}
-
-static wchar_t **waalloc(size_t size)
-{
-    return (wchar_t **)xcalloc(size, sizeof(wchar_t *));
 }
 
 static void xfree(void *m)
 {
-    if (m != NULL)
+    if (m != NULL && m != zerostr) {
         free(m);
+#if PROJECT_ISDEV_VERSION
+        xnmfree++;
+#endif
+    }
 }
 
-static void waafree(wchar_t **array)
+static wchar_t **xwaalloc(size_t size)
+{
+    return (wchar_t **)xcalloc(size, sizeof(wchar_t *));
+}
+
+static void xwaafree(wchar_t **array)
 {
     wchar_t **ptr = array;
 
@@ -238,7 +253,7 @@ static void waafree(wchar_t **array)
         return;
     while (*ptr != NULL)
         xfree(*(ptr++));
-    free(array);
+    xfree(array);
 }
 
 static wchar_t *xwcsdup(const wchar_t *s)
@@ -253,44 +268,7 @@ static wchar_t *xwcsdup(const wchar_t *s)
     return wmemcpy(p, s, n);
 }
 
-static wchar_t *xwcsndup(const wchar_t *s, size_t len)
-{
-    wchar_t *p;
-    size_t   n;
-
-    if (IS_EMPTY_WCS(s) || (len == 0))
-        return NULL;
-    n = wcsnlen(s, len);
-    p = xwmalloc(n);
-    return wmemcpy(p, s, n);
-}
-
-static int xwcslcat(wchar_t *dst, int siz, int pos, const wchar_t *src)
-{
-    const wchar_t *s = src;
-    wchar_t *d = dst + pos;
-    int      c = pos;
-    int      n;
-
-    if (dst == NULL)
-        return 0;
-    n = siz - pos;
-    if (n < 2)
-        return siz;
-    *d = WNUL;
-    if (IS_EMPTY_WCS(src))
-        return c;
-    while ((n-- != 1) && (*s != WNUL)) {
-        *d++ = *s++;
-         c++;
-    }
-    *d = WNUL;
-    if (*s != WNUL)
-        c++;
-    return c;
-}
-
-static wchar_t *xgetenv(const wchar_t *s)
+static wchar_t *xwgetenv(const wchar_t *s)
 {
     DWORD    n;
     wchar_t  e[BBUFSIZ];
@@ -301,17 +279,29 @@ static wchar_t *xgetenv(const wchar_t *s)
     n =  GetEnvironmentVariableW(s, e, BBUFSIZ);
     if (n != 0) {
         d = xwmalloc(n);
-        if (n > BBUFSIZ) {
+        if (n > BBUFSIZ)
             GetEnvironmentVariableW(s, d, n);
-        }
-        else {
+        else
             wmemcpy(d, e, n);
-        }
     }
     return d;
 }
 
-static wchar_t *xgetcwd(void)
+static int xngetenv(const wchar_t *s)
+{
+    DWORD    n;
+    wchar_t  e[BBUFSIZ];
+
+    if (IS_EMPTY_WCS(s))
+        return -1;
+    n =  GetEnvironmentVariableW(s, e, BBUFSIZ);
+    if ((n == 0) || (n >= BBUFSIZ))
+        return -1;
+
+    return (int)wcstol(e, NULL, 10);
+}
+
+static wchar_t *xgetpwd(void)
 {
     DWORD    n;
     wchar_t  e[BBUFSIZ];
@@ -330,52 +320,62 @@ static wchar_t *xgetcwd(void)
     return d;
 }
 
-static size_t xwcslen(const wchar_t *s)
+static wchar_t *xwcsconcat(const wchar_t *s1, const wchar_t *s2, wchar_t qc)
 {
-    if (IS_EMPTY_WCS(s))
-        return 0;
-    else
-        return wcslen(s);
-}
-
-static wchar_t *xwcsconcat(const wchar_t *s1, const wchar_t *s2)
-{
-    wchar_t *rv;
-    size_t l1;
-    size_t l2;
+    wchar_t *rp;
+    wchar_t *rs;
+    size_t   l1;
+    size_t   l2;
+    size_t   sz;
 
     l1 = xwcslen(s1);
     l2 = xwcslen(s2);
 
-    if ((l1 + l2) == 0)
+    sz = l1 + l2;
+    if (sz == 0)
         return NULL;
-    rv = xwmalloc(l1 + l2);
-
-    if(l1 > 0)
-        wmemcpy(rv, s1, l1);
-    if(l2 > 0)
-        wmemcpy(rv + l1, s2, l2);
-    return rv;
+    if (qc)
+       sz += 2;
+    rs = xwmalloc(sz);
+    rp = rs;
+    if (qc && (l2 == 0))
+        *(rp++) = qc;
+    if (l1 > 0) {
+        wmemcpy(rp, s1, l1);
+        rp += l1;
+    }
+    if (l2 > 0) {
+        if (qc)
+            *(rp++) = qc;
+        wmemcpy(rp, s2, l2);
+        rp += l2;
+    }
+    if (qc) {
+        *(rp++) = qc;
+        *(rp++) = WNUL;
+    }
+    return rs;
 }
 
-static wchar_t *xwcsappend(wchar_t *s, wchar_t ch, const wchar_t *a)
+static wchar_t *xwcsappend(wchar_t *s, const wchar_t *a, wchar_t sc)
 {
     wchar_t *p;
     wchar_t *e;
     size_t   n = xwcslen(s);
-    size_t   x = xwcslen(a);
+    size_t   z = xwcslen(a);
 
-    p = xwmalloc(n + x + 1);
+    p = xwmalloc(n + z + 1);
     e = p;
 
     if (n > 0) {
         wmemcpy(e, s, n);
         e += n;
     }
-    *(e++) = ch;
-    if (x > 0) {
-        wmemcpy(e, a, x);
-        e += x;
+    if (z > 0) {
+        if (n && sc)
+            *(e++) = sc;
+        wmemcpy(e, a, z);
+        e += z;
     }
     *e = WNUL;
     xfree(s);
@@ -392,64 +392,95 @@ static wchar_t *xwcstrim(wchar_t *s)
 
     while (i > 0) {
         i--;
-        if (s[i] < L'!')
+        if (xisnonchar(s[i]))
             s[i] = WNUL;
         else
             break;
     }
     if (i > 0) {
-        while ((*s > WNUL) && (*s < L'!'))
+        while (xisnonchar(*s))
             s++;
     }
     return s;
 }
 
-static __inline int xisalpha(int ch)
+static wchar_t *xwcsbegins(const wchar_t *src, const wchar_t *str)
 {
-    if (((ch > 64) && (ch < 91)) || ((ch > 96) && (ch < 123)))
-        return 1;
-    else
-        return 0;
+    const wchar_t *pos = src;
+    int sa;
+    int sb;
+
+    while (*src) {
+        if (*str == WNUL)
+            return (wchar_t *)pos;
+        sa = xtolower(*src++);
+        sb = xtolower(*str++);
+        if (sa != sb)
+            return NULL;
+        pos++;
+    }
+    return *str ? NULL : (wchar_t *)pos;
 }
 
-static __inline int xisblank(int ch)
+wchar_t *xwcsends(const wchar_t *src, const wchar_t *str)
 {
-    if ((ch == 32) || (ch == 9))
-        return 1;
-    else
-        return 0;
+    const wchar_t *pos;
+    size_t sa;
+    size_t sb;
+
+    sa = xwcslen(src);
+    sb = xwcslen(str);
+    if (sa == 0 || sb == 0 || sb > sa)
+        return NULL;
+    pos = src + sa - sb;
+    src = pos;
+    while (*src) {
+        sa = xtolower(*src++);
+        sb = xtolower(*str++);
+        if (sa != sb)
+            return NULL;
+    }
+    return (wchar_t *)pos;
 }
 
-static __inline int xtoupper(int ch)
+static int xwcsequals(const wchar_t *src, const wchar_t *str)
 {
-    if ((ch > 96) && (ch < 123))
-        return ch - 32;
-    else
-        return ch;
+    int sa;
+
+    while ((sa = xtolower(*src++)) == xtolower(*str++)) {
+        if (sa == 0)
+            return 1;
+    }
+    return 0;
 }
 
-static __inline int xisvarchar(int c)
+static int xwcsicmp(const wchar_t *s1, const wchar_t *s2)
 {
-    if ((c < 32) || (c > 127))
-        return 0;
+    int rv;
+    if (IS_EMPTY_WCS(s1)) {
+        if (IS_EMPTY_WCS(s2))
+            return 0;
+        else
+            return 1;
+    }
+    if (IS_EMPTY_WCS(s2)) {
+        if (IS_EMPTY_WCS(s1))
+            return 0;
+        else
+            return -1;
+    }
+    rv = CompareStringOrdinal(s1, -1, s2, -1, TRUE);
+    if (rv == 0)
+        return GetLastError();
     else
-        return xvalidvarname[c];
-
-}
-
-static __inline int xisonoff(int c)
-{
-    if ((c == L'0') || (c == L'1') || (c == L'+') || (c == L'-'))
-        return 1;
-    else
-        return 0;
+        return rv - 2;
 }
 
 /**
  * Match = 0, NoMatch = 1, Abort = -1
  * Based loosely on sections of wildmat.c by Rich Salz
  */
-static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
+static int xwcsmatch(int ic, const wchar_t *wstr, const wchar_t *wexp)
 {
     int match;
     int mflag;
@@ -460,29 +491,24 @@ static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
         switch (*wexp) {
             case L'*':
                 wexp++;
-                while (*wexp == L'*') {
-                    /**
-                     * Skip multiple stars
-                     */
+                while (*wexp == L'*')
                     wexp++;
-                }
                 if (*wexp == WNUL)
                     return 0;
                 while (*wstr != WNUL) {
-                    int rv = xwcsmatch(wstr++, wexp);
+                    int rv = xwcsmatch(ic, wstr++, wexp);
                     if (rv != 1)
                         return rv;
                 }
                 return -1;
             break;
             case L'?':
-                if (xisvarchar(*wstr) != 2)
+                if (!xisalpha(*wstr))
                     return -1;
             break;
             case L'+':
-                /**
-                 * Any character
-                 */
+                if (xisnonchar(*wstr))
+                    return -1;
             break;
             case L'[':
                 match = 0;
@@ -498,7 +524,7 @@ static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
                 while (*wexp != L']') {
                     if ((*wexp == WNUL) || (*wexp == L'['))
                         return -1;
-                    if (*wexp == *wstr)
+                    if (xicasecmp(ic, *wexp, *wstr))
                         match = 1;
                     wexp++;
                 }
@@ -506,7 +532,7 @@ static int xwcsmatch(const wchar_t *wstr, const wchar_t *wexp)
                     return -1;
             break;
             default:
-                if (*wstr != *wexp)
+                if (!xicasecmp(ic, *wexp, *wstr))
                     return 1;
             break;
         }
@@ -570,6 +596,39 @@ static wchar_t *xwcsctok(wchar_t *s, wchar_t d, wchar_t **c)
     return p;
 }
 
+static int xneedsquote(const wchar_t *str)
+{
+    const wchar_t *s;
+
+    for (s = str; *s; s++) {
+        if (xisblank(*s) || (*s == 0x22))
+            return 1;
+    }
+    return 0;
+}
+
+static wchar_t *xquoteprg(wchar_t *s)
+{
+    int      i;
+    wchar_t *d;
+    size_t   n;
+
+    if (IS_EMPTY_WCS(s))
+        return s;
+    if (xneedsquote(s) == 0)
+        return s;
+    n = xwcslen(s);
+    d = xwmalloc(n + 2);
+    d[0] = L'"';
+    for (i = 0; i < (int)n; i++)
+        d[i + 1] = s[i];
+    xfree(s);
+    d[i + 1] = L'"';
+    d[i + 2] = WNUL;
+
+    return d;
+}
+
 /**
  * Quote one command line argument if needed. See documentation for
  * CommandLineToArgV() for details:
@@ -585,7 +644,7 @@ static wchar_t *xquotearg(wchar_t *s)
     /* Perform quoting only if necessary. */
     if (IS_EMPTY_WCS(s))
         return s;
-    if (wcspbrk(s, L" \n\r\t\"") == NULL)
+    if (xneedsquote(s) == 0)
         return s;
 
     for (c = s; ; c++) {
@@ -645,115 +704,10 @@ static wchar_t *xquotearg(wchar_t *s)
         }
     }
     xfree(s);
-
     *(d++) = L'"';
     *(d)   = WNUL;
 
     return e;
-}
-
-int xwgetopt(int nargc, const wchar_t **nargv, const wchar_t *opts)
-{
-    const wchar_t *oli = NULL;
-    static const wchar_t *place = zerostring;
-
-    xwoptarg = NULL;
-    if (*place == WNUL) {
-        if (xwoptind >= nargc) {
-            /* No more arguments */
-            place = zerostring;
-            return EOF;
-        }
-        place = nargv[xwoptind];
-        if (*(place++) != L'-') {
-            /* Argument is not an option */
-            place = zerostring;
-            return EOF;
-        }
-        if ((*place == WNUL) || (*place == L'-')) {
-            if (*place == '-')
-                place++;
-            if (*place == WNUL)
-                xwoptind++;
-            place = zerostring;
-            return EOF;
-        }
-    }
-
-    xwoption = *(place++);
-    if (xwoption != L':') {
-        oli = wcschr(opts, (wchar_t)xwoption);
-    }
-    if (oli == NULL) {
-        xwoptind++;
-        place = zerostring;
-        return CYGWRUN_EINVAL;
-    }
-    /* Does this option need an argument? */
-    if (oli[1] == L':') {
-        /*
-         * Option-argument is either the rest of this argument
-         * or the entire next argument.
-         */
-        if (*place) {
-            /* Skip blanks */
-            while (xisblank(*place))
-                ++place;
-        }
-        if (*place != WNUL) {
-            xwoptarg = place;
-        }
-        else if (nargc > ++xwoptind) {
-            xwoptarg = nargv[xwoptind];
-        }
-        ++xwoptind;
-        place = zerostring;
-        if (IS_EMPTY_WCS(xwoptarg)) {
-            /* Option-argument is absent or empty */
-            return CYGWRUN_ENOENT;
-        }
-    }
-    else {
-        /* Don't need argument */
-        if (*place == WNUL) {
-            ++xwoptind;
-            place = zerostring;
-        }
-    }
-    return oli[0];
-}
-
-static int xwcsisenvvar(const wchar_t *str, const wchar_t *var, int icase)
-{
-    while (*str != WNUL) {
-        wchar_t cs = icase ? xtoupper(*str) : *str;
-        wchar_t cv = icase ? xtoupper(*var) : *var;
-
-        if (cs != cv)
-            break;
-        str++;
-        var++;
-        if (*var == WNUL)
-            return *str == L'=';
-    }
-    return 0;
-}
-
-static int xisbatchfile(const wchar_t *s)
-{
-    size_t n = xwcslen(s);
-    /* a.bat */
-    if (n > 4) {
-        const wchar_t *e = s + n - 4;
-
-        if (*(e++) == L'.') {
-            if (_wcsicmp(e, L"bat") == 0)
-                return 1;
-            if (_wcsicmp(e, L"cmd") == 0)
-                return 1;
-        }
-    }
-    return 0;
 }
 
 static int iswinpath(const wchar_t *s)
@@ -775,12 +729,14 @@ static int iswinpath(const wchar_t *s)
             }
         }
     }
-    if (xisvarchar(s[0]) == 2) {
+    if (xisalpha(s[0])) {
         if (s[1] == L':') {
             if (s[2] == WNUL)
                 i += 2;
             else if (IS_PSW(s[2]))
                 i += 3;
+            else
+                i  = 0;
         }
     }
     return i;
@@ -810,12 +766,10 @@ static int isposixpath(const wchar_t *str)
         return iswinpath(str);
     if (wcschr(str + 1, L'/')) {
         while (pathmatches[i] != NULL) {
-            if (xwcsmatch(str, pathmatches[i]) == 0)
+            if (xwcsmatch(0, str, pathmatches[i]) == 0)
                 return i + 100;
             i++;
         }
-        if (xforcewp)
-            return 150;
     }
     else {
         while (pathfixed[i] != NULL) {
@@ -823,19 +777,23 @@ static int isposixpath(const wchar_t *str)
                 return i + 200;
             i++;
         }
-        if (xforcewp)
-            return 250;
     }
     return 0;
 }
 
-static int isanypath(const wchar_t *s)
+static int isanypath(int m, wchar_t *s)
 {
-    int r;
+    int      r;
+    wchar_t *c = NULL;
 
     if (IS_EMPTY_WCS(s))
         return 0;
-    switch (s[0]) {
+    if (m && *s == L'/') {
+        c = wcschr(s, L':');
+        if (c != NULL)
+            *c = WNUL;
+    }
+    switch (*s) {
         case L'\'':
             r = 0;
         break;
@@ -849,20 +807,186 @@ static int isanypath(const wchar_t *s)
             r = iswinpath(s);
         break;
     }
+    if (c != NULL)
+        *c = L':';
     return r;
 }
 
-static int isrelativepath(const wchar_t *p)
+static int xmszcount(const wchar_t *src)
 {
-    if ((p != NULL) && (*p != WNUL)) {
-        if (IS_PSW(p[0]) || (xisalpha(p[0]) && (p[1] == L':')))
-            return 0;
-        else
-            return 1;
+    int c;
+    const wchar_t *s = src;
+
+    if (IS_EMPTY_WCS(src))
+        return 0;
+    for (c = 0; *s; s++, c++) {
+        while (*s)
+            s++;
     }
+    return c;
+}
+
+static wchar_t *xarrblk(int cnt, const wchar_t **arr, wchar_t sep)
+{
+    int      i;
+    size_t   n;
+    size_t   len = 0;
+    size_t  *sz;
+    wchar_t *ep;
+    wchar_t *bp;
+
+    sz = (size_t *)xcalloc(cnt, sizeof(size_t));
+    for (i = 0; i < cnt; i++) {
+        n = xwcslen(arr[i]);
+        sz[i] = n++;
+        len  += n;
+    }
+
+    bp = xwmalloc(len + 2);
+    ep = bp;
+    for (i = 0; i < cnt; i++) {
+        if (i > 0)
+            *(ep++) = sep;
+        wmemcpy(ep, arr[i], sz[i]);
+        ep += sz[i];
+    }
+    xfree(sz);
+    ep[0] = WNUL;
+    ep[1] = WNUL;
+
+    return bp;
+}
+
+static int xenvsort(const void *a1, const void *a2)
+{
+    const wchar_t *s1 = *((wchar_t **)a1);
+    const wchar_t *s2 = *((wchar_t **)a2);
+
+    return xwcsicmp(s1, s2);
+}
+
+
+static int xinitenv(void)
+{
+    int       ec;
+    int       ne;
+    wchar_t  *es;
+    wchar_t  *ep;
+    wchar_t  *en;
+    wchar_t  *ev;
+
+    es = GetEnvironmentStringsW();
+    if (es == NULL)
+        return ENOMEM;
+    ec = xmszcount(es);
+    if (ec == 0) {
+        FreeEnvironmentStringsW(es);
+        return ENOENT;
+    }
+    xenvvars  = xwaalloc(ec + 1);
+    xenvvals  = xwaalloc(ec + 1);
+    for (ne = 0, ep = es; *ep; ep++) {
+        if (*ep != L'=') {
+            en = ep;
+            ev = wcschr(en, L'=');
+            if (ev) {
+                int i;
+                *ev++ = WNUL;
+                if (xiswcschar(en, L'_') || xwcsbegins(en, L"CYGWRUN_"))
+                    en = NULL;
+                if (en && xdelenvs) {
+                    for (i = 0; xdelenvs[i]; i++) {
+                        if (xwcsmatch(1, en, xdelenvs[i]) == 0) {
+                            en = NULL;
+                            break;
+                        }
+                    }
+                }
+                if (en) {
+                    for (i = 0; ucenvvars[i]; i++) {
+                        if (xwcsequals(en, ucenvvars[i])) {
+                            xenvvars[ne] = xwcsdup(ucenvvars[i]);
+                            break;
+                        }
+                    }
+                    if (xenvvars[ne] == NULL)
+                        xenvvars[ne] = xwcsdup(en);
+                    xenvvals[ne] = xwcsdup(ev);
+                    ne++;
+                }
+                ep = ev;
+            }
+            else {
+                FreeEnvironmentStringsW(es);
+                return EBADF;
+            }
+        }
+        while (*ep)
+            ep++;
+    }
+    xenvcount = ne;
+    xenvvars[xenvcount] = NULL;
+    xenvvals[xenvcount] = NULL;
+    FreeEnvironmentStringsW(es);
     return 0;
 }
 
+static wchar_t *xenvblock(void)
+{
+    int      c;
+    size_t   n;
+    size_t   v;
+    size_t   z;
+    wchar_t  *bp;
+    wchar_t  *eb;
+    wchar_t **ea;
+    const wchar_t **ep;
+    const wchar_t **ev;
+
+    ep = xenvvars;
+    ev = xenvvals;
+    z  = 0;
+    c  = 0;
+    while (*ep) {
+        n = xwcslen(*ep);
+        if (n) {
+            v = xwcslen(*ev);
+            z = z + v + n + 2;
+            c++;
+        }
+        ep++;
+        ev++;
+    }
+    if (c == 0)
+        return NULL;
+    ea = xwaalloc(c + 1);
+    eb = xwmalloc(z);
+    ep = xenvvars;
+    ev = xenvvals;
+    z  = 0;
+    c  = 0;
+    while (*ep) {
+        n = xwcslen(*ep);
+        if (n) {
+            ea[c] = eb + z;
+            wmemcpy(eb + z, *ep, n);
+            z += n;
+            eb[z++] = L'=';
+            v = xwcslen(*ev) + 1;
+            wmemcpy(eb + z, *ev, v);
+            z += v;
+            c++;
+        }
+        ep++;
+        ev++;
+    }
+    qsort((void *)ea, c, sizeof(wchar_t *), xenvsort);
+    bp = xarrblk(c, ea, WNUL);
+    xfree(eb);
+    xfree(ea);
+
+    return bp;
+}
 
 /**
  * If argument starts with '[--]name=' the
@@ -874,7 +998,6 @@ static wchar_t *cmdoptionval(wchar_t *s)
 
     if (IS_EMPTY_WCS(s))
         return NULL;
-
     while (*s != WNUL) {
         int c = *(s++);
         if (n > 0) {
@@ -889,42 +1012,6 @@ static wchar_t *cmdoptionval(wchar_t *s)
     return NULL;
 }
 
-static int envsort(const void *arg1, const void *arg2)
-{
-    return _wcsicoll(*((wchar_t **)arg1), *((wchar_t **)arg2));
-}
-
-static wchar_t *xarrblk(int cnt, const wchar_t **arr, wchar_t sep)
-{
-    int      i;
-    size_t   len = 0;
-    size_t  *ssz;
-    wchar_t *ep;
-    wchar_t *bp;
-
-    ssz = (size_t *)xcalloc(cnt, sizeof(size_t));
-    for (i = 0; i < cnt; i++) {
-        size_t n = xwcslen(arr[i]);
-        ssz[i]   = n++;
-        len     += n;
-    }
-
-    bp = xwmalloc(len + 2);
-    ep = bp;
-    for (i = 0; i < cnt; i++) {
-        size_t n = ssz[i];
-        if (i > 0)
-            *(ep++) = sep;
-        wmemcpy(ep, arr[i], n);
-        ep += n;
-    }
-    xfree(ssz);
-    ep[0] = WNUL;
-    ep[1] = WNUL;
-
-    return bp;
-}
-
 static wchar_t *cleanpath(wchar_t *s)
 {
     int n = 0;
@@ -935,33 +1022,51 @@ static wchar_t *cleanpath(wchar_t *s)
     i = (int)xwcslen(s);
     if (i == 0)
         return s;
-    if (i > 2) {
+    if (i > 6) {
+        if (IS_PSW(s[0]) && IS_PSW(s[1]) && (s[2] == L'?') &&
+            IS_PSW(s[3]) && (s[5] == L':')) {
+            s[0] = L'\\';
+            s[1] = L'\\';
+            s[3] = L'\\';
+            s[4] = xtoupper(s[4]);
+            s[6] = L'\\';
+            n    = 7;
+        }
+    }
+    if ((n == 0) && (i > 2)) {
         if (xisalpha(s[0]) && (s[1] == L':') && IS_PSW(s[2])) {
             s[0] = xtoupper(s[0]);
             s[2] = L'\\';
-            n = 3;
+            n    = 3;
         }
     }
     for (c = n; n < i; n++) {
+        if (c > 0) {
+            if (IS_PSW(s[c - 1]) && (s[n] == L'.') && IS_PSW(s[n + 1])) {
+                n++;
+                while (IS_PSW(s[n]))
+                    n++;
+            }
+        }
         if (IS_PSW(s[n]))  {
-            if ((n > 0) && IS_PSW(s[n + 1])) {
-                continue;
+            if (n > 0) {
+                while (IS_PSW(s[n + 1]))
+                    n++;
             }
             s[n] = L'\\';
         }
-
         s[c++] = s[n];
     }
     s[c--] = WNUL;
     while (c > 0) {
-        if ((s[c] == L';') || (s[c] < L'!'))
+        if ((s[c] == L';') || xisnonchar(s[c]))
             s[c--] = WNUL;
         else
             break;
     }
     if (xrmendps) {
         while (c > 1) {
-            if ((s[c] == L'\\') && (s[c - 1] != L'.'))
+            if (((s[c] == L'\\') && (s[c - 1] != L'.')) || (s[c] == L';'))
                 s[c--] = WNUL;
             else
                 break;
@@ -972,7 +1077,8 @@ static wchar_t *cleanpath(wchar_t *s)
 
 static wchar_t **xsplitstr(const wchar_t *s, wchar_t sc)
 {
-    int      c, x = 0;
+    int      c;
+    int      x = 0;
     wchar_t  *cx = NULL;
     wchar_t  *ws;
     wchar_t  *es;
@@ -982,7 +1088,7 @@ static wchar_t **xsplitstr(const wchar_t *s, wchar_t sc)
     if (c == 0)
         return NULL;
     ws = xwcsdup(s);
-    sa = waalloc(c);
+    sa = xwaalloc(c);
     es = xwcsctok(ws, sc, &cx);
     while (es != NULL) {
         es = xwcstrim(es);
@@ -991,12 +1097,18 @@ static wchar_t **xsplitstr(const wchar_t *s, wchar_t sc)
         es = xwcsctok(NULL, sc, &cx);
     }
     xfree(ws);
+    sa[x] = NULL;
+    if (x == 0) {
+        xwaafree(sa);
+        sa = NULL;
+    }
     return sa;
 }
 
 static wchar_t **splitpath(const wchar_t *s, wchar_t ps)
 {
-    int      c, x = 0;
+    int      c;
+    int      x = 0;
     wchar_t  *ws;
     wchar_t **sa;
     wchar_t  *cx = NULL;
@@ -1006,7 +1118,7 @@ static wchar_t **splitpath(const wchar_t *s, wchar_t ps)
     if (c == 0)
         return NULL;
     ws = xwcsdup(s);
-    sa = waalloc(c);
+    sa = xwaalloc(c);
 
     es = xwcsctok(ws, ps, &cx);
     while (es != NULL) {
@@ -1021,10 +1133,13 @@ static wchar_t **splitpath(const wchar_t *s, wchar_t ps)
 
 static wchar_t *mergepath(const wchar_t **pp)
 {
-    int  i, x;
+    int  i;
+    int  x;
     size_t s[64];
-    size_t n, len = 0;
-    wchar_t  *r, *p;
+    size_t n;
+    size_t len = 0;
+    wchar_t *r;
+    wchar_t *p;
 
     for (i = 0, x = 0; pp[i] != NULL; i++, x++) {
         n = wcslen(pp[i]);
@@ -1049,7 +1164,7 @@ static wchar_t *mergepath(const wchar_t **pp)
 
 static wchar_t *posixtowin(wchar_t *pp, int m)
 {
-    wchar_t *rv = NULL;
+    wchar_t *rp = NULL;
     wchar_t  windrive[] = { WNUL, L':', L'\\', WNUL};
 
     if (m == 0)
@@ -1065,50 +1180,42 @@ static wchar_t *posixtowin(wchar_t *pp, int m)
          * /cygdrive/x/... absolute path
          */
         windrive[0] = xtoupper(pp[10]);
-        rv = xwcsconcat(windrive, pp + 12);
-        cleanpath(rv + 3);
+        rp = xwcsconcat(windrive, pp + 12, 0);
+        cleanpath(rp + 3);
     }
     else if (m == 101) {
         /**
          * /x/... msys2 absolute path
          */
         windrive[0] = xtoupper(pp[1]);
-        rv = xwcsconcat(windrive, pp + 3);
-        cleanpath(rv + 3);
-    }
-    else if (m == 102) {
-        /**
-         * For anything from /dev/ return \\.\NUL
-         */
-        rv = xwcsdup(L"\\\\.\\NUL");
+        rp = xwcsconcat(windrive, pp + 3, 0);
+        cleanpath(rp + 3);
     }
     else if (m == 300) {
         return cleanpath(pp);
     }
     else if (m == 301) {
-        rv = xwcsdup(posixroot);
+        rp = xwcsdup(posixroot);
     }
     else {
         cleanpath(pp);
-        rv = xwcsconcat(posixroot, pp);
+        rp = xwcsconcat(posixroot, pp, 0);
     }
     xfree(pp);
-    return rv;
+    return rp;
 }
 
 static wchar_t *pathtowin(wchar_t *pp)
 {
     int m;
 
-    m = isanypath(pp);
+    m = isanypath(0, pp);
     if (m == 0)
         return pp;
-    if (m < 100) {
+    if (m < 100)
         return cleanpath(pp);
-    }
-    else {
+    else
         return posixtowin(pp, m);
-    }
 }
 
 static wchar_t *towinpaths(const wchar_t *ps, int m)
@@ -1132,10 +1239,14 @@ static wchar_t *towinpaths(const wchar_t *ps, int m)
 
         if (pa != NULL) {
             for (i = 0; pa[i] != NULL; i++) {
-                cleanpath(pa[i]);
+                m = isposixpath(pa[i]);
+                if (m == 0)
+                    cleanpath(pa[i]);
+                else
+                    pa[i] = posixtowin(pa[i], m);
             }
             wp = mergepath(pa);
-            waafree(pa);
+            xwaafree(pa);
         }
     }
     else {
@@ -1145,7 +1256,7 @@ static wchar_t *towinpaths(const wchar_t *ps, int m)
             for (i = 0; pa[i] != NULL; i++) {
                 m = isposixpath(pa[i]);
                 if (m == 0) {
-                    waafree(pa);
+                    xwaafree(pa);
                     return xwcsdup(ps);
                 }
                 else {
@@ -1153,7 +1264,7 @@ static wchar_t *towinpaths(const wchar_t *ps, int m)
                 }
             }
             wp = mergepath(pa);
-            waafree(pa);
+            xwaafree(pa);
         }
     }
     if (wp == NULL)
@@ -1233,707 +1344,463 @@ static wchar_t *xsearchexe(const wchar_t *paths, const wchar_t *name)
     return rp;
 }
 
-static wchar_t *getparentname(void)
-{
-    DWORD  pid;
-    HANDLE h;
-    HANDLE p;
-    wchar_t *n = NULL;
-    PROCESSENTRY32W e;
-
-    h = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (IS_INVALID_HANDLE(h))
-        return NULL;
-    e.dwSize = (DWORD)sizeof(PROCESSENTRY32W);
-    if (!Process32FirstW(h, &e)) {
-        CloseHandle(h);
-        return NULL;
-    }
-    pid = GetCurrentProcessId();
-    do {
-        if (e.th32ProcessID == pid) {
-            DWORD s = MAX_PATH;
-            wchar_t b[MAX_PATH];
-
-            p = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, e.th32ParentProcessID);
-            if (p != NULL) {
-                if (QueryFullProcessImageNameW(p, 0, b, &s))
-                    n = xwcsdup(b);
-                CloseHandle(p);
-            }
-            break;
-        }
-    } while (Process32NextW(h, &e));
-    CloseHandle(h);
-    return n;
-}
-
-static wchar_t *getposixroot(const wchar_t *rp)
-{
-    wchar_t *d;
-    wchar_t *r = NULL;
-
-    if (rp != NULL) {
-        /**
-         * Trust user provided root
-         */
-        return cleanpath(xwcsdup(rp));
-    }
-    else {
-        const wchar_t **e = posixrenv;
-
-        while (*e != NULL) {
-            r = xgetenv(*e);
-            if (r != NULL) {
-                /**
-                 * Trust user provided root environment variable
-                 */
-                return cleanpath(r);
-            }
-            e++;
-        }
-        if (r == NULL) {
-            r = getparentname();
-            if (r != NULL) {
-                d = wcschr(r + 3, L'\\');
-                if (d != NULL) {
-                    *d = WNUL;
-                    return r;
-                }
-                else {
-                    xfree(r);
-                    r = NULL;
-                }
-            }
-        }
-    }
-    if (r != NULL) {
-        /* Ensure that path exists */
-        d = cleanpath(r);
-        r = getrealpathname(d, 1);
-        xfree(d);
-    }
-    return r;
-}
-
-static LPWSTR xuuidstring(LPWSTR b, int h)
-{
-    BYTE d[16];
-    int  i;
-    int  x;
-
-    srand((unsigned int)time(NULL) + xtickcnt);
-    for (i = 0; i < 16; i++)
-        d[i] = rand() % 256;
-    for (i = 0, x = 0; i < 16; i++) {
-        if (h) {
-            if (i == 4 || i == 6 || i == 8 || i == 10)
-                b[x++] = L'-';
-        }
-        b[x++] = hexwchars[d[i] >> 4];
-        b[x++] = hexwchars[d[i] & 0x0F];
-    }
-    b[x] = WNUL;
-    return b;
-}
-
-static HANDLE createnulpipe(void)
-{
-    HANDLE ph;
-    SECURITY_ATTRIBUTES sa;
-
-    sa.nLength              = (DWORD)sizeof(SECURITY_ATTRIBUTES);
-    sa.lpSecurityDescriptor = NULL;
-    sa.bInheritHandle       = TRUE;
-
-    ph = CreateFileW(L"NUL",
-                     GENERIC_READ | GENERIC_WRITE,
-                     0,
-                     &sa,
-                     OPEN_EXISTING,
-                     FILE_ATTRIBUTE_NORMAL,
-                     NULL);
-    return ph;
-}
-
-static BOOL createstdpipe(LPHANDLE rd, LPHANDLE wr)
-{
-    DWORD i;
-    BYTE  b;
-    WCHAR name[BBUFSIZ];
-    SECURITY_ATTRIBUTES sa;
-
-
-    sa.nLength              = (DWORD)sizeof(SECURITY_ATTRIBUTES);
-    sa.lpSecurityDescriptor = NULL;
-    sa.bInheritHandle       = TRUE;
-
-    i = xwcslcat(name, BBUFSIZ, 0, L"\\\\.\\pipe\\");
-    b = LOBYTE(GetTickCount() + GetCurrentThreadId());
-    name[i++] = hexwchars[b >> 4];
-    name[i++] = hexwchars[b & 0x0F];
-    b = HIBYTE(xtickcnt + b);
-    while (b == 0)
-        b = LOBYTE(GetTickCount());
-    name[i++] = hexwchars[b >> 4];
-    name[i++] = hexwchars[b & 0x0F];
-    name[i++] = L'-';
-    if (xuuidstring(name + i, 1) == NULL)
-        return FALSE;
-    *rd = CreateNamedPipeW(name,
-                           PIPE_ACCESS_INBOUND,
-                           PIPE_TYPE_BYTE,
-                           1,
-                           0,
-                           65536,
-                           0,
-                           &sa);
-    if (IS_INVALID_HANDLE(*rd))
-        return FALSE;
-
-    *wr = CreateFileW(name,
-                      GENERIC_WRITE,
-                      0,
-                      NULL,
-                      OPEN_EXISTING,
-                      FILE_ATTRIBUTE_NORMAL,
-                      NULL);
-    if (IS_INVALID_HANDLE(*wr))
-        return FALSE;
-    else
-        return TRUE;
-}
-
 static BOOL WINAPI consolehandler(DWORD ctrl)
 {
+    fprintf(stdout, "\nconsolehandler %lu\n", ctrl);
     return TRUE;
 }
 
-static DWORD WINAPI stdinthread(void *param)
+typedef struct xprocinfo_t
 {
-    DWORD  wr = 0;
-    HANDLE wh = (HANDLE)param;
+    int     n;
+    DWORD   i;
+    HANDLE  h;
+} xprocinfo;
 
-    if (WriteFile(wh, YCRLF, 3, &wr, NULL) && (wr != 0))
-        FlushFileBuffers(wh);
-    return 0;
+static int getsubproctree(HANDLE sh, xprocinfo *pa, DWORD pid,
+                          int pp, int rc, int kd, int sz)
+{
+    int     i;
+    int     n = 0;
+    int     p = pp;
+    PROCESSENTRY32W e;
+
+    e.dwSize = (DWORD)sizeof(PROCESSENTRY32W);
+    if (!Process32FirstW(sh, &e)) {
+        return 0;
+    }
+    do {
+        if (p >= sz) {
+            break;
+        }
+        if ((e.th32ParentProcessID == pid) && !xwcsequals(e.szExeFile, L"conhost.exe")) {
+            pa[p].h = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE,
+                                  FALSE, e.th32ProcessID);
+            if (pa[p].h) {
+                pa[p].n = 0;
+                pa[p].i = e.th32ProcessID;
+                p++;
+                n++;
+            }
+        }
+    } while (Process32Next(sh, &e));
+    if (rc < kd) {
+        for (i = 0; i < n; i++) {
+            pa[pp + i].n = getsubproctree(sh, pa, pa[pp + i].i, p, rc + 1, kd, sz);
+            p += pa[pp + i].n;
+
+        }
+    }
+    return n;
 }
 
-static int posixmain(int argc, wchar_t **wargv, int envc, wchar_t **wenvp)
+static int getproctree(xprocinfo *pa, DWORD pid, int kd, int sz)
 {
-    int   i, m;
-    DWORD rc = 0;
-    DWORD cf = CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT;
-    wchar_t *cmdexe;
-    wchar_t *cmdblk;
-    wchar_t *envblk;
-    HANDLE  hstdin = NULL;
-    HANDLE  hstdir = NULL;
-    HANDLE  hstdiw = NULL;
-    HANDLE  hstdnn = NULL;
+    int    n = 0;
+    HANDLE sh;
+
+    sh = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (sh == INVALID_HANDLE_VALUE)
+        return 0;
+    getsubproctree(sh, pa, pid, 0, 1, kd, sz);
+    CloseHandle(sh);
+    while (n < sz && pa[n].h != NULL)
+        n++;
+    return n;
+}
+
+static void xkillchilds(DWORD pid, int kd, DWORD kw, DWORD ec)
+{
+    int i;
+    int n;
+    xprocinfo pa[BBUFSIZ];
+
+    memset(pa, 0, sizeof(pa));
+    n = getproctree(pa, pid, kd, BBUFSIZ);
+    for (i = n - 1; i >= 0; i--) {
+        DWORD s = 0;
+
+        if (kw && pa[i].n)
+            s = WaitForSingleObject( pa[i].h, kw);
+        if (s || !GetExitCodeProcess(pa[i].h, &s))
+            s =  STILL_ACTIVE;
+        if (s == STILL_ACTIVE)
+            TerminateProcess(pa[i].h, ec);
+
+        CloseHandle(pa[i].h);
+    }
+}
+
+static int runprogram(int argc, wchar_t **argv)
+{
+    int      i;
+    int      m;
+    size_t   n;
+    DWORD    rc = 0;
+
+    wchar_t *cmdblk = NULL;
+    wchar_t *envblk = NULL;
+
     PROCESS_INFORMATION cp;
     STARTUPINFOW si;
 
-    for (i = xrunexec; i < argc; i++) {
+    for (i = 1; i < argc; i++) {
         wchar_t *v;
-        wchar_t *a = wargv[i];
+        wchar_t *a = argv[i];
 
         v = cmdoptionval(a);
         if (v != NULL) {
-            wchar_t *q = NULL;
-            if (*v == L'"') {
-                q = wcsrchr(v + 1, L'"');
-                if (q != NULL) {
-                    v++;
-                    *q = WNUL;
+            wchar_t  qc = 0;
+            wchar_t *qp = NULL;
+            if (v[0] == L'"') {
+                n = wcslen(v) - 1;
+                if ((n > 1) && (v[n] == v[0])) {
+                    qc = v[0];
+                    qp = v + n;
+                    *(qp)  = WNUL;
+                    *(v++) = WNUL;
                 }
             }
-            m = isanypath(v);
+            m = isanypath(1, v);
             if (m != 0) {
                 wchar_t *p = towinpaths(v, m);
-
-                if (q != NULL)
-                    p = xwcsappend(p, L'"', NULL);
-
-                v[0] = WNUL;
-                wargv[i] = xwcsconcat(a, p);
+                if (qp == NULL)
+                    v[0] = WNUL;
+                argv[i]  = xwcsconcat(a, p, qc);
                 xfree(a);
                 xfree(p);
-
+            }
+            else {
+                if (qp != NULL) {
+                    *qp = qc;
+                    *(--v) = qc;
+                }
             }
         }
         else {
-            wargv[i] = pathtowin(a);
-        }
-        if (xdumparg) {
-            if (i > 0)
-                fputwc(L'\n', stdout);
-            fputws(wargv[i], stdout);
+            argv[i] = pathtowin(a);
         }
     }
-    if (xdumparg)
-        return 0;
-    for (i = 0; i < (envc - 5); i++) {
-        wchar_t *e = wenvp[i];
-        const wchar_t **s = xrawenvs;
+    for (i = 0; i < xenvcount; i++) {
+        int x;
+        wchar_t *v = xenvvals[i];
 
-        while (*s != NULL) {
-            if (xwcsisenvvar(e, *s, 0)) {
-                /**
-                 * Do not convert specified environment variables
-                 */
-                e = NULL;
-                break;
+        if (xenvvars[i] == zerostr)
+            continue;
+        if (xrawenvs) {
+            for (x = 0; xrawenvs[x]; x++) {
+                if (xwcsmatch(1, xenvvars[i], xrawenvs[x]) == 0) {
+                    x = -1;
+                    break;
+                }
             }
-            s++;
+            if (x < 0)
+                continue;
         }
-        if (e != NULL) {
-            int  q = 0;
-            wchar_t *v;
-
-            while (e[q] == L'=') {
-                /* Skip leading '=' */
-                q++;
-            }
-            v = wcschr(e + q, L'=');
-            if (v != NULL) {
-                wchar_t *c = NULL;
-                v++;
-                if (*v == L'/') {
-                    c = wcschr(v, L':');
-                    if (c != NULL) {
-                        *c = WNUL;
+        m = isanypath(1, v);
+        if (m != 0) {
+            xenvvals[i] = towinpaths(v, m);
+            xfree(v);
+        }
+    }
+    if (argv[0] == zerostr) {
+        for (i = 1; i < argc; i++) {
+            wchar_t *a = argv[i];
+            if (i > 1)
+                fputwc(L'\n', stdout);
+            if (*a == L'?') {
+                int x;
+                for (x = 0; x < xenvcount; x++) {
+                    if (xwcsequals(xenvvars[x], a + 1)) {
+                        fputws(xenvvals[x], stdout);
+                        break;
                     }
                 }
-                m = isanypath(v);
-                if (c != NULL)
-                    *c = L':';
-                if (m != 0) {
-                    wchar_t *p = towinpaths(v, m);
-
-                    v[0] = WNUL;
-                    wenvp[i] = xwcsconcat(e, p);
-                    xfree(e);
-                    xfree(p);
+                if (x == xenvcount) {
+                    if (xshowerr)
+                        fprintf(stderr, "Cannot find environment variable: '%S'\n", a + 1);
+                    return ENOENT;
                 }
             }
+            else {
+                fputws(a, stdout);
+            }
         }
+        return 0;
     }
-    qsort((void *)wenvp, envc, sizeof(wchar_t *), envsort);
+    argv[0] = xquoteprg(argv[0]);
+    for (i = 1; i < argc; i++)
+        argv[i] = xquotearg(argv[i]);
+    cmdblk = xarrblk(argc, argv, L' ');
+    envblk = xenvblock();
 
     memset(&cp, 0, sizeof(PROCESS_INFORMATION));
     memset(&si, 0, sizeof(STARTUPINFOW));
     si.cb = (DWORD)sizeof(STARTUPINFOW);
-    si.dwFlags = STARTF_USESTDHANDLES;
-    if (!xhasstdi || !xhasstdo || !xhasstde)
-        hstdnn = createnulpipe();
-    if (xhasstdo)
-        si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
-    else
-        si.hStdOutput = hstdnn;
-    if (xhasstde)
-        si.hStdError  = GetStdHandle(STD_ERROR_HANDLE);
-    else
-        si.hStdError  = hstdnn;
 
-    cmdexe = xwcsdup(wargv[0]);
-    for (i = 0; i < argc; i++) {
-        /**
-         * Quote arguments
-         */
-        wargv[i] = xquotearg(wargv[i]);
-    }
-    cmdblk = xarrblk(argc, wargv, L' ');
-    envblk = xarrblk(envc, wenvp, WNUL);
-    waafree(wargv);
-    waafree(wenvp);
-    if (xrunbatch && xhasstdi) {
-        if (!createstdpipe(&hstdir, &hstdiw)) {
-            rc = GetLastError();
-            if (xshowerr)
-                fprintf(stderr, "Failed to create stdinput pipes\n");
-            return rc + CYGWRUN_ERROR;
-        }
-        hstdin = CreateThread(NULL, 0, stdinthread, hstdiw, CREATE_SUSPENDED, NULL);
-        if (hstdin == NULL) {
-            rc = GetLastError();
-            if (xshowerr)
-                fprintf(stderr, "Failed to create stdinput thread\n");
-            return rc + CYGWRUN_ERROR;
-        }
-        si.hStdInput = hstdir;
-    }
-    else {
-        if (xhasstdi)
-            si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
-        else
-            si.hStdInput = hstdnn;
-    }
     SetConsoleCtrlHandler(NULL, FALSE);
-    if (xrunbatch)
-        cf |= CREATE_NEW_PROCESS_GROUP;
-    if (!CreateProcessW(cmdexe, cmdblk,
-                        NULL, NULL, TRUE, cf,
-                        envblk, NULL,
+    if (!CreateProcessW(argv[0],
+                        cmdblk,
+                        NULL, NULL, TRUE,
+                        CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT,
+                        envblk, posixwork,
                        &si, &cp)) {
-        rc = GetLastError();
         if (xshowerr)
-            fprintf(stderr, "Failed to execute: '%S'\n", cmdblk);
-        return rc + CYGWRUN_ERROR;
+            fprintf(stderr, "The sytem failed to execute: '%S' with error: %lu\n",
+                    cmdblk, GetLastError());
+        rc = CYGWRUN_FAILED;
     }
     else {
         DWORD ws;
         SetConsoleCtrlHandler(consolehandler, TRUE);
         ResumeThread(cp.hThread);
         CloseHandle(cp.hThread);
-        if (hstdin)
-            ResumeThread(hstdin);
-        if (hstdir)
-            CloseHandle( hstdir);
-        CloseHandle(hstdnn);
         /**
          * Wait for child to finish
          */
+        rc = STILL_ACTIVE;
         ws = WaitForSingleObject(cp.hProcess, xtimeout);
-        if (xrunbatch && (ws == WAIT_TIMEOUT)) {
-            GenerateConsoleCtrlEvent(CTRL_C_EVENT, cp.dwProcessId);
-            ws = WaitForSingleObject(cp.hProcess, WAIT_STDIN_THREAD);
+        if (ws == WAIT_TIMEOUT) {
+            /**
+             * Process did not finish within xtimeout
+             * Rise CTRL+C signal
+             */
+            SetConsoleCtrlHandler(NULL, TRUE);
+            GenerateConsoleCtrlEvent(0, CTRL_C_EVENT);
+            SetConsoleCtrlHandler(NULL, FALSE);
+            ws = WaitForSingleObject(cp.hProcess, CYGWRUN_CRTL_C_WAIT);
+            if (ws == WAIT_OBJECT_0)
+                rc = CYGWRUN_SIGINT;
         }
-        SetConsoleCtrlHandler(consolehandler, FALSE);
-        switch (ws) {
-            case WAIT_OBJECT_0:
-                rc = CYGWRUN_EFAULT;
-                if (GetExitCodeProcess(cp.hProcess, &rc)) {
-                    if (rc == STILL_ACTIVE)
-                        rc = CYGWRUN_ECANCELED;
-                    if (rc != 0)
-                        rc += CYGWRUN_ERROR;
-                }
-            break;
-            case WAIT_TIMEOUT:
-                rc = CYGWRUN_ETIMEDOUT;
-            break;
-            default:
-                rc = CYGWRUN_ENOSYS;
-            break;
+        if (rc == STILL_ACTIVE && GetExitCodeProcess(cp.hProcess, &rc)) {
+            if ((rc != STILL_ACTIVE) && (rc > CYGWRUN_ERRMAX))
+                rc = CYGWRUN_ERRMAX;
         }
-        if ((rc > 0) && (rc < 10)) {
-            TerminateProcess(cp.hProcess, rc);
-        }
-        if (hstdin) {
-            ws = WaitForSingleObject(hstdin, WAIT_STDIN_THREAD);
-            if (ws != WAIT_OBJECT_0) {
-                CancelSynchronousIo(hstdin);
-                ws = WaitForSingleObject(hstdin, WAIT_STDIN_THREAD);
-                if (ws != WAIT_OBJECT_0)
-                    TerminateThread(hstdin, CYGWRUN_ETIMEDOUT);
-            }
-            CloseHandle(hstdin);
-            CloseHandle(hstdiw);
+        if (rc == STILL_ACTIVE) {
+            xkillchilds(cp.dwProcessId, CYGWRUN_KILL_DEPTH, CYGWRUN_KILL_TIMEOUT, SIGTERM);
+            TerminateProcess(cp.hProcess, SIGTERM);
+            rc = CYGWRUN_SIGTERM;
         }
         CloseHandle(cp.hProcess);
+        SetConsoleCtrlHandler(consolehandler, FALSE);
     }
-
+#if PROJECT_ISDEV_VERSION
+    xfree(envblk);
+    xfree(cmdblk);
+#endif
     return rc;
 }
 
-int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
+int wmain(int argc, const wchar_t **argv)
 {
-    int i;
-    wchar_t **dupwargv = NULL;
-    wchar_t **dupwenvp = NULL;
-    const wchar_t *crp = NULL;
-    wchar_t *ppe       = NULL;
-    wchar_t *cwd       = NULL;
-    wchar_t *cpp       = NULL;
-    wchar_t *wtd;
-    wchar_t *ptd;
-    wchar_t *npe;
-    wchar_t *exe;
-    wchar_t *prg;
+    int       i;
+    int       rv;
+    int       dupargc;
+    wchar_t **dupargv;
+    wchar_t  *exe;
+    wchar_t  *prg;
 
-    int dupenvc = 0;
-    int dupargc = 0;
-    int envc    = 0;
-    int opt     = 0;
+    wchar_t  *eparam;
+    wchar_t  *cwdir = NULL;
+    wchar_t  *wendp = NULL;
+
 
     /**
      * Make sure child processes are kept quiet.
      */
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX | SEM_NOGPFAULTERRORBOX);
-    if (wenv == NULL) {
-        fputs("\nMissing environment\n", stderr);
-        return CYGWRUN_EFAULT;
+    if (argc == 0)
+        return ENOSYS;
+    if (argc == 1) {
+        fputs(PROJECT_NAME " version " PROJECT_VERSION_ALL, stdout);
+        return 0;
     }
-    xtickcnt = GetTickCount() + GetCurrentProcessId();
-    while ((opt = xwgetopt(argc, wargv, L"fKi:n:opqr:vVh?t:w:")) != EOF) {
-        switch (opt) {
-            case L'f':
-                xforcewp = 1;
-            break;
-            case L'K':
-                xrmendps = 0;
-            break;
-            case L'i':
-                if (xwcslen(xwoptarg) != 3) {
-                    if (xshowerr)
-                        fputs("The -i option is invalid\n", stderr);
-                    return CYGWRUN_EINVAL;
-                }
-                if (xisonoff(xwoptarg[0]) &&
-                    xisonoff(xwoptarg[1]) &&
-                    xisonoff(xwoptarg[2])) {
-                    if ((xwoptarg[0] == L'0') || (xwoptarg[0] == L'-'))
-                        xhasstdi = 0;
-                    if ((xwoptarg[1] == L'0') || (xwoptarg[1] == L'-'))
-                        xhasstdo = 0;
-                    if ((xwoptarg[2] == L'0') || (xwoptarg[2] == L'-'))
-                        xhasstde = 0;
-                }
-                else {
-                    if (xshowerr)
-                        fputs("The -i option is invalid\n", stderr);
-                    return CYGWRUN_EINVAL;
-                }
-            break;
-            case L'n':
-                ppe = xwcsappend(ppe, L',', xwoptarg);
-            break;
-            case L'o':
-                cpp = xgetenv(L"ORIGINAL_PATH");
-                if (cpp == NULL) {
-                    if (xshowerr)
-                        fputs("The ORIGINAL_PATH environment variable does not exists\n", stderr);
-                    return CYGWRUN_ENOENT;
-                }
-            break;
-            case L't':
-                xtimeout = (DWORD)wcstoul(xwoptarg, NULL, 10);
-                if ((xtimeout < 1) || (xtimeout > 2000000)) {
-                    if (xshowerr)
-                        fputs("The -t command option value is outside valid range\n", stderr);
-                    return CYGWRUN_ERANGE;
-                }
-                xtimeout *= 1000;
-            break;
-            case L'p':
-                xrunexec = 0;
-                xdumparg = 1;
-            break;
-            case L'q':
-                xshowerr = 0;
-            break;
-            case L'r':
-                crp = xwoptarg;
-            break;
-            case L'v':
-                return version(0);
-            break;
-            case L'V':
-                return version(1);
-            break;
-            case L'h':
-            case L'?':
-                xshowerr = 1;
-                return usage(0);
-            break;
-            case L'w':
-                xfree(cwd);
-                cwd = xwcsdup(xwoptarg);
-            break;
-            case CYGWRUN_EINVAL:
-                if (xshowerr)
-                    fprintf(stderr, "Error: Invalid command line option: '%C'\n", xwoption);
-                return usage(opt);
-            break;
-            case CYGWRUN_ENOENT:
-                if (xshowerr)
-                    fprintf(stderr, "Error: Missing argument for option: '%C'\n", xwoption);
-                return usage(opt);
-            break;
-            default:
-                /* Should never happen */
-                if (xshowerr)
-                    fprintf(stderr, "Error: Unknown return from xwgetopt: %d\n", opt);
-                return opt;
-            break;
-
-        }
-    }
-    argc    -= xwoptind;
-    wargv   += xwoptind;
-    dupwargv = waalloc(argc + 6);
-    if (xrunexec) {
-        if (argc > 0) {
-            dupwargv[0] = xwcsdup(wargv[0]);
-            argc--;
-            wargv++;
-        }
-        else {
+    if (xngetenv(L"CYGWRUN_QUIET") == 1)
+        xshowerr = 0;
+    if (xngetenv(L"CYGWRUN_TRIM_PATHS") == 0)
+        xrmendps = 0;
+    --argc;
+    ++argv;
+    if (argc && *(argv[0]) == L'~') {
+        posixroot = getrealpathname(argv[0] + 1, 1);
+        if (posixroot == NULL) {
             if (xshowerr)
-                fputs("Missing PROGRAM argument\n", stderr);
-            return usage(CYGWRUN_EINVAL);
+                fprintf(stderr, "\nThe system cannot find the CYGWRUN_ROOT directory: '%S'\n", argv[0] + 1);
+            return ENOENT;
         }
+        --argc;
+        ++argv;
     }
-    posixroot = getposixroot(crp);
-    if (posixroot == NULL) {
-        if (xshowerr)
-            fputs("Cannot find valid POSIX_ROOT\n", stderr);
-        return CYGWRUN_ENOENT;
+    if (argc && *(argv[0]) == L'@') {
+        cwdir = xwcsdup(argv[0] + 1);
+        --argc;
+        ++argv;
     }
-    if (cpp) {
-        wchar_t *p = cpp;
-        cpp = towinpaths(p, 0);
-        xfree(p);
-    }
-    /**
-     * Check if there is CYGWRUN_POSIX_PATH variable
-     * and use it instead PATH
-     */
-    if (cpp == NULL) {
-        cpp = xgetenv(L"CYGWRUN_POSIX_PATH");
-        if (cpp) {
-            wchar_t *p = cpp;
-            cpp = towinpaths(p, 0);
-            xfree(p);
-        }
-    }
-    if (cpp == NULL) {
-        wchar_t *p = xgetenv(L"PATH");
-        cpp = towinpaths(p, 0);
-        xfree(p);
-    }
-    if (cpp == NULL) {
-        if (xshowerr)
-            fputs("Missing PATH environment variable\n", stderr);
-        return CYGWRUN_ENOENT;
-    }
-    if (xdumparg) {
-        for (i = 0; i < argc; i++) {
-            if (IS_VALID_WCS(wargv[i]))
-                dupwargv[dupargc++] = xwcsdup(wargv[i]);
-        }
-        return posixmain(dupargc, dupwargv, 0, NULL);
-    }
-    if (cwd != NULL) {
-        if (isrelativepath(cwd))
-            cwd = cleanpath(cwd);
-        else
-            cwd = pathtowin(cwd);
-        if (!SetCurrentDirectoryW(cwd)) {
+    if (argc && *(argv[0]) == L'^') {
+        rv = (int)wcstol(argv[0] + 1, &wendp, 10);
+        if ((*wendp != WNUL) || ((rv == 0) && (errno != 0))) {
             if (xshowerr)
-                fprintf(stderr, "Invalid working directory: '%S'\n", cwd);
-            return CYGWRUN_ENOENT;
+                fputs("\nThe timeout parameter is invalid\n", stderr);
+            return EINVAL;
         }
-        xfree(cwd);
-    }
-    cwd = xgetcwd();
-    if (cwd == NULL) {
-        if (xshowerr)
-            fputs("Cannot get current working directory\n", stderr);
-        return CYGWRUN_ENOENT;
-    }
-    ptd = xgetenv(L"TMP");
-    if (ptd != NULL)
-        ptd = pathtowin(ptd);
-    wtd = xgetenv(L"TEMP");
-    if (wtd != NULL)
-        wtd = pathtowin(wtd);
-    else
-        wtd = xwcsdup(ptd);
-    if (ptd == NULL)
-        ptd = xwcsdup(wtd);
-    if (ptd == NULL) {
-        if (xshowerr)
-            fputs("Both TEMP and TMP environment variables are missing\n", stderr);
-        return CYGWRUN_ENOENT;
-    }
-    npe = xwcsconcat(specialenv, ppe);
-    xrawenvs = xsplitstr(npe, L',');
-    xfree(npe);
-    xfree(ppe);
-
-    while (wenv[envc] != NULL) {
-        ++envc;
-    }
-    dupwenvp = waalloc(envc + 6);
-    for (i = 0; i < envc; i++) {
-        const wchar_t **e = removeenv;
-        const wchar_t  *p = wenv[i];
-
-        while (*e != NULL) {
-            if (xwcsisenvvar(p, *e, 1)) {
-                /**
-                 * Skip private environment variable
-                 */
-                p = NULL;
-                break;
+        if (rv > 0) {
+            if ((rv < 2) || (rv > 2000000)) {
+                if (xshowerr)
+                    fputs("\nThe timeout parameter is outside valid range\n", stderr);
+                return ERANGE;
             }
-            e++;
+            xtimeout = rv * 1000;
         }
-        if (p != NULL)
-            dupwenvp[dupenvc++] = xwcsdup(p);
+        --argc;
+        ++argv;
     }
-
-    prg = pathtowin(dupwargv[0]);
-    exe = getrealpathname(prg, 0);
-    if (exe == NULL) {
-        exe = xsearchexe(cwd, prg);
-        if (exe == NULL) {
-            /**
-             * PROGRAM was not found.
-             * Search inside PATH
-             */
-            exe = xsearchexe(cpp, prg);
+    else {
+        rv = xngetenv(L"CYGWRUN_TIMEOUT");
+        if (rv > 0) {
+            if ((rv < 2) || (rv > 2000000)) {
+                if (xshowerr)
+                    fputs("\nThe CYGWRUN_TIMEOUT is outside valid range\n", stderr);
+                return ERANGE;
+            }
+            xtimeout = rv * 1000;
         }
     }
-    if (exe == NULL) {
+    eparam = xwgetenv(L"CYGWRUN_SKIP");
+    if (argc && *(argv[0]) == L'=') {
+        eparam = xwcsappend(eparam, argv[0] + 1, L',');
+        --argc;
+        ++argv;
+    }
+    eparam   = xwcsappend(eparam, sskipenv, L',');
+    xrawenvs = xsplitstr(eparam, L',');
+    xfree(eparam);
+    eparam = xwgetenv(L"CYGWRUN_UNSET");
+    if (argc && *(argv[0]) == L'-') {
+        eparam = xwcsappend(eparam, argv[0] + 1, L',');
+        --argc;
+        ++argv;
+    }
+    if (eparam) {
+        xdelenvs = xsplitstr(eparam, L',');
+        xfree(eparam);
+    }
+    if (argc < 1) {
         if (xshowerr)
-            fprintf(stderr, "Cannot find PROGRAM '%S'\n", prg);
-        return CYGWRUN_ENOENT;
+            fputs("\nThe PROGRAM name was not specified\n", stderr);
+        return ENOENT;
     }
-    xfree(prg);
-    if (xisbatchfile(exe)) {
-        /**
-         * Execute batch file using cmd.exe
-         */
-        wchar_t *p = xgetenv(L"COMSPEC");
-        if (p == NULL) {
+    if (posixroot == NULL) {
+        eparam = xwgetenv(L"CYGWRUN_ROOT");
+        if (eparam == NULL) {
             if (xshowerr)
-                fputs("Missing COMSPEC environment variable\n", stderr);
-            return CYGWRUN_ENOENT;
+                fputs("\nThe CYGWRUN_ROOT environment variable was not found\n", stderr);
+            return ENOENT;
         }
-        dupwargv[dupargc++] = getrealpathname(p, 0);
-        dupwargv[dupargc++] = xwcsdup(L"/D");
-        dupwargv[dupargc++] = xwcsdup(L"/E:ON");
-        dupwargv[dupargc++] = xwcsdup(L"/V:OFF");
-        dupwargv[dupargc++] = xwcsdup(L"/C");
-        xrunbatch = 1;
-        xfree(p);
+        posixroot = getrealpathname(eparam, 1);
+        if (posixroot == NULL) {
+            if (xshowerr)
+                fprintf(stderr, "\nThe system cannot find the CYGWRUN_ROOT directory: '%S'\n", eparam);
+            return CYGWRUN_NOEXEC;
+        }
+        xfree(eparam);
     }
-    dupwargv[dupargc++] = exe;
-    xrunexec = dupargc;
-
-    for (i = 0; i < argc; i++) {
-        const wchar_t *p = wargv[i];
-
-        while (xisblank(*p))
-            ++p;
-        if (*p)
-            dupwargv[dupargc++] = xwcsdup(p);
+    if (cwdir) {
+        cwdir = pathtowin(cwdir);
+        if (cwdir == NULL) {
+            if (xshowerr)
+                fputs("The working directory path is invalid\n", stderr);
+            return EBADF;
+        }
+        posixwork = getrealpathname(cwdir, 1);
+        if (posixwork == NULL) {
+            if (xshowerr)
+                fprintf(stderr, "\nThe system cannot find the work directory: '%S'\n", cwdir);
+            return ENOTDIR;
+        }
+        xfree(cwdir);
     }
+    else {
+        posixwork = xgetpwd();
+        if (posixwork == NULL) {
+            if (xshowerr)
+                fputs("The system cannot find the current working directory\n", stderr);
+            return ENOENT;
+        }
+    }
+    eparam = xwgetenv(L"CYGWRUN_PATH");
+    if (eparam) {
+        posixpath = towinpaths(eparam, 0);
+        xfree(eparam);
+    }
+    if (posixpath == NULL) {
+        posixpath = xwgetenv(L"PATH");
+        posixpath = cleanpath(posixpath);
+    }
+    if (posixpath == NULL) {
+        if (xshowerr)
+            fputs("The PATH environment variable was not defined\n", stderr);
+        return ENOENT;
+    }
+    SetEnvironmentVariableW(L"PATH", posixpath);
+    SetEnvironmentVariableW(L"PWD",  posixwork);
 
-    /**
-     * Add back environment variables
-     */
-    dupwenvp[dupenvc++] = xwcsconcat(L"PATH=", cpp);
-    dupwenvp[dupenvc++] = xwcsconcat(L"CYGWRUN_POSIX_ROOT=", posixroot);
-    dupwenvp[dupenvc++] = xwcsconcat(L"PWD=",  cwd);
-    dupwenvp[dupenvc++] = xwcsconcat(L"TEMP=", wtd);
-    dupwenvp[dupenvc++] = xwcsconcat(L"TMP=",  ptd);
-    xfree(cpp);
-    xfree(cwd);
-    xfree(ptd);
-    xfree(wtd);
-    return posixmain(dupargc, dupwargv, dupenvc, dupwenvp);
+    rv = xinitenv();
+    if (rv) {
+        if (xshowerr)
+            fputs("The system was unable to init the environment\n", stderr);
+        return rv;
+    }
+    dupargc = 0;
+    dupargv = xwaalloc(argc);
+    if (xiswcschar(argv[0], L'.')) {
+        dupargv[dupargc++] = zerostr;
+        if (argc < 2) {
+            if (xshowerr)
+                fputs("\nThere are no options to evaluate\n", stderr);
+            return EINVAL;
+        }
+    }
+    else {
+        prg = pathtowin(xwcsdup(argv[0]));
+        if (prg == NULL) {
+            if (xshowerr)
+                fprintf(stderr, "The program path is invalid: '%S'\n", argv[0]);
+            return CYGWRUN_NOEXEC;
+        }
+        exe = getrealpathname(prg, 0);
+        if (exe == NULL) {
+            exe = xsearchexe(posixwork, prg);
+            if (exe == NULL) {
+                /**
+                 * PROGRAM was not found in the work directory
+                 * Search inside PATH
+                 */
+                exe = xsearchexe(posixpath, prg);
+            }
+        }
+        if (exe == NULL) {
+            if (xshowerr)
+                fprintf(stderr, "The system cannot find the executable: '%S'\n", prg);
+            return CYGWRUN_NOEXEC;
+        }
+        xfree(prg);
+        dupargv[dupargc++] = exe;
+    }
+    for (i = 1; i < argc; i++)
+        dupargv[dupargc++] = xwcsdup(argv[i]);
+
+    rv = runprogram(dupargc, dupargv);
+#if PROJECT_ISDEV_VERSION
+    xfree(posixpath);
+    xfree(posixroot);
+    xfree(posixwork);
+    xwaafree(xenvvals);
+    xwaafree(xenvvars);
+    xwaafree(dupargv);
+    xwaafree(xrawenvs);
+    xwaafree(xdelenvs);
+    if (xnalloc != xnmfree)
+        fprintf(stderr, "\nAllocated: %d\nFree     : %d\n", xnalloc, xnmfree);
+#endif
+    return rv;
 }

@@ -37,10 +37,6 @@ int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
     int x = 0;
     int e = 0;
 
-    if (argc == 1) {
-        fwprintf(stdout, L"_=%s", wargv[0]);
-        x++;
-    }
     while (wenv[e] != NULL) {
         const wchar_t *v = wenv[e];
         if (argc > 1) {

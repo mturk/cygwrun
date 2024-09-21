@@ -31,9 +31,9 @@
 /**
  * Version info
  */
-#define PROJECT_MAJOR_VERSION   1
-#define PROJECT_MINOR_VERSION   2
-#define PROJECT_PATCH_VERSION   4
+#define PROJECT_MAJOR_VERSION   2
+#define PROJECT_MINOR_VERSION   0
+#define PROJECT_PATCH_VERSION   0
 #if defined(_BUILD_NUMBER)
 # define PROJECT_MICRO_VERSION  _BUILD_NUMBER
 #else

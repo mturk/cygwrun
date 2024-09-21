@@ -27,67 +27,111 @@ Using cygwrun the upper example would become:
 ```
 cygwrun program.exe --f1=/tmp/f1 /usr/f1 ...
 ```
+
 Before starting `program.exe` cygwrun converts all command line
 and environment variables to windows format.
 
+
 ## Usage
 
-Here is what the usage screen displays
+When running Cygwrun the first argument is expected to be
+`PROGRAM` name, followed by optional `ARGUMENTS`.
+
+In case the first arguments starts with `~` charater,
+the ramainder of the argument is considered to be the
+posix root directory.
+
+In case the `PROGRAM` name is `.` character, the
+Cygwrun will print the evaluated arguments to the
+stdout.
+
+The command line usage is as follows:
+
 ```
-Usage cygwrun [OPTIONS]... PROGRAM [ARGUMENTS]...
-Execute PROGRAM [ARGUMENTS]...
+cygwrun [OPTIONS]... PROGRAM [ARGUMENTS]...
 
 Options are:
- -r <DIR>  use DIR as posix root.
- -w <DIR>  change working directory to DIR before calling PROGRAM.
- -n <ENV>  do not translate ENV variable(s)
-           multiple variables are comma separated.
- -t <SEC>  timeout in SEC (seconds) for PROGRAM to finish.
- -i [IOE]  enable or disable standard io pipes.
- -o        use ORIGINAL_PATH instead PATH.
- -f        convert all unknown posix absolute paths.
- -K        keep trailing path separators for paths.
- -q        do not print errors to stderr.
- -v        print version information and exit.
- -V        print detailed version information and exit.
- -h | -?   print this screen and exit.
- -p        print arguments instead executing PROGRAM.
+
+ ~<DIR>  set the ROOT to <DIR> .
+ @<DIR>  set the PROGRAM working directory to <DIR>.
+ ^<SEC>	 set the PROGRAM timeout to <SEC>.
+ =<ENV>  do not translate <ENV> variable(s)
+		 multiple variables are comma separated.
+ -<ENV>  remove <ENV> variable(s) from the PROGRAM environment
+		 multiple variables are comma separated.
 
 ```
+
+
+## Global configuration
+
+Gygwrun configuration can be modified by setting
+environment variables or by using command line options.
+
+Here is the list of environment variables that
+Cygwrun uses for each instance:
+
+* **CYGWRUN_ROOT**
+
+  This variable sets the posix root directory.
+
+* **CYGWRUN_PATH**
+
+  If set the value of this variable will be used
+  as `PATH` environment variable.
+
+* **CYGWRUN_TIMEOUT**
+
+  This variable sets the time in seconds for how
+  long the `PROGRAM` is allowed to run.
+
+* **CYGWRUN_SKIP**
+
+  This variable allows to set which environment variables
+  Cygwrun will not try to modify.
+
+  The names of the environment variables are comma separated.
+
+
+* **CYGWRUN_UNSET**
+
+  This variable allows to set which environment variables
+  Cygwrun will not pass to the `PROGRAM`.
+
+  The names of the environment variables are comma separated.
+
+* **CYGWRUN_QUIET**
+
+  If the value of this variable is set to `1`, Cygwrun will
+  not display error message in case of failure.
+
+
 
 ## Posix root
 
 Posix root is used to replace posix parts with posix environment root
 location inside Windows environment.
 
-Use `-r <directory>` command line option to setup the install location
+Use `~<directory>` command line option to setup the install location
 of the current posix subsystem.
 
-In case the `-r <directory>` was not specified, the program will
-check the following environment variables:
+In case the `~<directory>` was not specified, the program will
+check the `CYGWRUN_ROOT` environment variable.
 
-First it will check `CYGWRUN_POSIX_ROOT` then `POSIX_ROOT` and
-finally `CYGWIN_ROOT` variable.
+In case the root directory cannot be found, the program will fail.
 
-If none of them were defined, cygwrun will use the first directory
-part of the parent process as posix root directory.
+**Notice**
 
 Make sure that you provide a correct posix root since it will
 be used as prefix to `/usr, /bin, /tmp` constructing an actual
 Windows path.
-
-**Notice**
-
-The `POSIX_ROOT` and `CYGWIN_ROOT` environment variables
-are deprecated starting with version **1.2.2** and might
-be removed in future releases.
 
 
 For example, if Cygwin is installed inside `C:\cygwin64` you
 can set either environment variable
 
 ```sh
-    $ export CYGWRUN_POSIX_ROOT=C:/cygwin64
+    $ export CYGWRUN_ROOT=C:/cygwin64
     ...
     $ cygwrun ... --f1=/usr/local
 ```
@@ -95,10 +139,11 @@ can set either environment variable
 ... or declare it on command line
 
 ```sh
-    $ cygwrun -r C:/cygwin64 ... --f1=/usr/local
+    $ cygwrun @C:/cygwin64 ... --f1=/usr/local
 ```
 
 In both cases `--f1 parameter` will evaluate to `--f1=C:\cygwin64\usr\local`
+
 
 ## Environment variables
 
@@ -129,72 +174,10 @@ regardless if all other path elements can be translated.
     $ FOO=/usr:/sbin:/unknown:../dir
 ```
 
-The `-f` command line option forces all absolute posix paths
-to be converted to it's windows format.
-
-```sh
-    $ export FOO=/usr:/sbin:/unknown:../dir
-    $ cygwrun -f dumpenvp.exe FOO
-    $ FOO=C:\cygwin64\usr;C:\cygwin64\sbin;C:\cygwin64\unknown;..\dir
-```
-
 Note that some environment variables are always removed from the
 current environment variable list that is passed to child process
-such as `_`, `CYGWRUN_POSIX_PATH`, `OLDPWD`, `ORIGINAL_PATH`,
-`ORIGINAL_TEMP` and `ORIGINAL_TMP`.
-
-
-## Running from MSYS2
-
-If running inside MSYS2 environment, MSYS2 will try to convert
-environment variables and program arguments to native windows paths.
-
-This can sometimes produce false paths.
-For example if trying to pass `/Q` argument to native application
-MSYS2 will actually pass the `Q:\'
-
-```sh
-    $ dumpargs.exe /Q
-    $ Q:\
-```
-
-To handle this you can use the following
-
-```sh
-    $ MSYS2_ARG_CONV_EXCL=* dumpargs.exe /Q
-    $ /Q
-```
-
-However if trying to pass `/Q /tmp` this will not resolve correctly
-
-```sh
-    $ dumpargs.exe /Q /tmp
-    $ Q:/
-    $ C:/msys64/tmp
-    ...
-    $ MSYS2_ARG_CONV_EXCL=* dumpargs.exe /Q /tmp
-    $ /Q
-    $ /tmp
-```
-
-Using Cygwrun will solve the arguments correctly
-
-```sh
-    $ MSYS2_ARG_CONV_EXCL=* cygwrun.exe dumpargs.exe /Q /tmp
-    $ /Q
-    $ C:\msys64\tmp
-```
-
-The same applies to the environment variables.
-The best practice when running native applications
-inside MSYS2 is to use Cygwrun as following
-
-```sh
-    $ MSYS2_ARG_CONV_EXCL=* MSYS2_ENV_CONV_EXCL=* cygwrun.exe myapp.exe [arguments]
-```
-
-This will ensure that arguments and environment variables
-are properly converted to native Windows paths.
+such as `_`, `CYGWRUN_*`, and any variables listed inside
+`CYGWRUN_UNSET` environment variable.
 
 
 ## Command line arguments
@@ -208,10 +191,10 @@ If translation fails, the original argument will be preserved.
 
 
 ```sh
-    $ cygwrun -p A=/tmp
+    $ cygwrun . A=/tmp
     $ A=C:\cygwin64\tmp
     $
-    $ cygwrun -p --A=/tmp
+    $ cygwrun . --A=/tmp
     $ --A=C:\cygwin64\tmp
 ```
 
@@ -221,52 +204,66 @@ By default Cygwrun will use the **PATH** environment
 variable passed by calling process and translate it
 to Windows convention.
 
-Since Cygwin or MSYS2 modifies the original PATH, user
-can use the **-o** command line option to set the PATH
-to the ORIGINAL_PATH. The ORIGINAL_PATH is variable
-set by Cygwin which contains the PATH before Cygwin
-was started.
+Since Cygwin modifies the original PATH, user
+can set the `CYGWRUN_PATH` to the ORIGINAL_PATH.
+The ORIGINAL_PATH is variable set by Cygwin which
+contains the PATH before Cygwin was started.
 
 This is useful when Windows PATH contains the same
 program as Cygwin, like `python.exe`, `find.exe` etc.
 
-The other solution is to set the `CYGWRUN_POSIX_PATH`
-environment variable before calling Cygwrun.
+The `CYGWRUN_PATH` environment variable will be used to
+find the PROGRAM if defined as relative path,
+and will be passed as PATH variable to the child process.
 
-This variable will be used to find the PROGRAM if defined
-as relative path, and will be passed as PATH variable
-to the child process.
 
 ## Program life cycle
 
 By default Cygwrun will execute `PROGRAM` and wait
 until it finishes.
 
-Use **-t <SEC>** command option to set the timeout
-Cygwrun will wait for program to finish.
+To set the timeout Cygwrun will wait for program to finish,
+use the **^<timeout>** command option or set the
+**CYGWRUN_TIMEOUT** environment variable.
+
 
 ```sh
-    $ cygwrun -t20 some_program.exe
+    $
+    $ cygwrun ^20 some_program.exe
     $ ...
     $ echo $?
     $ 2
 ```
 
 In case the `some_program.exe` does not finish within
-20 seconds, cygwrun will terminate the `some_program.exe`
-and return `CYGWRUN_ETIMEDOUT (2)` error.
+`20` seconds, cygwrun will first try to send `CTRL+C`
+signal to the `some_program.exe`. If the  program
+exits within one second the Cygwrun will
+return `128+SIGINT (130)` as exit code.
 
-The valid range for **-t** command option is between `1`
+In other case Cygwrun will terminate the `some_program.exe`
+and return `128+SIGTERM (143)` error.
+
+
+** Notice **
+
+The valid range for **timeout** value is between `2`
 and `2000000` seconds.
 
-## Return values
+If specified on the command line it is used instead
+global value defined by **CYGWRUN_TIMEOUT** environment
+variable.
+
+The **timeout** value zero disables timeout.
+
+
+## Return value
 
 When the `PROGRAM` finishes, the return value of the
-program is incremented by 10, in case its not zero.
+program is returned as Cygwrun exit code.
 
-Return values between `1` and `9` are reserved for
-cygwrun and are returned in case it cannot start the
-`PROGRAM`, or the configuration parameters are invalid.
+In case the return value is larger then `125`,
+it will be truncated to `125`.
 
 
 ## License

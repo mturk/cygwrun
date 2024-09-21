@@ -108,9 +108,9 @@ test: all $(TESTDA) $(TESTDE)
 	@echo
 	@echo Running simple verification tests ...
 	@echo
-	@$(OUTPUT) $(TESTDE) SHELL
+	@$(OUTPUT) ~$(WORKDIR) $(TESTDE) SHELL
 	@echo
-	@$(OUTPUT) $(TESTDA) //tmp
+	@$(OUTPUT) ~$(WORKDIR) $(TESTDA) //tmp
 	@echo
 	@echo
 	@echo You can now run runtest.sh from Cygwin environment

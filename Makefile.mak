@@ -79,7 +79,7 @@ TESTDE_OBJECTS = \
 all : $(WORKDIR) $(OUTPUT)
 
 $(WORKDIR):
-	@-md $(WORKDIR)
+	@-md $(WORKDIR) 2>NUL
 
 {$(SRCDIR)}.c{$(WORKDIR)}.obj:
 	$(CC) $(CLOPTS) $(CFLAGS) -Fo$(WORKDIR)\ $<
@@ -103,9 +103,9 @@ test: all $(TESTDA) $(TESTDE)
 	@echo.
 	@echo Running simple verification tests ...
 	@echo.
-	@$(OUTPUT) -r $(MAKEDIR) $(TESTDE) MAKEDIR
+	@$(OUTPUT) ~$(MAKEDIR) $(TESTDE) MAKEDIR
 	@echo.
-	@$(OUTPUT) -r $(MAKEDIR) $(TESTDA) /tmp
+	@$(OUTPUT) ~$(MAKEDIR) $(TESTDA) /tmp
 	@echo.
 	@echo.
 	@echo You can now call runtest.sh from Cygwin environment

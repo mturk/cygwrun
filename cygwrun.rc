@@ -18,10 +18,6 @@
 #include <windows.h>
 #include "cygwrun.h"
 
-#define IDI_MAINICON                            101
-IDI_MAINICON ICON                               "cygwrun.ico"
-CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST  "cygwrun.manifest"
-
 #if PROJECT_ISDEV_VERSION
 #define PROJECT_PRERELEASE  VS_FF_PRERELEASE
 #else
@@ -33,6 +29,7 @@ CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST  "cygwrun.manifest"
 #define PROJECT_PATCHED     0
 #endif
 
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST  "cygwrun.manifest"
 
 1 VERSIONINFO
  FILEVERSION PROJECT_VERSION_CSV
