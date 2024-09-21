@@ -140,16 +140,6 @@ static __inline int xisblank(int c)
     return (c == 0x20 || c == 0x09);
 }
 
-static __inline int xtolower(int c)
-{
-    return (c >= 0x41 && c <= 0x5A) ? c ^ 0x20 : c;
-}
-
-static __inline int xtoupper(int c)
-{
-    return (c >= 0x61 && c <= 0x7A) ? c ^ 0x20 : c;
-}
-
 static __inline int xisnonchar(int c)
 {
     return (c > 0 && c <= 0x20);
@@ -171,7 +161,7 @@ static __inline int xiswcschar(const wchar_t *s, wchar_t c)
 static __inline int xicasecmp(int i, int a, int b)
 {
     if (i)
-        return (xtolower(a) == xtolower(b));
+        return (towupper(a) == towupper(b));
     else
         return (a == b);
 }
@@ -404,50 +394,42 @@ static wchar_t *xwcstrim(wchar_t *s)
     return s;
 }
 
-static wchar_t *xwcsbegins(const wchar_t *src, const wchar_t *str)
+static int xwcsbegins(const wchar_t *src, const wchar_t *str)
 {
-    const wchar_t *pos = src;
     int sa;
-    int sb;
 
     while (*src) {
         if (*str == WNUL)
-            return (wchar_t *)pos;
-        sa = xtolower(*src++);
-        sb = xtolower(*str++);
-        if (sa != sb)
-            return NULL;
-        pos++;
+            return 1;
+        sa = towupper(*src++);
+        if (sa != *str++)
+            return 0;
     }
-    return *str ? NULL : (wchar_t *)pos;
+    return (*str == WNUL);
 }
 
-wchar_t *xwcsends(const wchar_t *src, const wchar_t *str)
+static int xwcsends(const wchar_t *src, const wchar_t *str, size_t sb)
 {
-    const wchar_t *pos;
     size_t sa;
-    size_t sb;
 
     sa = xwcslen(src);
-    sb = xwcslen(str);
+    if (sb == 0)
+        sb = xwcslen(str);
     if (sa == 0 || sb == 0 || sb > sa)
-        return NULL;
-    pos = src + sa - sb;
-    src = pos;
+        return 0;
+    src = src + sa - sb;
     while (*src) {
-        sa = xtolower(*src++);
-        sb = xtolower(*str++);
-        if (sa != sb)
-            return NULL;
+        if (towlower(*src++) != *str++)
+            return 0;
     }
-    return (wchar_t *)pos;
+    return 1;
 }
 
 static int xwcsequals(const wchar_t *src, const wchar_t *str)
 {
     int sa;
 
-    while ((sa = xtolower(*src++)) == xtolower(*str++)) {
+    while ((sa = towupper(*src++)) == *str++) {
         if (sa == 0)
             return 1;
     }
@@ -456,24 +438,20 @@ static int xwcsequals(const wchar_t *src, const wchar_t *str)
 
 static int xwcsicmp(const wchar_t *s1, const wchar_t *s2)
 {
-    int rv;
-    if (IS_EMPTY_WCS(s1)) {
-        if (IS_EMPTY_WCS(s2))
-            return 0;
-        else
-            return 1;
+    int c1;
+    int c2;
+
+    while (*s1) {
+        c1 = towupper(*s1);
+        c2 = towupper(*s2);
+        if (c1 != c2)
+            return (c1 - c2);
+        if (c1 == 0)
+            break;
+        s1++;
+        s2++;
     }
-    if (IS_EMPTY_WCS(s2)) {
-        if (IS_EMPTY_WCS(s1))
-            return 0;
-        else
-            return -1;
-    }
-    rv = CompareStringOrdinal(s1, -1, s2, -1, TRUE);
-    if (rv == 0)
-        return GetLastError();
-    else
-        return rv - 2;
+    return 0;
 }
 
 /**
@@ -865,7 +843,6 @@ static int xenvsort(const void *a1, const void *a2)
     return xwcsicmp(s1, s2);
 }
 
-
 static int xinitenv(void)
 {
     int       ec;
@@ -960,27 +937,36 @@ static wchar_t *xenvblock(void)
     if (c == 0)
         return NULL;
     ea = xwaalloc(c + 1);
-    eb = xwmalloc(z);
+    eb = xwmalloc(z + 1);
     ep = xenvvars;
     ev = xenvvals;
     z  = 0;
     c  = 0;
     while (*ep) {
         n = xwcslen(*ep);
-        if (n) {
+        v = xwcslen(*ev);
+        if (n && v) {
             ea[c] = eb + z;
-            wmemcpy(eb + z, *ep, n);
+            wmemcpy(eb + z, *ep, ++n);
             z += n;
-            eb[z++] = L'=';
-            v = xwcslen(*ev) + 1;
-            wmemcpy(eb + z, *ev, v);
+            wmemcpy(eb + z, *ev, ++v);
             z += v;
             c++;
         }
         ep++;
         ev++;
     }
+    eb[z++] = WNUL;
+    eb[z++] = WNUL;
     qsort((void *)ea, c, sizeof(wchar_t *), xenvsort);
+    bp = eb;
+    for (bp = eb; *bp; bp++) {
+        while (*bp)
+            bp++;
+        *(bp++) = L'=';
+        while (*bp)
+            bp++;
+    }
     bp = xarrblk(c, ea, WNUL);
     xfree(eb);
     xfree(ea);
@@ -1028,14 +1014,14 @@ static wchar_t *cleanpath(wchar_t *s)
             s[0] = L'\\';
             s[1] = L'\\';
             s[3] = L'\\';
-            s[4] = xtoupper(s[4]);
+            s[4] = towupper(s[4]);
             s[6] = L'\\';
             n    = 7;
         }
     }
     if ((n == 0) && (i > 2)) {
         if (xisalpha(s[0]) && (s[1] == L':') && IS_PSW(s[2])) {
-            s[0] = xtoupper(s[0]);
+            s[0] = towupper(s[0]);
             s[2] = L'\\';
             n    = 3;
         }
@@ -1179,7 +1165,7 @@ static wchar_t *posixtowin(wchar_t *pp, int m)
         /**
          * /cygdrive/x/... absolute path
          */
-        windrive[0] = xtoupper(pp[10]);
+        windrive[0] = towupper(pp[10]);
         rp = xwcsconcat(windrive, pp + 12, 0);
         cleanpath(rp + 3);
     }
@@ -1187,7 +1173,7 @@ static wchar_t *posixtowin(wchar_t *pp, int m)
         /**
          * /x/... msys2 absolute path
          */
-        windrive[0] = xtoupper(pp[1]);
+        windrive[0] = towupper(pp[1]);
         rp = xwcsconcat(windrive, pp + 3, 0);
         cleanpath(rp + 3);
     }
@@ -1373,7 +1359,7 @@ static int getsubproctree(HANDLE sh, xprocinfo *pa, DWORD pid,
         if (p >= sz) {
             break;
         }
-        if ((e.th32ParentProcessID == pid) && !xwcsequals(e.szExeFile, L"conhost.exe")) {
+        if ((e.th32ParentProcessID == pid) && !xwcsends(e.szExeFile, L"conhost.exe", 11)) {
             pa[p].h = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE,
                                   FALSE, e.th32ProcessID);
             if (pa[p].h) {
@@ -1511,7 +1497,7 @@ static int runprogram(int argc, wchar_t **argv)
             if (*a == L'?') {
                 int x;
                 for (x = 0; x < xenvcount; x++) {
-                    if (xwcsequals(xenvvars[x], a + 1)) {
+                    if (xwcsicmp(xenvvars[x], a + 1) == 0) {
                         fputws(xenvvals[x], stdout);
                         break;
                     }
