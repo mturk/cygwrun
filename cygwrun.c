@@ -50,6 +50,7 @@
 #define CYGWRUN_ALIGN(_S)       (((_S) + 0x0000000F) & 0xFFFFFFF0)
 
 static DWORD    xtimeout    = INFINITE;
+static int      xhasmsys    = 0;
 static int      xshowerr    = 1;
 static int      xrmendps    = 1;
 static int      xenvcount   = 0;
@@ -69,8 +70,8 @@ static wchar_t **xdelenvs   = NULL;
 static wchar_t  zerostr[8]  = { 0 };
 
 static const wchar_t *pathmatches[] = {
-    L"/cygdrive/?/+*",
     L"/?/+*",
+    L"/cygdrive/?/+*",
     L"/bin/*",
     L"/dev/*",
     L"/etc/*",
@@ -277,16 +278,16 @@ static wchar_t *xwgetenv(const wchar_t *s)
     return d;
 }
 
-static int xngetenv(const wchar_t *s)
+static int xngetenv(int d, const wchar_t *s)
 {
     DWORD    n;
     wchar_t  e[BBUFSIZ];
 
     if (IS_EMPTY_WCS(s))
-        return -1;
+        return d;
     n =  GetEnvironmentVariableW(s, e, BBUFSIZ);
     if ((n == 0) || (n >= BBUFSIZ))
-        return -1;
+        return d;
 
     return (int)wcstol(e, NULL, 10);
 }
@@ -574,37 +575,37 @@ static wchar_t *xwcsctok(wchar_t *s, wchar_t d, wchar_t **c)
     return p;
 }
 
-static int xneedsquote(const wchar_t *str)
+static int xneedsquote(const wchar_t *s)
 {
-    const wchar_t *s;
-
-    for (s = str; *s; s++) {
+    while (*s) {
         if (xisblank(*s) || (*s == 0x22))
             return 1;
+        s++;
     }
     return 0;
 }
 
 static wchar_t *xquoteprg(wchar_t *s)
 {
-    int      i;
-    wchar_t *d;
     size_t   n;
+    wchar_t *d;
+    wchar_t *e;
 
     if (IS_EMPTY_WCS(s))
         return s;
     if (xneedsquote(s) == 0)
         return s;
     n = xwcslen(s);
-    d = xwmalloc(n + 2);
-    d[0] = L'"';
-    for (i = 0; i < (int)n; i++)
-        d[i + 1] = s[i];
+    e = xwmalloc(n + 2);
+    d = e;
+    *(d++) = L'"';
+    wmemcpy(d, s, n);
+    d += n;
     xfree(s);
-    d[i + 1] = L'"';
-    d[i + 2] = WNUL;
+    *(d++) = L'"';
+    *(d)   = WNUL;
 
-    return d;
+    return e;
 }
 
 /**
@@ -743,6 +744,8 @@ static int isposixpath(const wchar_t *str)
     if (str[1] == L'/')
         return iswinpath(str);
     if (wcschr(str + 1, L'/')) {
+        if (!xhasmsys)
+            i++;
         while (pathmatches[i] != NULL) {
             if (xwcsmatch(0, str, pathmatches[i]) == 0)
                 return i + 100;
@@ -1163,18 +1166,18 @@ static wchar_t *posixtowin(wchar_t *pp, int m)
     }
     else if (m == 100) {
         /**
-         * /cygdrive/x/... absolute path
-         */
-        windrive[0] = towupper(pp[10]);
-        rp = xwcsconcat(windrive, pp + 12, 0);
-        cleanpath(rp + 3);
-    }
-    else if (m == 101) {
-        /**
          * /x/... msys2 absolute path
          */
         windrive[0] = towupper(pp[1]);
         rp = xwcsconcat(windrive, pp + 3, 0);
+        cleanpath(rp + 3);
+    }
+    else if (m == 101) {
+        /**
+         * /cygdrive/x/... absolute path
+         */
+        windrive[0] = towupper(pp[10]);
+        rp = xwcsconcat(windrive, pp + 12, 0);
         cleanpath(rp + 3);
     }
     else if (m == 300) {
@@ -1601,10 +1604,9 @@ int wmain(int argc, const wchar_t **argv)
         fputs(PROJECT_NAME " version " PROJECT_VERSION_ALL, stdout);
         return 0;
     }
-    if (xngetenv(L"CYGWRUN_QUIET") == 1)
-        xshowerr = 0;
-    if (xngetenv(L"CYGWRUN_TRIM_PATHS") == 0)
-        xrmendps = 0;
+    xshowerr = !xngetenv(0, L"CYGWRUN_QUIET");
+    xhasmsys =  xngetenv(0, L"CYGWRUN_MSYSTEM");
+    xrmendps =  xngetenv(1, L"CYGWRUN_TRIM_PATHS");
     --argc;
     ++argv;
     if (argc && *(argv[0]) == L'~') {
@@ -1641,7 +1643,7 @@ int wmain(int argc, const wchar_t **argv)
         ++argv;
     }
     else {
-        rv = xngetenv(L"CYGWRUN_TIMEOUT");
+        rv = xngetenv(0, L"CYGWRUN_TIMEOUT");
         if (rv > 0) {
             if ((rv < 2) || (rv > 2000000)) {
                 if (xshowerr)

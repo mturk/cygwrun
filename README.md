@@ -105,6 +105,14 @@ Cygwrun uses for each instance:
   If the value of this variable is set to `1`, Cygwrun will
   not display error message in case of failure.
 
+* **CYGWRUN_MSYSTEM**
+
+  If the value of this variable is set to `1`, Cygwrun will
+  try to convert arguments and environment variables using
+  MSYSTEM path convention.
+
+  For example, the `/c/some/path` will be converted to
+  `C:\some\path`.
 
 
 ## Posix root
