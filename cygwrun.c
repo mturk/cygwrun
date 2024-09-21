@@ -280,16 +280,21 @@ static wchar_t *xwgetenv(const wchar_t *s)
 
 static int xngetenv(int d, const wchar_t *s)
 {
-    DWORD    n;
-    wchar_t  e[BBUFSIZ];
+    int       v;
+    DWORD     n;
+    wchar_t   eb[BBUFSIZ];
+    wchar_t  *ep = NULL;
 
     if (IS_EMPTY_WCS(s))
         return d;
-    n =  GetEnvironmentVariableW(s, e, BBUFSIZ);
+    n =  GetEnvironmentVariableW(s, eb, BBUFSIZ);
     if ((n == 0) || (n >= BBUFSIZ))
         return d;
-
-    return (int)wcstol(e, NULL, 10);
+    v = (int)wcstol(eb, &ep, 10);
+    if ((ep && (*ep != WNUL)) || ((v == 0) && (errno != 0)))
+        return d;
+    else
+        return v;
 }
 
 static wchar_t *xgetpwd(void)
