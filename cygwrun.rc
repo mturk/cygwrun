@@ -18,24 +18,24 @@
 #include <windows.h>
 #include "cygwrun.h"
 
-#if PROJECT_ISDEV_VERSION
-#define PROJECT_PRERELEASE  VS_FF_PRERELEASE
+#if CYGWRUN_ISDEV_VERSION
+#define CYGWRUN_PRERELEASE  VS_FF_PRERELEASE
 #else
-#define PROJECT_PRERELEASE  0
+#define CYGWRUN_PRERELEASE  0
 #endif
 #if defined(_VENDOR_SFX)
-#define PROJECT_PATCHED     VS_FF_PATCHED
+#define CYGWRUN_PATCHED     VS_FF_PATCHED
 #else
-#define PROJECT_PATCHED     0
+#define CYGWRUN_PATCHED     0
 #endif
 
 CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST  "cygwrun.manifest"
 
 1 VERSIONINFO
- FILEVERSION PROJECT_VERSION_CSV
- PRODUCTVERSION PROJECT_VERSION_CSV
+ FILEVERSION CYGWRUN_VERSION_CSV
+ PRODUCTVERSION CYGWRUN_VERSION_CSV
  FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
- FILEFLAGS (PROJECT_PATCHED|PROJECT_PRERELEASE)
+ FILEFLAGS (CYGWRUN_PATCHED|CYGWRUN_PRERELEASE)
  FILEOS VOS_NT_WINDOWS32
  FILETYPE VFT_APP
  FILESUBTYPE 0x0L
@@ -44,15 +44,15 @@ BEGIN
     BEGIN
         BLOCK "040904b0"
         BEGIN
-            VALUE "Comments",         PROJECT_URL
-            VALUE "CompanyName",      PROJECT_COMPANY_NAME
-            VALUE "FileDescription",  PROJECT_DESCRIPTION
-            VALUE "FileVersion",      PROJECT_VERSION_STR PROJECT_VENDOR_SFX
-            VALUE "InternalName",     PROJECT_NAME
-            VALUE "LegalCopyright",   PROJECT_COPYRIGHT
-            VALUE "OriginalFilename", PROJECT_NAME ".exe"
-            VALUE "ProductName",      PROJECT_NAME
-            VALUE "ProductVersion",   PROJECT_VERSION_MIN
+            VALUE "Comments",         CYGWRUN_URL
+            VALUE "CompanyName",      CYGWRUN_COMPANY_NAME
+            VALUE "FileDescription",  CYGWRUN_DESCRIPTION
+            VALUE "FileVersion",      CYGWRUN_VERSION_STR CYGWRUN_VENDOR_SFX
+            VALUE "InternalName",     CYGWRUN_NAME
+            VALUE "LegalCopyright",   CYGWRUN_COPYRIGHT
+            VALUE "OriginalFilename", CYGWRUN_NAME ".exe"
+            VALUE "ProductName",      CYGWRUN_NAME
+            VALUE "ProductVersion",   CYGWRUN_VERSION_MIN
         END
     END
     BLOCK "VarFileInfo"

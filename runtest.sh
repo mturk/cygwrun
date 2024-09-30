@@ -38,47 +38,38 @@ xbexit()
     exit $e
 }
 
-_cygwrun=$srcdir/x64/cygwrun.exe
-test -x "$_cygwrun" || xbexit 1 "Cannot find cygwrun.exe in \`$srcdir/x64'"
-_dumpargs=./x64/dumpargs
-test -x "$_dumpargs" || xbexit 1 "Cannot find dumpargs.exe in \`./x64'"
-_dumpenvp=./x64/dumpenvp
-test -x "$_dumpenvp" || xbexit 1 "Cannot find dumpenvp.exe in \`./x64'"
+_cygwrun=$srcdir/.build/cygwrun.exe
+test -x "$_cygwrun" || xbexit 1 "Cannot find cygwrun.exe in \`$srcdir/.build'"
+_dumpargs=./.build/dumpargs
+test -x "$_dumpargs" || xbexit 1 "Cannot find dumpargs.exe in \`./.build'"
+_dumpenvp=./.build/dumpenvp
+test -x "$_dumpenvp" || xbexit 1 "Cannot find dumpenvp.exe in \`./.build'"
 
 echo "Running cygwrun test suite on: $phost"
 
-export CYGWRUN_ROOT="c:\\windows/"
-v=/tmp
-rv="`$_cygwrun . $v`"
-test "x$rv" = "xC:\\Windows\\tmp" || xbexit 1 "Failed #1.1: \`$rv'"
-unset CYGWRUN_ROOT
-
-rootdir="`$_cygwrun ~c:/cygwin64 . /`"
-test $? -ne 0 && xbexit 1 "Failed #1.2"
-export CYGWRUN_ROOT=$rootdir
+$cygwrun
+test $? -eq 111 && xbexit 1 "Failed #1.1"
 
 tmpdir="`$_cygwrun . /tmp`"
+test $? -ne 0 && xbexit 1 "Failed #1.2: \`$tmpdir'"
+vardir="`$_cygwrun . /var`"
 test $? -ne 0 && xbexit 1 "Failed #1.3"
 usrdir="`$_cygwrun . /usr`"
 test $? -ne 0 && xbexit 1 "Failed #1.4"
-bindir="`$_cygwrun . /bin`"
-test $? -ne 0 && xbexit 1 "Failed #1.5"
 
-rv="`$_cygwrun ~$rootdir\\\\ . /`"
-test "x$rv" = "x$rootdir" || xbexit 1 "Failed #2.1: \`$rv'"
 
-rv="`$_cygwrun . /usr=/tmp/foo`"
-test "x$rv" = "x/usr=/tmp/foo" || xbexit 1 "Failed #3.1: \`$rv'"
-rv="`$_cygwrun . /usr:/tmp/foo`"
-test "x$rv" = "x/usr:/tmp/foo" || xbexit 1 "Failed #3.2: \`$rv'"
+rv="`$_cygwrun $_dumpargs /opt=/tmp/foo`"
+test "x$rv" = "x/opt=/tmp/foo" || xbexit 1 "Failed #3.1: \`$rv'"
+rv="`$_cygwrun . /opt:/tmp/foo`"
+test "x$rv" = "x/opt:/tmp/foo" || xbexit 1 "Failed #3.2: \`$rv'"
 rv="`$_cygwrun . I=/tmp/foo`"
 test "x$rv" = "xI=$tmpdir\\foo" || xbexit 1 "Failed #3.3: \`$rv'"
 rv="`$_cygwrun . -I=/tmp/foo`"
 test "x$rv" = "x-I=$tmpdir\\foo" || xbexit 1 "Failed #3.4: \`$rv'"
 rv="`$_cygwrun . --I=/tmp/foo`"
 test "x$rv" = "x--I=$tmpdir\\foo" || xbexit 1 "Failed #3.5: \`$rv'"
-rv="`$_cygwrun . --I=/tmp/foo`"
-test "x$rv" = "x--I=$tmpdir\\foo" || xbexit 1 "Failed #3.6: \`$rv'"
+rv="`$_cygwrun . --I=/tmp`"
+test "x$rv" = "x--I=$tmpdir" || xbexit 1 "Failed #3.6: \`$rv'"
 rv="`$_cygwrun . I=/tmp/foo:/tmp/bar`"
 test "x$rv" = "xI=$tmpdir\\foo;$tmpdir\\bar" || xbexit 1 "Failed #3.7: \`$rv'"
 rv="`$_cygwrun . \"I=/tmp/foo::  :/tmp/bar\"`"
@@ -111,24 +102,24 @@ rv="`$_cygwrun $_dumpargs --f=../tmp/foo`"
 test "x$rv" = "x--f=..\\tmp\\foo" || xbexit 1 "Failed #5.2: \`$rv'"
 rv="`$_cygwrun $_dumpargs f=../tmp/foo`"
 test "x$rv" = "xf=..\\tmp\\foo" || xbexit 1 "Failed #5.3: \`$rv'"
-rv="`$_cygwrun @./x64 dumpargs 'f=../tmp/foo/;//'`"
+cd ./.build
+rv="`$_cygwrun dumpargs 'f=../tmp/foo/;'`"
 test "x$rv" = "xf=..\\tmp\\foo" || xbexit 1 "Failed #5.4: \`$rv'"
+cd ..
 
-export FOO="/usr/a::/usr/b:"
-rv="`$_cygwrun . ?FOO`"
-test "x$rv" = "x$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #6.1: \`$rv'"
+export FOO="/tmp/a::/tmp/b:"
 rv="`$_cygwrun $_dumpenvp FOO`"
-test "x$rv" = "xFOO=$usrdir\\a;$usrdir\\b" || xbexit 1 "Failed #6.2: \`$rv'"
-export FOO="/usr:/bin: :../d"
-export BAR="/usr/bin"
+test "x$rv" = "xFOO=$tmpdir\\a;$tmpdir\\b" || xbexit 1 "Failed #6.1: \`$rv'"
+export FOO="/tmp:/var: :../d"
+export BAR="/tmp/bin"
 rv="`$_cygwrun $_dumpenvp FOO`"
-test "x$rv" = "xFOO=$usrdir;$bindir;..\\d" || xbexit 1 "Failed #6.3: \`$rv'"
+test "x$rv" = "xFOO=$tmpdir;$vardir;..\\d" || xbexit 1 "Failed #6.2: \`$rv'"
 export FOO="c*"
 export CYGWRUN_SKIP=BAR
-rv="`$_cygwrun -FOO $_dumpenvp BAR`"
-test "x$rv" = "xBAR=/usr/bin" || xbexit 1 "Failed #6.4: \`$rv'"
-rv="`$_cygwrun =FOO $_dumpenvp FOO`"
-test "x$rv" = "xFOO=c*" || xbexit 1 "Failed #6.5: \`$rv'"
+rv="`$_cygwrun -u=FOO $_dumpenvp BAR`"
+test "x$rv" = "xBAR=/tmp/bin" || xbexit 1 "Failed #6.3: \`$rv'"
+rv="`$_cygwrun -s=FOO $_dumpenvp FOO`"
+test "x$rv" = "xFOO=c*" || xbexit 1 "Failed #6.4: \`$rv'"
 
 echo "All tests passed!"
 exit 0

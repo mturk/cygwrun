@@ -18,14 +18,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-int wmain(int argc, const wchar_t **wargv)
+int main(int argc, const char **argv)
 {
     int i;
 
     for (i = 1; i < argc; i++) {
         if (i > 1)
-            fputwc(L'\n', stdout);
-        fputws(wargv[i], stdout);
+            fputc('\n', stdout);
+        fputs(argv[i], stdout);
     }
     return 0;
 }

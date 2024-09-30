@@ -19,40 +19,40 @@
 #include <string.h>
 #include <errno.h>
 
-static int xwcsisienvvar(const wchar_t *str, const wchar_t *var)
+static int xisienvvar(const char *str, const char *var)
 {
-    while (*str != L'\0') {
-        if (towlower(*str) != towlower(*var))
+    while (*str) {
+        if (tolower(*str) != tolower(*var))
             break;
         str++;
         var++;
-        if (*var == L'\0')
-            return *str == L'=';
+        if (*var == '\0')
+            return *str == '=';
     }
     return 0;
 }
 
-int wmain(int argc, const wchar_t **wargv, const wchar_t **wenv)
+int main(int argc, const char **argv, const char **envp)
 {
     int x = 0;
     int e = 0;
 
-    while (wenv[e] != NULL) {
-        const wchar_t *v = wenv[e];
+    while (envp[e] != NULL) {
+        const char *v = envp[e];
         if (argc > 1) {
             int i;
             v = NULL;
             for (i = 1; i < argc; i++) {
-                if (xwcsisienvvar(wenv[e], wargv[i])) {
-                    v = wenv[e];
+                if (xisienvvar(envp[e], argv[i])) {
+                    v = envp[e];
                     break;
                 }
             }
         }
         if (v != NULL) {
             if (x++ > 0)
-                fputwc(L'\n', stdout);
-            fputws(v, stdout);
+                fputc('\n', stdout);
+            fputs(v, stdout);
         }
         e++;
     }

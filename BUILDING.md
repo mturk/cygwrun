@@ -3,9 +3,6 @@
 This project contains the source code for cygwrun, a program
 that helps to run windows applications under Posix environment.
 
-The build process supports only command line tools
-for both Microsoft and GCC compilers.
-
 Cygwrun release comes with the **cygwrun.exe** binary.
 In case you wish to create your own binary build,
 download or clone cygwrun sources and follow a
@@ -13,13 +10,13 @@ few standard rules.
 
 ## Prerequisites
 
-To compile cygwrun from source code you will need either
-Microsoft C/C++ Compiler from Microsoft Visual Studio 2015
-or any later version. Alternatively you use
-[MSYS2](https://www.msys2.org) mingw64 compiler toolchain.
+To compile cygwrun from source code you will Cygwin with
+the following packages included:
+  * mingw64-x86_64-binutils
+  * mingw64-x86_64-gcc-core
+  * mingw64-x86_64-headers
+  * mingw64-x86_64-runtime
 
-The official distribution release is build by using
-GCC compiler from [msys2](https://www.msys2.org)
 
 ## Build
 
@@ -28,80 +25,34 @@ case you need to create your own build simply
 download cygwrun source release or clone
 this repository and follow this simply rules.
 
-### Build using mingw64
-
-Cygwrun can be built using GCC compiler from msys2.
-You will need to install [msys2](https://www.msys2.org)
-
-After installing msys2 open msys2 shell and
-install required packages: base-devel and mingw-w64-x86_64-toolchain
-if they are not already installed.
-
-For example:
-```sh
-$ pacman --noconfirm -Sy base-devel
-$ pacman --noconfirm -Sy mingw-w64-x86_64-toolchain
-```
-
-Restart the shell with `-mingw64` parameter or open `mingw64.exe`
-terminal and cd to cygwrun source directory and type
+Open your Cygwin shell and cd to the Cygwrun source
+code directory and type:
 
 ```sh
-
-$ make -f
+    $ make
 ```
 
-In case there are no compile errors the cygwrun.exe is located
-inside **x64** subdirectory.
-
-
-### Build using Visual Studio
-
-To build the cygwrun using an already installed Visual Studio,
-you will need to open the Visual Studio native x64 command
-line tool.
-
-If using Visual Studio 2017 or later, open command prompt
-and call `vcvars64.bat` from Visual Studio install location
-eg, `C:\Program Files\Visual Studio 2017\VC\Auxiliary\Build`
-
-```cmd
-> cd C:\Some\Location\cygwrun
-> nmake /f Makefile.mak
-
-```
-
-The binary should be inside **x64** subdirectory.
-
-Using Visual Studio, cygwrun.exe can be built
-as statically linked to the MSVCRT library.
-
-Add `_STATIC_MSVCRT=1` as nmake parameter:
-```cmd
-> nmake /f Makefile.mak _STATIC_MSVCRT=1
-
-```
-
+On success, the cygwrun.exe will be located inside
+**.build** directory.
 
 ### Makefile targets
 
 Makefile has two additional targets which can be useful
 for cygwrun development and maintenance
 
-```no-highlight
-> make clean
+```sh
+    $ make clean
 ```
 
 This will remove all produced binaries and object files
-by simply deleting **x64** subdirectory.
+by simply deleting **.build** subdirectory.
 
-```no-highlight
-> make test
+```sh
+    $ make test
 ```
 
-This will compile two test utilities which can
-then be used by `runtest.sh` script from Cygwin
-environment.
+This will compile two test utilities and then
+run the `runtest.sh` script.
 
 
 ### Vendor version support
@@ -110,7 +61,7 @@ At compile time you can define vendor suffix and/or version
 by using the following:
 
 ```cmd
-> make "_VENDOR_SFX=_1.acme"
+> make "_BUILD_VENDOR=_1.acme"
 ```
 
 This will create build with version strings set to `x.y.z_1.acme` where

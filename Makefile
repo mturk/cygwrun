@@ -13,11 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Compile native Windows binary using mingw64
 #
-# To compile from Cygwin environment
-# make USE_MINGW_PACKAGE_PREFIX=1
-#
+# To compile from the Cygwin environment
 # the following packages need to be installed:
 #
 # mingw64-x86_64-binutils,
@@ -26,39 +23,29 @@
 # mingw64-x86_64-runtime
 #
 
-ifdef USE_MINGW_PACKAGE_PREFIX
 CC = x86_64-w64-mingw32-gcc
 RC = x86_64-w64-mingw32-windres
 RL = x86_64-w64-mingw32-strip
-else
-CC = gcc
-RC = windres
-RL = strip
-endif
 LN = $(CC)
 
 SRCDIR  = .
-PROJECT = cygwrun
-TARGET  = $(PROJECT).exe
-WORKDIR = $(SRCDIR)/x64
-OUTPUT  = $(WORKDIR)/$(TARGET)
+WORKDIR = $(SRCDIR)/.build
+OUTPUT  = $(WORKDIR)/cygwrun.exe
 TESTDA  = $(WORKDIR)/dumpargs.exe
 TESTDE  = $(WORKDIR)/dumpenvp.exe
 
-WINVER  = 0x0601
-CFLAGS  = -DNDEBUG -D_WIN32_WINNT=$(WINVER) -DWINVER=$(WINVER) -DWIN32_LEAN_AND_MEAN \
-	-D_CRT_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_DEPRECATE \
-	-DUNICODE -D_UNICODE $(EXTRA_CFLAGS)
-LNOPTS  = -m64 -O2 -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -Wno-incompatible-pointer-types -municode -mconsole
+WINVER  = 0x0A00
+CFLAGS  = -DNDEBUG -D_WIN32_WINNT=$(WINVER) -DWINVER=$(WINVER) -DWIN32_LEAN_AND_MEAN $(EXTRA_CFLAGS)
+LNOPTS  = -m64 -O2 -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -Wno-incompatible-pointer-types -mconsole
 RCOPTS  = -l 0x409 -F pe-x86-64 -O coff
-RFLAGS  = -D NDEBUG -D _WIN32_WINNT=$(WINVER) -D WINVER=$(WINVER) $(EXTRA_RFLAGS)
+RFLAGS  = -D NDEBUG -D _WIN32_WINNT=$(WINVER) -D WINVER=$(WINVER)
 CLOPTS  = $(LNOPTS) -c
 LDLIBS  = -lkernel32
 RLOPTS  = --strip-unneeded
 
-ifdef _VENDOR_SFX
-CFLAGS += -D_VENDOR_SFX=$(_VENDOR_SFX)
-RFLAGS += -D _VENDOR_SFX=$(_VENDOR_SFX)
+ifdef _BUILD_VENDOR
+CFLAGS += -D_BUILD_VENDOR=$(_BUILD_VENDOR)
+RFLAGS += -D _BUILD_VENDOR=$(_BUILD_VENDOR)
 endif
 ifdef _BUILD_NUMBER
 CFLAGS += -D_BUILD_NUMBER=$(_BUILD_NUMBER)
@@ -70,8 +57,8 @@ RFLAGS += -D _BUILD_TIMESTAMP=$(_BUILD_TIMESTAMP)
 endif
 
 OBJECTS = \
-	$(WORKDIR)/$(PROJECT).o \
-	$(WORKDIR)/$(PROJECT).res
+	$(WORKDIR)/cygwrun.o \
+	$(WORKDIR)/cygwrun.res
 
 TESTDA_OBJECTS = \
 	$(WORKDIR)/dumpargs.o
@@ -100,20 +87,16 @@ $(OUTPUT): $(WORKDIR) $(OBJECTS)
 
 $(TESTDA): $(WORKDIR) $(TESTDA_OBJECTS)
 	$(LN) $(LNOPTS) -o $@ $(TESTDA_OBJECTS) $(LDLIBS)
+	$(RL) $(RLOPTS) $@
 
 $(TESTDE): $(WORKDIR) $(TESTDE_OBJECTS)
 	$(LN) $(LNOPTS) -o $@ $(TESTDE_OBJECTS) $(LDLIBS)
+	$(RL) $(RLOPTS) $@
 
 test: all $(TESTDA) $(TESTDE)
 	@echo
-	@echo Running simple verification tests ...
+	@$(SRCDIR)/runtest.sh
 	@echo
-	@$(OUTPUT) ~$(WORKDIR) $(TESTDE) SHELL
-	@echo
-	@$(OUTPUT) ~$(WORKDIR) $(TESTDA) //tmp
-	@echo
-	@echo
-	@echo You can now run runtest.sh from Cygwin environment
 
 clean:
 	@rm -rf $(WORKDIR)

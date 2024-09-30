@@ -25,105 +25,132 @@
 #include <signal.h>
 #include "cygwrun.h"
 
-#define WNUL                    L'\0'
-#define BBUFSIZ                  512
+#define CYGWRUN_BUFSIZ              512
+#define CYGWRUN_ARGMAX              512
+#define CYGWRUN_ENVMAX             1024
 
-#define CYGWRUN_ERRMAX           125
-#define CYGWRUN_FAILED           126
-#define CYGWRUN_NOEXEC           127
-#define CYGWRUN_SIGBASE          128
+#define CYGWRUN_ERRMAX              110
+#define CYGWRUN_FAILED              126
+#define CYGWRUN_ENOEXEC             127
+#define CYGWRUN_SIGBASE             128
 
-#define CYGWRUN_KILL_DEPTH         4
+#define CYGWRUN_ENOSYS              111     /** Cannot find cygwin root */
+#define CYGWRUN_EINVAL              112
+#define CYGWRUN_EPARAM              113
+#define CYGWRUN_EALREADY            114
+#define CYGWRUN_ENOENT              115
+#define CYGWRUN_EEMPTY              116
+#define CYGWRUN_EBADPATH            117
+
+#define CYGWRUN_ENOSPC              118
+#define CYGWRUN_ENOENV              119
+#define CYGWRUN_EBADENV             120
+#define CYGWRUN_ENOMEM              121
+/**
+ * Errors from 122 ... 125 are reserved for future use
+ */
+
+
+#define CYGWRUN_KILL_DEPTH        10
+#define CYGWRUN_KILL_SIZE        256
 #define CYGWRUN_KILL_TIMEOUT     500
-#define CYGWRUN_CRTL_C_WAIT     1000
+#define CYGWRUN_CRTL_C_WAIT     2000
+#define CYGWRUN_CRTL_S_WAIT     3000
 
 #define CYGWRUN_SIGINT          (CYGWRUN_SIGBASE + SIGINT)
 #define CYGWRUN_SIGTERM         (CYGWRUN_SIGBASE + SIGTERM)
 
 #define IS_PSW(_c)              (((_c) == L'/') || ((_c)  == L'\\'))
-#define IS_EMPTY_WCS(_s)        (((_s) == NULL) || (*(_s) == WNUL))
-#define IS_VALID_WCS(_s)        (((_s) != NULL) && (*(_s) != WNUL))
+#define IS_EMPTY_WCS(_s)        (((_s) == NULL) || (*(_s) == 0))
+#define IS_VALID_WCS(_s)        (((_s) != NULL) && (*(_s) != 0))
+
+#define IS_PSC(_c)              (((_c) == '/')  || ((_c)  == '\\'))
+#define IS_EMPTY_STR(_s)        (((_s) == NULL) || (*(_s) == 0))
+#define IS_VALID_STR(_s)        (((_s) != NULL) && (*(_s) != 0))
+#define IS_INVALID_HANDLE(_h)   (((_h) == NULL) || ((_h) == INVALID_HANDLE_VALUE))
+#define SAFE_CLOSE_HANDLE(_h)                                           \
+    if (((_h) != NULL) && ((_h) != INVALID_HANDLE_VALUE))               \
+        CloseHandle((_h));                                              \
+    (_h) = NULL
+
 
 /**
  * Align to 16 bytes
  */
 #define CYGWRUN_ALIGN(_S)       (((_S) + 0x0000000F) & 0xFFFFFFF0)
 
-static DWORD    xtimeout    = INFINITE;
-static int      xhasmsys    = 0;
-static int      xshowerr    = 1;
-static int      xrmendps    = 1;
-static int      xenvcount   = 0;
-#if PROJECT_ISDEV_VERSION
-static int      xnalloc     = 0;
-static int      xnmfree     = 0;
+static HANDLE      xchevent     = NULL;
+static HANDLE      xprocess     = NULL;
+static int         xrmendps     = L'\\';
+static int         xenvcount    = 0;
+#if CYGWRUN_ISDEV_VERSION
+static size_t      xzalloc      = 0;
+static int         xnalloc      = 0;
+static int         xnmfree      = 0;
 #endif
-static wchar_t *posixpath   = NULL;
-static wchar_t *posixroot   = NULL;
-static wchar_t *posixwork   = NULL;
+static wchar_t    *posixroot    = NULL;
+static wchar_t    *posixpath    = NULL;
 
-static wchar_t **xenvvars   = NULL;
-static wchar_t **xenvvals   = NULL;
-static wchar_t **xrawenvs   = NULL;
-static wchar_t **xdelenvs   = NULL;
+static wchar_t   **xenvvars     = NULL;
+static wchar_t   **xenvvals     = NULL;
+static wchar_t   **xskipenv     = NULL;
+static char      **adelenvv     = NULL;
 
-static wchar_t  zerostr[8]  = { 0 };
+static char      **systemenvn   = NULL;
+static char      **systemenvv   = NULL;
+static int         systemenvc   = 0;
 
-static const wchar_t *pathmatches[] = {
-    L"/?/+*",
-    L"/cygdrive/?/+*",
-    L"/bin/*",
-    L"/dev/*",
-    L"/etc/*",
-    L"/home/*",
-    L"/lib/*",
-    L"/mnt/*",
-    L"/opt/*",
-    L"/run/*",
-    L"/sbin/*",
-    L"/share/*",
-    L"/sys/*",
-    L"/tmp/*",
-    L"/usr/*",
-    L"/var/*",
+static const char *configvals[16]   = { NULL };
+static wchar_t     zerowcs[8]       = { 0 };
+
+typedef enum {
+    CYGWRUN_PATH     = 0,
+    CYGWRUN_SKIP,
+    CYGWRUN_UNSET,
+    CCYGWIN_PATH,
+    CCYGWIN_TEMP,
+    CCYGWIN_TMP
+
+} CYGWRUN_CONFIG_VARS;
+
+static const char *configvars[]     = {
+    "CYGWRUN_PATH",
+    "CYGWRUN_SKIP",
+    "CYGWRUN_UNSET",
+    "PATH",
+    "TEMP",
+    "TMP",
     NULL
 };
 
-static const wchar_t *pathfixed[] = {
-    L"/bin",
-    L"/dev",
-    L"/etc",
-    L"/home",
-    L"/lib",
-    L"/mnt",
-    L"/opt",
-    L"/run",
-    L"/sbin",
-    L"/share",
-    L"/sys",
-    L"/tmp",
-    L"/usr",
-    L"/var",
+static const wchar_t *rootpaths[]   = {
+    L"/bin/",
+    L"/dev/",
+    L"/etc/",
+    L"/home/",
+    L"/lib/",
+    L"/lib64/",
+    L"/media/",
+    L"/mnt/",
+    L"/opt/",
+    L"/proc/",
+    L"/root/",
+    L"/run/",
+    L"/sbin/",
+    L"/shared/",
+    L"/sys/",
+    L"/tmp/",
+    L"/usr/",
+    L"/var/",
     NULL
 };
 
-static const wchar_t *sskipenv =
-    L"OS,PATH,PATHEXT,PRINTER,PROCESSOR_*,PROMPT,PS1,PWD,SHLVL,TERM,TZ";
+static const char *sskipenv =
+    "EXECIGNORE,HOMEPATH,LOGONSERVER,PATH,PATHEXT,PROCESSOR_*,PROMPT,PS1";
 
-static const wchar_t *ucenvvars[] = {
-    L"COMMONPROGRAMFILES",
-    L"COMSPEC",
-    L"PATH",
-    L"PLATFORM",
-    L"PROGRAMDATA",
-    L"PROGRAMFILES",
-    L"SYSTEMDRIVE",
-    L"SYSTEMROOT",
-    L"TEMP",
-    L"TMP",
-    L"WINDIR",
-    NULL
-};
+static const char *unsetenv =
+    "HOME,INFOPATH,LANG,OLDPWD,ORIGINAL_PATH,PWD,SHELL,SHLVL,TERM";
+
 
 static __inline int xisalpha(int c)
 {
@@ -151,18 +178,28 @@ static __inline int xisvarchar(int c)
     return (xisalnum(c) || c == 0x2D || c == 0x5F);
 }
 
-static __inline int xiswcschar(const wchar_t *s, wchar_t c)
+static __inline int xtolower(int c)
 {
-    if (s && (s[0] == c) && (s[1] == WNUL))
+    return (c >= 0x41 && c <= 0x5A) ? c ^ 0x20 : c;
+}
+
+static __inline int xtoupper(int c)
+{
+    return (c >= 0x61 && c <= 0x7A) ? c ^ 0x20 : c;
+}
+
+static __inline int xwcsischar(const wchar_t *s, wchar_t c)
+{
+    if (s && (s[0] == c) && (s[1] == 0))
         return 1;
     else
         return 0;
 }
 
-static __inline int xicasecmp(int i, int a, int b)
+static __inline int xcharcmp(int i, int a, int b)
 {
     if (i)
-        return (towupper(a) == towupper(b));
+        return (xtoupper(a) == xtoupper(b));
     else
         return (a == b);
 }
@@ -177,6 +214,17 @@ static __inline wchar_t *xskipblanks(const wchar_t *str)
     return s;
 }
 
+static __inline wchar_t *xwcsupper(wchar_t *str)
+{
+    wchar_t *s;
+    if (str) {
+        for(s = str; *s; s++)
+            *s = xtoupper(*s);
+    }
+    return str;
+}
+
+#if 0
 static __inline size_t xwcslen(const wchar_t *s)
 {
     if (IS_EMPTY_WCS(s))
@@ -185,22 +233,66 @@ static __inline size_t xwcslen(const wchar_t *s)
         return wcslen(s);
 }
 
+static __inline size_t xstrlen(const char *s)
+{
+    if (IS_EMPTY_STR(s))
+        return 0;
+    else
+        return strlen(s);
+}
+#else
+static size_t xstrlen(const char *src)
+{
+    const char *s = src;
+
+    if (IS_EMPTY_STR(s))
+        return 0;
+    while (*s)
+        s++;
+    return (size_t)(s - src);
+}
+
+static size_t xwcslen(const wchar_t *src)
+{
+    const wchar_t *s = src;
+
+    if (IS_EMPTY_WCS(s))
+        return 0;
+    while (*s)
+        s++;
+    return (size_t)(s - src);
+}
+#endif
+
 static wchar_t *xwmalloc(size_t size)
 {
     size_t   s;
     wchar_t *p;
 
     s = CYGWRUN_ALIGN((size + 2) * sizeof(wchar_t));
-    p = (wchar_t *)malloc(s);
-    if (p == NULL) {
-        _wperror(L"xwmalloc");
-        _exit(ENOMEM);
-    }
-#if PROJECT_ISDEV_VERSION
+    p = (wchar_t *)calloc(1, s);
+    if (p == NULL)
+        _exit(CYGWRUN_ENOMEM);
+#if CYGWRUN_ISDEV_VERSION
+    xzalloc += s;
     xnalloc++;
 #endif
-    p[size++] = WNUL;
-    p[size]   = WNUL;
+    return p;
+}
+
+static char *xmalloc(size_t size)
+{
+    size_t   s;
+    char    *p;
+
+    s = CYGWRUN_ALIGN(size + 2);
+    p = (char *)calloc(1, s);
+    if (p == NULL)
+        _exit(CYGWRUN_ENOMEM);
+#if CYGWRUN_ISDEV_VERSION
+    xzalloc += s;
+    xnalloc++;
+#endif
     return p;
 }
 
@@ -211,11 +303,10 @@ static void *xcalloc(size_t number, size_t size)
 
     s = CYGWRUN_ALIGN((number + 2) * size);
     p = calloc(1, s);
-    if (p == NULL) {
-        _wperror(L"xcalloc");
-        _exit(ENOMEM);
-    }
-#if PROJECT_ISDEV_VERSION
+    if (p == NULL)
+        _exit(CYGWRUN_ENOMEM);
+#if CYGWRUN_ISDEV_VERSION
+    xzalloc += s;
     xnalloc++;
 #endif
     return p;
@@ -223,9 +314,9 @@ static void *xcalloc(size_t number, size_t size)
 
 static void xfree(void *m)
 {
-    if (m != NULL && m != zerostr) {
+    if (m != NULL && m != zerowcs) {
         free(m);
-#if PROJECT_ISDEV_VERSION
+#if CYGWRUN_ISDEV_VERSION
         xnmfree++;
 #endif
     }
@@ -236,9 +327,25 @@ static wchar_t **xwaalloc(size_t size)
     return (wchar_t **)xcalloc(size, sizeof(wchar_t *));
 }
 
+static char **xaalloc(size_t size)
+{
+    return (char **)xcalloc(size, sizeof(char *));
+}
+
 static void xwaafree(wchar_t **array)
 {
     wchar_t **ptr = array;
+
+    if (array == NULL)
+        return;
+    while (*ptr != NULL)
+        xfree(*(ptr++));
+    xfree(array);
+}
+
+static void xsaafree(char **array)
+{
+    char **ptr = array;
 
     if (array == NULL)
         return;
@@ -254,66 +361,117 @@ static wchar_t *xwcsdup(const wchar_t *s)
 
     if (IS_EMPTY_WCS(s))
         return NULL;
-    n = wcslen(s);
+    n = xwcslen(s);
     p = xwmalloc(n);
     return wmemcpy(p, s, n);
 }
 
-static wchar_t *xwgetenv(const wchar_t *s)
+static char *xstrdup(const char *s)
 {
-    DWORD    n;
-    wchar_t  e[BBUFSIZ];
-    wchar_t *d = NULL;
+    char    *p;
+    size_t   n;
 
-    if (IS_EMPTY_WCS(s))
+    if (IS_EMPTY_STR(s))
         return NULL;
-    n =  GetEnvironmentVariableW(s, e, BBUFSIZ);
-    if (n != 0) {
-        d = xwmalloc(n);
-        if (n > BBUFSIZ)
-            GetEnvironmentVariableW(s, d, n);
-        else
-            wmemcpy(d, e, n);
-    }
-    return d;
+    n = xstrlen(s);
+    p = xmalloc(n);
+    return memcpy(p, s, n);
 }
 
-static int xngetenv(int d, const wchar_t *s)
+static wchar_t *xwcschr(const wchar_t *src, const wchar_t *exc, wchar_t c)
 {
-    int       v;
-    DWORD     n;
-    wchar_t   eb[BBUFSIZ];
-    wchar_t  *ep = NULL;
-
-    if (IS_EMPTY_WCS(s))
-        return d;
-    n =  GetEnvironmentVariableW(s, eb, BBUFSIZ);
-    if ((n == 0) || (n >= BBUFSIZ))
-        return d;
-    v = (int)wcstol(eb, &ep, 10);
-    if ((ep && (*ep != WNUL)) || ((v == 0) && (errno != 0)))
-        return d;
-    else
-        return v;
+    const wchar_t *e;
+    const wchar_t *s = src;
+    while (*s) {
+        if (exc) {
+            for (e = exc; *e; e++) {
+                if (*e == c)
+                    return NULL;
+            }
+        }
+        if (*s == c)
+            return (wchar_t *)s;
+        s++;
+    }
+    return NULL;
 }
 
-static wchar_t *xgetpwd(void)
+static char *xstrchr(const char *src, const char *exc, int c)
 {
-    DWORD    n;
-    wchar_t  e[BBUFSIZ];
-    wchar_t *d = NULL;
-
-    n =  GetCurrentDirectoryW(BBUFSIZ, e);
-    if (n != 0) {
-        d = xwmalloc(n);
-        if (n > BBUFSIZ) {
-            GetCurrentDirectoryW(n, d);
+    const char *e;
+    const char *s = src;
+    while (*s) {
+        if (exc) {
+            for (e = exc; *e; e++) {
+                if (*e == c)
+                    return NULL;
+            }
         }
-        else {
-            wmemcpy(d, e, n);
-        }
+        if (*s == c)
+            return (char *)s;
+        s++;
     }
-    return d;
+    return NULL;
+}
+
+static size_t xstrchrn(const char *str, char ch)
+{
+    const char *s = str;
+    while (*s) {
+        if (*s == ch)
+            return (size_t)(s - str);
+        s++;
+    }
+    return 0;
+}
+
+static wchar_t *xstrtowcs(const char *str)
+{
+    wchar_t *wcs;
+    int      len;
+    int      i;
+
+    if (IS_EMPTY_STR(str))
+        return NULL;
+    len = (int)xstrlen(str);
+    wcs = xwmalloc(len);
+    for (i = 0; i < len; i++)
+        wcs[i] = (wchar_t)(str[i]);
+    return wcs;
+}
+
+static wchar_t *xmbstowcs(const char *mbs)
+{
+    wchar_t *wcs;
+    int      mbl;
+
+    if (IS_EMPTY_STR(mbs))
+        return NULL;
+    mbl = (int)xstrlen(mbs);
+    wcs = xwmalloc(mbl);
+    if (MultiByteToWideChar(CP_UTF8, 0, mbs, mbl, wcs, mbl + 1) == 0) {
+        xfree(wcs);
+        wcs = NULL;
+    }
+    return wcs;
+}
+
+static char *xwcstombs(const wchar_t *wcs)
+{
+    char    *mbs;
+    int      wcl;
+    int      mbl;
+
+    if (IS_EMPTY_WCS(wcs))
+        return NULL;
+    wcl = (int)xwcslen(wcs);
+    mbl = (wcl * 4);
+    mbs = xmalloc(mbl);
+    if (WideCharToMultiByte(CP_UTF8, 0, wcs, wcl, mbs, mbl + 1, NULL, NULL) == 0) {
+        xfree(mbs);
+        mbs = NULL;
+    }
+    return mbs;
 }
 
 static wchar_t *xwcsconcat(const wchar_t *s1, const wchar_t *s2, wchar_t qc)
@@ -334,7 +492,7 @@ static wchar_t *xwcsconcat(const wchar_t *s1, const wchar_t *s2, wchar_t qc)
        sz += 2;
     rs = xwmalloc(sz);
     rp = rs;
-    if (qc && (l2 == 0))
+    if (qc && !l2)
         *(rp++) = qc;
     if (l1 > 0) {
         wmemcpy(rp, s1, l1);
@@ -348,7 +506,7 @@ static wchar_t *xwcsconcat(const wchar_t *s1, const wchar_t *s2, wchar_t qc)
     }
     if (qc) {
         *(rp++) = qc;
-        *(rp++) = WNUL;
+        *(rp++) = 0;
     }
     return rs;
 }
@@ -373,7 +531,34 @@ static wchar_t *xwcsappend(wchar_t *s, const wchar_t *a, wchar_t sc)
         wmemcpy(e, a, z);
         e += z;
     }
-    *e = WNUL;
+    *e = 0;
+    xfree(s);
+    return p;
+}
+
+static char *xstrappend(char *s, const char *a, char sc)
+{
+    char   *p;
+    char   *e;
+    size_t  n = xstrlen(s);
+    size_t  z = xstrlen(a);
+
+    if (z == 0)
+        return s;
+    p = xmalloc(n + z + 1);
+    e = p;
+
+    if (n > 0) {
+        memcpy(e, s, n);
+        e += n;
+    }
+    if (z > 0) {
+        if (n && sc)
+            *(e++) = sc;
+        memcpy(e, a, z);
+        e += z;
+    }
+    *e = 0;
     xfree(s);
     return p;
 }
@@ -389,7 +574,7 @@ static wchar_t *xwcstrim(wchar_t *s)
     while (i > 0) {
         i--;
         if (xisnonchar(s[i]))
-            s[i] = WNUL;
+            s[i] = 0;
         else
             break;
     }
@@ -400,56 +585,131 @@ static wchar_t *xwcstrim(wchar_t *s)
     return s;
 }
 
+static char *xstrtrim(char *s)
+{
+    size_t i = xstrlen(s);
+
+    while (i > 0) {
+        i--;
+        if (xisnonchar(s[i]))
+            s[i] = 0;
+        else
+            break;
+    }
+    if (i > 0) {
+        while (xisnonchar(*s))
+            s++;
+    }
+    return s;
+}
+
+char *xstrbegins(int ic, const char *src, const char *str)
+{
+    const char *pos = src;
+    int sa;
+    int sb;
+
+    while (*src) {
+        if (*str == 0)
+            return (char *)pos;
+        if (ic) {
+            sa = xtolower(*src++);
+            sb = xtolower(*str++);
+        }
+        else {
+            sa = *src++;
+            sb = *str++;
+        }
+        if (sa != sb)
+            return NULL;
+        pos++;
+    }
+    return *str ? NULL : (char *)pos;
+}
+
+char *xstrnbegins(int ic, const char *src, const char *str, size_t len)
+{
+    const char *pos = src;
+    int sa;
+    int sb;
+
+    while (*src) {
+        if (*str == 0  || len == 0)
+            return (char *)pos;
+        if (ic) {
+            sa = xtolower(*src++);
+            sb = xtolower(*str++);
+        }
+        else {
+            sa = *src++;
+            sb = *str++;
+        }
+        if (sa != sb)
+            return NULL;
+        pos++;
+        len--;
+    }
+    return len ? NULL : (char *)pos;
+}
+
+static int xstrnicmp(const char *s1, const char *s2, size_t n)
+{
+    int sa;
+    int sb;
+
+    if (n == 0)
+        return 0;
+    do {
+        sa = xtoupper(*s1);
+        sb = xtoupper(*s2);
+        if (sa != sb)
+            return (sa - sb);
+        if (sa == 0)
+            break;
+        s1++;
+        s2++;
+    } while (--n != 0);
+    return 0;
+}
+
 static int xwcsbegins(const wchar_t *src, const wchar_t *str)
 {
-    int sa;
-
     while (*src) {
-        if (*str == WNUL)
+        if (*str == 0)
             return 1;
-        sa = towupper(*src++);
-        if (sa != *str++)
+        if (*src++ != *str++)
             return 0;
     }
-    return (*str == WNUL);
+    return (*str == 0);
 }
 
-static int xwcsends(const wchar_t *src, const wchar_t *str, size_t sb)
+static int xwcsequals(const wchar_t *src, const wchar_t *str, wchar_t ech)
 {
-    size_t sa;
-
-    sa = xwcslen(src);
-    if (sb == 0)
-        sb = xwcslen(str);
-    if (sa == 0 || sb == 0 || sb > sa)
-        return 0;
-    src = src + sa - sb;
     while (*src) {
-        if (towlower(*src++) != *str++)
+        if (*str == 0)
+            return (*src == 0);
+        if (*src != *str)
             return 0;
+        src++;
+        str++;
     }
-    return 1;
-}
-
-static int xwcsequals(const wchar_t *src, const wchar_t *str)
-{
-    int sa;
-
-    while ((sa = towupper(*src++)) == *str++) {
-        if (sa == 0)
-            return 1;
-    }
-    return 0;
+    return (*str == ech);
 }
 
 static int xwcsicmp(const wchar_t *s1, const wchar_t *s2)
 {
     int c1;
     int c2;
-
+#if 1
+    while ((c1 = xtoupper(*s1++)) == (c2 = xtoupper(*s2++))) {
+        if (c1 == 0)
+            return 0;
+    }
+    return (c1 - c2);
+#else
     while (*s1) {
-        c1 = towupper(*s1);
-        c2 = towupper(*s2);
+        c1 = xtoupper(*s1);
+        c2 = xtoupper(*s2);
         if (c1 != c2)
             return (c1 - c2);
         if (c1 == 0)
@@ -458,6 +718,19 @@ static int xwcsicmp(const wchar_t *s1, const wchar_t *s2)
         s2++;
     }
     return 0;
+#endif
+}
+
+static int xstricmp(const char *s1, const char *s2)
+{
+    int c1;
+    int c2;
+
+    while ((c1 = xtoupper(*s1++)) == (c2 = xtoupper(*s2++))) {
+        if (c1 == 0)
+            return 0;
+    }
+    return (c1 - c2);
 }
 
 /**
@@ -469,17 +742,17 @@ static int xwcsmatch(int ic, const wchar_t *wstr, const wchar_t *wexp)
     int match;
     int mflag;
 
-    for ( ; *wexp != WNUL; wstr++, wexp++) {
-        if (*wstr == WNUL && *wexp != L'*')
+    for ( ; *wexp != 0; wstr++, wexp++) {
+        if (*wstr == 0 && *wexp != L'*')
             return -1;
         switch (*wexp) {
             case L'*':
                 wexp++;
                 while (*wexp == L'*')
                     wexp++;
-                if (*wexp == WNUL)
+                if (*wexp == 0)
                     return 0;
-                while (*wstr != WNUL) {
+                while (*wstr != 0) {
                     int rv = xwcsmatch(ic, wstr++, wexp);
                     if (rv != 1)
                         return rv;
@@ -506,9 +779,9 @@ static int xwcsmatch(int ic, const wchar_t *wstr, const wchar_t *wexp)
                         mflag = 1;
                 }
                 while (*wexp != L']') {
-                    if ((*wexp == WNUL) || (*wexp == L'['))
+                    if ((*wexp == 0) || (*wexp == L'['))
                         return -1;
-                    if (xicasecmp(ic, *wexp, *wstr))
+                    if (xcharcmp(ic, *wexp, *wstr))
                         match = 1;
                     wexp++;
                 }
@@ -516,12 +789,72 @@ static int xwcsmatch(int ic, const wchar_t *wstr, const wchar_t *wexp)
                     return -1;
             break;
             default:
-                if (!xicasecmp(ic, *wexp, *wstr))
+                if (!xcharcmp(ic, *wexp, *wstr))
                     return 1;
             break;
         }
     }
-    return (*wstr != WNUL);
+    return (*wstr != 0);
+}
+
+static int xstrmatch(int ic, const char *str, const char *exp)
+{
+    int match;
+    int mflag;
+
+    for ( ; *exp; str++, exp++) {
+        if (*str == 0 && *exp != '*')
+            return -1;
+        switch (*exp) {
+            case '*':
+                exp++;
+                while (*exp == '*')
+                    exp++;
+                if (*exp == 0)
+                    return 0;
+                while (*str) {
+                    int rv = xstrmatch(ic, str++, exp);
+                    if (rv != 1)
+                        return rv;
+                }
+                return -1;
+            break;
+            case '?':
+                if (!xisalpha(*str))
+                    return -1;
+            break;
+            case '+':
+                if (xisnonchar(*str))
+                    return -1;
+            break;
+            case '[':
+                match = 0;
+                mflag = 0;
+                if (*(++exp) == '!') {
+                    /**
+                     * Negate range
+                     */
+                    exp++;
+                    if (*exp != ']')
+                        mflag = 1;
+                }
+                while (*exp != ']') {
+                    if ((*exp == 0) || (*exp == '['))
+                        return -1;
+                    if (xcharcmp(ic, *exp, *str))
+                        match = 1;
+                    exp++;
+                }
+                if (match == mflag)
+                    return -1;
+            break;
+            default:
+                if (!xcharcmp(ic, *exp, *str))
+                    return 1;
+            break;
+        }
+    }
+    return (*str != 0);
 }
 
 /**
@@ -534,14 +867,14 @@ static int xwcsntok(const wchar_t *s, wchar_t d)
     while (*s == d) {
         s++;
     }
-    if (*s == WNUL)
+    if (*s == 0)
         return 0;
-    while (*s != WNUL) {
+    while (*s != 0) {
         if (*(s++) == d) {
             while (*s == d) {
                 s++;
             }
-            if (*s != WNUL)
+            if (*s != 0)
                 n++;
         }
     }
@@ -565,13 +898,66 @@ static wchar_t *xwcsctok(wchar_t *s, wchar_t d, wchar_t **c)
     while (*s == d) {
         s++;
     }
-    if (*s == WNUL)
+    if (*s == 0)
         return NULL;
     p = s;
 
-    while (*s != WNUL) {
+    while (*s != 0) {
         if (*s == d) {
-            *s = WNUL;
+            *s = 0;
+            *c = s + 1;
+            break;
+        }
+        s++;
+    }
+    return p;
+}
+
+static int xstrntok(const char *s, char d)
+{
+    int n = 1;
+
+    while (*s == d) {
+        s++;
+    }
+    if (*s == 0)
+        return 0;
+    while (*s != 0) {
+        if (*(s++) == d) {
+            while (*s == d) {
+                s++;
+            }
+            if (*s != 0)
+                n++;
+        }
+    }
+    return n;
+}
+
+/**
+ * This is strtok_s clone using single character as token delimiter
+ */
+static char *xstrctok(char *s, char d, char **c)
+{
+    char *p;
+
+    if ((s == NULL) && ((s = *c) == NULL))
+        return NULL;
+
+    *c = NULL;
+    /**
+     * Skip leading delimiter
+     */
+    while (*s == d) {
+        s++;
+    }
+    if (*s == 0)
+        return NULL;
+    p = s;
+
+    while (*s != 0) {
+        if (*s == d) {
+            *s = 0;
             *c = s + 1;
             break;
         }
@@ -583,7 +969,7 @@ static wchar_t *xwcsctok(wchar_t *s, wchar_t d, wchar_t **c)
 static int xneedsquote(const wchar_t *s)
 {
     while (*s) {
-        if (xisblank(*s) || (*s == 0x22))
+        if ((*s == 0x20) || (*s == 0x09) || (*s == 0x22))
             return 1;
         s++;
     }
@@ -608,7 +994,7 @@ static wchar_t *xquoteprg(wchar_t *s)
     d += n;
     xfree(s);
     *(d++) = L'"';
-    *(d)   = WNUL;
+    *(d)   = 0;
 
     return e;
 }
@@ -628,6 +1014,15 @@ static wchar_t *xquotearg(wchar_t *s)
     /* Perform quoting only if necessary. */
     if (IS_EMPTY_WCS(s))
         return s;
+    if (*s == L'\'') {
+        n = xwcslen(s);
+        if (s[n - 1] != '\'')
+            return s;
+        d = xwmalloc(n - 2);
+        wmemcpy(d, s + 1, n - 2);
+        xfree(s);
+        return d;
+    }
     if (xneedsquote(s) == 0)
         return s;
 
@@ -639,7 +1034,7 @@ static wchar_t *xquotearg(wchar_t *s)
             c++;
         }
 
-        if (*c == WNUL) {
+        if (*c == 0) {
             /* Escape backslashes. */
             n += b * 2;
             break;
@@ -671,7 +1066,7 @@ static wchar_t *xquotearg(wchar_t *s)
             c++;
         }
 
-        if (*c == WNUL) {
+        if (*c == 0) {
             wmemset(d, L'\\', b * 2);
             d += b * 2;
             break;
@@ -689,7 +1084,7 @@ static wchar_t *xquotearg(wchar_t *s)
     }
     xfree(s);
     *(d++) = L'"';
-    *(d)   = WNUL;
+    *(d)   = 0;
 
     return e;
 }
@@ -699,12 +1094,12 @@ static int iswinpath(const wchar_t *s)
     int i = 0;
 
     if (IS_PSW(s[0])) {
-        if (IS_PSW(s[1]) && (s[2] != WNUL)) {
+        if (IS_PSW(s[1]) && (s[2] != 0)) {
             i  = 2;
             s += 2;
             if ((s[0] == L'?' ) &&
                 (IS_PSW(s[1]) ) &&
-                (s[2] != WNUL)) {
+                (s[2] != 0)) {
                 /**
                  * We have \\?\* path
                  */
@@ -715,7 +1110,7 @@ static int iswinpath(const wchar_t *s)
     }
     if (xisalpha(s[0])) {
         if (s[1] == L':') {
-            if (s[2] == WNUL)
+            if (s[2] == 0)
                 i += 2;
             else if (IS_PSW(s[2]))
                 i += 3;
@@ -738,28 +1133,68 @@ static int isdotpath(const wchar_t *s)
     return 0;
 }
 
+static int ispathlist(const wchar_t *str)
+{
+    const wchar_t *s = str;
+    int   ccolon     = 1;
+    int   pathss     = 0;
+    int   hcolon     = 0;
+
+    if ((*s == L';') || (*s == L':'))
+        return *s;
+    /**
+     * Check if the first elem is windows path
+     */
+    if ((*s == L'\\') || iswinpath(s))
+        ccolon = 0;
+    while (*s) {
+        if (*s ==  L';')
+            return L';';
+        if (*s ==  L'/')
+            pathss = 1;
+        if (pathss && ccolon && (*s == L':'))
+            hcolon = L':';
+#if 0
+        if (hascolon) {
+            if (*s == L':') {
+                if (!xisalpha(s[-1]))
+                    return L':';
+                if (((s == (str + 1)) || IS_PSW(s[-2])))
+                    i = 1;
+                else
+                    return L':';
+            }
+        }
+#endif
+
+        s++;
+    }
+    return hcolon;
+}
+
 static int isposixpath(const wchar_t *str)
 {
     int i = 0;
 
     if (str[0] != L'/')
         return isdotpath(str);
-    if (str[1] == WNUL)
+    if (str[1] == 0)
         return 301;
     if (str[1] == L'/')
         return iswinpath(str);
-    if (wcschr(str + 1, L'/')) {
-        if (!xhasmsys)
-            i++;
-        while (pathmatches[i] != NULL) {
-            if (xwcsmatch(0, str, pathmatches[i]) == 0)
-                return i + 100;
+    if (xwcschr(str + 1, L":;", L'/')) {
+        if (xwcsbegins(str, L"/cygdrive/") &&
+            xisalpha(str[10]) && (str[11] == L'/') && (str[12]))
+            return 100;
+        while (rootpaths[i] != NULL) {
+            if (xwcsbegins(str, rootpaths[i]))
+                return i + 101;
             i++;
         }
     }
     else {
-        while (pathfixed[i] != NULL) {
-            if (wcscmp(str, pathfixed[i]) == 0)
+        while (rootpaths[i] != NULL) {
+            if (xwcsequals(str, rootpaths[i], L'/'))
                 return i + 200;
             i++;
         }
@@ -769,20 +1204,15 @@ static int isposixpath(const wchar_t *str)
 
 static int isanypath(int m, wchar_t *s)
 {
-    int      r;
-    wchar_t *c = NULL;
-
-    if (IS_EMPTY_WCS(s))
+    int r;
+    if (IS_EMPTY_WCS(s) || (*s == L'\''))
         return 0;
-    if (m && *s == L'/') {
-        c = wcschr(s, L':');
-        if (c != NULL)
-            *c = WNUL;
+    if (m) {
+        r = ispathlist(s);
+        if (r)
+            return r;
     }
     switch (*s) {
-        case L'\'':
-            r = 0;
-        break;
         case L'/':
             r = isposixpath(s);
         break;
@@ -793,8 +1223,6 @@ static int isanypath(int m, wchar_t *s)
             r = iswinpath(s);
         break;
     }
-    if (c != NULL)
-        *c = L':';
     return r;
 }
 
@@ -812,7 +1240,7 @@ static int xmszcount(const wchar_t *src)
     return c;
 }
 
-static wchar_t *xarrblk(int cnt, const wchar_t **arr, wchar_t sep)
+static wchar_t *xarraytomsz(int cnt, const wchar_t **arr, wchar_t sep)
 {
     int      i;
     size_t   n;
@@ -837,13 +1265,13 @@ static wchar_t *xarrblk(int cnt, const wchar_t **arr, wchar_t sep)
         ep += sz[i];
     }
     xfree(sz);
-    ep[0] = WNUL;
-    ep[1] = WNUL;
+    ep[0] = 0;
+    ep[1] = 0;
 
     return bp;
 }
 
-static int xenvsort(const void *a1, const void *a2)
+static int sortenvvars(const void *a1, const void *a2)
 {
     const wchar_t *s1 = *((wchar_t **)a1);
     const wchar_t *s2 = *((wchar_t **)a2);
@@ -851,72 +1279,7 @@ static int xenvsort(const void *a1, const void *a2)
     return xwcsicmp(s1, s2);
 }
 
-static int xinitenv(void)
-{
-    int       ec;
-    int       ne;
-    wchar_t  *es;
-    wchar_t  *ep;
-    wchar_t  *en;
-    wchar_t  *ev;
-
-    es = GetEnvironmentStringsW();
-    if (es == NULL)
-        return ENOMEM;
-    ec = xmszcount(es);
-    if (ec == 0) {
-        FreeEnvironmentStringsW(es);
-        return ENOENT;
-    }
-    xenvvars  = xwaalloc(ec + 1);
-    xenvvals  = xwaalloc(ec + 1);
-    for (ne = 0, ep = es; *ep; ep++) {
-        if (*ep != L'=') {
-            en = ep;
-            ev = wcschr(en, L'=');
-            if (ev) {
-                int i;
-                *ev++ = WNUL;
-                if (xiswcschar(en, L'_') || xwcsbegins(en, L"CYGWRUN_"))
-                    en = NULL;
-                if (en && xdelenvs) {
-                    for (i = 0; xdelenvs[i]; i++) {
-                        if (xwcsmatch(1, en, xdelenvs[i]) == 0) {
-                            en = NULL;
-                            break;
-                        }
-                    }
-                }
-                if (en) {
-                    for (i = 0; ucenvvars[i]; i++) {
-                        if (xwcsequals(en, ucenvvars[i])) {
-                            xenvvars[ne] = xwcsdup(ucenvvars[i]);
-                            break;
-                        }
-                    }
-                    if (xenvvars[ne] == NULL)
-                        xenvvars[ne] = xwcsdup(en);
-                    xenvvals[ne] = xwcsdup(ev);
-                    ne++;
-                }
-                ep = ev;
-            }
-            else {
-                FreeEnvironmentStringsW(es);
-                return EBADF;
-            }
-        }
-        while (*ep)
-            ep++;
-    }
-    xenvcount = ne;
-    xenvvars[xenvcount] = NULL;
-    xenvvals[xenvcount] = NULL;
-    FreeEnvironmentStringsW(es);
-    return 0;
-}
-
-static wchar_t *xenvblock(void)
+static wchar_t *getenvblock(void)
 {
     int      c;
     size_t   n;
@@ -964,9 +1327,9 @@ static wchar_t *xenvblock(void)
         ep++;
         ev++;
     }
-    eb[z++] = WNUL;
-    eb[z++] = WNUL;
-    qsort((void *)ea, c, sizeof(wchar_t *), xenvsort);
+    eb[z++] = 0;
+    eb[z++] = 0;
+    qsort((void *)ea, c, sizeof(wchar_t *), sortenvvars);
     bp = eb;
     for (bp = eb; *bp; bp++) {
         while (*bp)
@@ -975,7 +1338,7 @@ static wchar_t *xenvblock(void)
         while (*bp)
             bp++;
     }
-    bp = xarrblk(c, ea, WNUL);
+    bp = xarraytomsz(c, ea, 0);
     xfree(eb);
     xfree(ea);
 
@@ -992,7 +1355,7 @@ static wchar_t *cmdoptionval(wchar_t *s)
 
     if (IS_EMPTY_WCS(s))
         return NULL;
-    while (*s != WNUL) {
+    while (*s != 0) {
         int c = *(s++);
         if (n > 0) {
             if (c == L'=')
@@ -1006,7 +1369,7 @@ static wchar_t *cmdoptionval(wchar_t *s)
     return NULL;
 }
 
-static wchar_t *cleanpath(wchar_t *s)
+static wchar_t *wcleanpath(wchar_t *s)
 {
     int n = 0;
     int c;
@@ -1051,25 +1414,17 @@ static wchar_t *cleanpath(wchar_t *s)
         }
         s[c++] = s[n];
     }
-    s[c--] = WNUL;
+    s[c--] = 0;
     while (c > 0) {
-        if ((s[c] == L';') || xisnonchar(s[c]))
-            s[c--] = WNUL;
+        if ((s[c] == L';') || ((s[c] == xrmendps) && (s[c - 1] != L'.')) || xisnonchar(s[c]))
+            s[c--] = 0;
         else
             break;
-    }
-    if (xrmendps) {
-        while (c > 1) {
-            if (((s[c] == L'\\') && (s[c - 1] != L'.')) || (s[c] == L';'))
-                s[c--] = WNUL;
-            else
-                break;
-        }
     }
     return s;
 }
 
-static wchar_t **xsplitstr(const wchar_t *s, wchar_t sc)
+static wchar_t **xsplitwcs(const wchar_t *s, wchar_t sc)
 {
     int      c;
     int      x = 0;
@@ -1086,7 +1441,7 @@ static wchar_t **xsplitstr(const wchar_t *s, wchar_t sc)
     es = xwcsctok(ws, sc, &cx);
     while (es != NULL) {
         es = xwcstrim(es);
-        if (*es != WNUL)
+        if (*es != 0)
             sa[x++] = xwcsdup(es);
         es = xwcsctok(NULL, sc, &cx);
     }
@@ -1094,6 +1449,36 @@ static wchar_t **xsplitstr(const wchar_t *s, wchar_t sc)
     sa[x] = NULL;
     if (x == 0) {
         xwaafree(sa);
+        sa = NULL;
+    }
+    return sa;
+}
+
+static char **xsplitstr(const char *s, char sc)
+{
+    int      c;
+    int      x = 0;
+    char    *cx = NULL;
+    char    *ws;
+    char    *es;
+    char   **sa;
+
+    c =  xstrntok(s, sc);
+    if (c == 0)
+        return NULL;
+    ws = xstrdup(s);
+    sa = xaalloc(c);
+    es = xstrctok(ws, sc, &cx);
+    while (es != NULL) {
+        es = xstrtrim(es);
+        if (*es != 0)
+            sa[x++] = xstrdup(es);
+        es = xstrctok(NULL, sc, &cx);
+    }
+    xfree(ws);
+    sa[x] = NULL;
+    if (x == 0) {
+        xsaafree(sa);
         sa = NULL;
     }
     return sa;
@@ -1117,7 +1502,7 @@ static wchar_t **splitpath(const wchar_t *s, wchar_t ps)
     es = xwcsctok(ws, ps, &cx);
     while (es != NULL) {
         es = xwcstrim(es);
-        if (*es != WNUL)
+        if (*es != 0)
             sa[x++] = xwcsdup(es);
         es = xwcsctok(NULL, ps, &cx);
     }
@@ -1147,19 +1532,21 @@ static wchar_t *mergepath(const wchar_t **pp)
             n = s[x];
         else
             n = wcslen(pp[i]);
-        if (i > 0)
-            *(p++) = L';';
-        wmemcpy(p, pp[i], n);
-        p += n;
+        if (n) {
+            if (i > 0 && p > r)
+                *(p++) = L';';
+            wmemcpy(p, pp[i], n);
+            p += n;
+        }
     }
-    *p = WNUL;
+    *p = 0;
     return r;
 }
 
 static wchar_t *posixtowin(wchar_t *pp, int m)
 {
     wchar_t *rp = NULL;
-    wchar_t  windrive[] = { WNUL, L':', L'\\', WNUL};
+    wchar_t  windrive[] = { 0, L':', L'\\', 0};
 
     if (m == 0)
         m = isposixpath(pp);
@@ -1169,30 +1556,30 @@ static wchar_t *posixtowin(wchar_t *pp, int m)
          */
         return pp;
     }
-    else if (m == 100) {
-        /**
-         * /x/... msys2 absolute path
-         */
-        windrive[0] = towupper(pp[1]);
-        rp = xwcsconcat(windrive, pp + 3, 0);
-        cleanpath(rp + 3);
+    else if (m <  100) {
+        return wcleanpath(pp);
     }
-    else if (m == 101) {
+    else if (m == 100) {
         /**
          * /cygdrive/x/... absolute path
          */
         windrive[0] = towupper(pp[10]);
         rp = xwcsconcat(windrive, pp + 12, 0);
-        cleanpath(rp + 3);
+        wcleanpath(rp + 3);
     }
     else if (m == 300) {
-        return cleanpath(pp);
+        if (ispathlist(pp) == L':')
+            return pp;
+        else
+            return wcleanpath(pp);
     }
     else if (m == 301) {
         rp = xwcsdup(posixroot);
     }
     else {
-        cleanpath(pp);
+        pp = wcleanpath(pp);
+        if (*pp != L'\\')
+            return pp;
         rp = xwcsconcat(posixroot, pp, 0);
     }
     xfree(pp);
@@ -1204,62 +1591,67 @@ static wchar_t *pathtowin(wchar_t *pp)
     int m;
 
     m = isanypath(0, pp);
-    if (m == 0)
-        return pp;
-    if (m < 100)
-        return cleanpath(pp);
-    else
+    if (m)
         return posixtowin(pp, m);
+    else
+        return pp;
 }
 
-static wchar_t *towinpaths(const wchar_t *ps, int m)
+static wchar_t *pathstowin(const wchar_t *ps)
 {
     int i;
+    int m;
     int sc = 0;
     wchar_t **pa;
     wchar_t  *wp = NULL;
 
-    if (m < 100) {
-        if (m == 0) {
-            if (wcschr(ps, L';') || iswinpath(ps))
-                sc = 1;
-        }
-        else {
-            sc = 1;
-        }
+    sc = ispathlist(ps);
+    if (sc == 0) {
+        /* Not a path list */
+        wp = xwcsdup(ps);
+        m  = isposixpath(wp);
+        if (m == 0)
+            wp = wcleanpath(wp);
+        else
+            wp = posixtowin(wp, m);
+        return wp;
     }
-    if (sc) {
-        pa = splitpath(ps, L';');
+    else if (sc == L';') {
+        pa = splitpath(ps, sc);
 
         if (pa != NULL) {
             for (i = 0; pa[i] != NULL; i++) {
                 m = isposixpath(pa[i]);
                 if (m == 0)
-                    cleanpath(pa[i]);
+                    pa[i] = wcleanpath(pa[i]);
                 else
                     pa[i] = posixtowin(pa[i], m);
             }
-            wp = mergepath(pa);
-            xwaafree(pa);
         }
     }
     else {
-        pa = splitpath(ps, L':');
+        pa = splitpath(ps, sc);
 
         if (pa != NULL) {
             for (i = 0; pa[i] != NULL; i++) {
                 m = isposixpath(pa[i]);
                 if (m == 0) {
+#if 0
+                    pa[i] = posixtowin(pa[i], 400);
+#else
                     xwaafree(pa);
                     return xwcsdup(ps);
+#endif
                 }
                 else {
                     pa[i] = posixtowin(pa[i], m);
                 }
             }
-            wp = mergepath(pa);
-            xwaafree(pa);
         }
+    }
+    if (pa != NULL) {
+        wp = mergepath(pa);
+        xwaafree(pa);
     }
     if (wp == NULL)
         wp = xwcsdup(ps);
@@ -1327,7 +1719,7 @@ static wchar_t *xsearchexe(const wchar_t *paths, const wchar_t *name)
             xfree(sp);
             return NULL;
         }
-        else if (ln > sz) {
+        if (ln > sz) {
             xfree(sp);
             sp = NULL;
             sz = ln;
@@ -1340,7 +1732,25 @@ static wchar_t *xsearchexe(const wchar_t *paths, const wchar_t *name)
 
 static BOOL WINAPI consolehandler(DWORD ctrl)
 {
-    fprintf(stdout, "\nconsolehandler %lu\n", ctrl);
+    switch (ctrl) {
+        case CTRL_LOGOFF_EVENT:
+        break;
+        case CTRL_C_EVENT:
+        case CTRL_BREAK_EVENT:
+            if (xprocess) {
+                if (WaitForSingleObject(xprocess, CYGWRUN_CRTL_C_WAIT) == WAIT_OBJECT_0)
+                    break;
+            }
+            /* fall through */
+        case CTRL_CLOSE_EVENT:
+        case CTRL_SHUTDOWN_EVENT:
+            if (xchevent && xprocess)
+                SignalObjectAndWait(xchevent, xprocess, CYGWRUN_CRTL_S_WAIT, FALSE);
+        break;
+        default:
+            return FALSE;
+        break;
+    }
     return TRUE;
 }
 
@@ -1367,7 +1777,7 @@ static int getsubproctree(HANDLE sh, xprocinfo *pa, DWORD pid,
         if (p >= sz) {
             break;
         }
-        if ((e.th32ParentProcessID == pid) && !xwcsends(e.szExeFile, L"conhost.exe", 11)) {
+        if ((e.th32ParentProcessID == pid) && wcsicmp(e.szExeFile, L"conhost.exe")) {
             pa[p].h = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE,
                                   FALSE, e.th32ProcessID);
             if (pa[p].h) {
@@ -1403,26 +1813,170 @@ static int getproctree(xprocinfo *pa, DWORD pid, int kd, int sz)
     return n;
 }
 
-static void xkillchilds(DWORD pid, int kd, DWORD kw, DWORD ec)
+static void killproctree(DWORD pid)
 {
     int i;
     int n;
-    xprocinfo pa[BBUFSIZ];
+    xprocinfo *pa;
 
-    memset(pa, 0, sizeof(pa));
-    n = getproctree(pa, pid, kd, BBUFSIZ);
+    pa = xcalloc(CYGWRUN_KILL_SIZE, sizeof(pa));
+    n  = getproctree(pa, pid, CYGWRUN_KILL_DEPTH, CYGWRUN_KILL_SIZE);
     for (i = n - 1; i >= 0; i--) {
         DWORD s = 0;
 
-        if (kw && pa[i].n)
-            s = WaitForSingleObject( pa[i].h, kw);
+        if (pa[i].n)
+            s = WaitForSingleObject( pa[i].h, CYGWRUN_KILL_TIMEOUT);
         if (s || !GetExitCodeProcess(pa[i].h, &s))
             s =  STILL_ACTIVE;
         if (s == STILL_ACTIVE)
-            TerminateProcess(pa[i].h, ec);
+            TerminateProcess(pa[i].h, CYGWRUN_SIGTERM);
 
         CloseHandle(pa[i].h);
     }
+    xfree(pa);
+}
+
+static wchar_t *getcygwinroot(void)
+{
+    DWORD    n;
+    wchar_t  b[CYGWRUN_BUFSIZ];
+    wchar_t *r = NULL;
+
+    n = SearchPathW(NULL, L"cygwin1.dll", NULL, CYGWRUN_BUFSIZ, b, NULL);
+    if ((n > 20) && (n < CYGWRUN_BUFSIZ)) {
+        b[n - 16] = 0;
+        r = xwcsdup(b);
+        r = wcleanpath(r);
+    }
+    return r;
+}
+
+static int initenvironment(const char **envp)
+{
+    const char **a;
+    const char *ep;
+    const char *ev;
+    char  *ed;
+    size_t n = 0;
+    int    i;
+
+    a = envp;
+    while (*a != NULL) {
+        n++;
+        a++;
+    }
+    systemenvc = 0;
+    systemenvn = xaalloc(n + 1);
+    systemenvv = xaalloc(n + 1);
+
+    while (*envp) {
+        ep = *envp;
+        if (ep[0] == '=') {
+            envp++;
+            continue;
+        }
+        if ((ep[0] == '_') && (ep[1] == '=')) {
+            envp++;
+            continue;
+        }
+        n = xstrchrn(ep, '=');
+        if (n == 0)
+            return CYGWRUN_EBADENV;
+        ev = ep + n + 1;
+        if (IS_EMPTY_STR(ev))
+            return CYGWRUN_EEMPTY;
+        for (i = 0; configvars[i]; i++) {
+            if (xstrnicmp(ep, configvars[i], n) == 0) {
+                if (configvals[i]) {
+                    /* Multiple variables */
+                    return CYGWRUN_EALREADY;
+                }
+                else {
+                    configvals[i] = ev;
+                    ev = NULL;
+                    break;
+                }
+            }
+        }
+        if (ev == NULL) {
+            envp++;
+            continue;
+        }
+        ed    = xwcsdup(ep);
+        ed[n] = '\0';
+        systemenvn[systemenvc] = ed;
+        systemenvv[systemenvc] = ed + n + 1;
+        systemenvc++;
+#if (CYGWRUN_ISDEV_VERSION)
+        if (systemenvc >= CYGWRUN_ENVMAX) {
+            fprintf(stderr, "Really dude?\nThere's too much of those 'environment variable' stuff\n");
+            return CYGWRUN_ENOSPC;
+        }
+#endif
+        envp++;
+    }
+    systemenvn[systemenvc] = NULL;
+    systemenvv[systemenvc] = NULL;
+    return 0;
+}
+
+static int setupenvironment(void)
+{
+    int i;
+    int j;
+
+    xenvcount = 0;
+    xenvvars  = xwaalloc(systemenvc + 1);
+    xenvvals  = xwaalloc(systemenvc + 1);
+    for (i = 0; i < systemenvc; i++) {
+        char *es = systemenvn[i];
+
+        for (j = 0; adelenvv[j]; j++) {
+            if (xstrmatch(1, es, adelenvv[j]) == 0) {
+                es = NULL;
+                break;
+            }
+        }
+        if (es == NULL) {
+            xfree(systemenvn[i]);
+            systemenvn[i] = NULL;
+            continue;
+        }
+#if 0
+        /**
+         * Check for duplicate envvars
+         */
+        for (j = 0; j < systemenvc; j++) {
+            if (j != i && systemenvn[j]) {
+                if (xstricmp(systemenvn[j], en) == 0) {
+                    /**
+                     * Found variable with duplicate name
+                     */
+                    fprintf(stderr, "\nThe '%s' variable was already defined as '%s'.\n",
+                            systemenvn[j], en);
+                    return CYGWRUN_EBADENV;
+                }
+            }
+        }
+#endif
+        xenvvars[xenvcount] = xstrtowcs(es);
+        xenvvals[xenvcount] = xmbstowcs(systemenvv[i]);
+        xenvcount++;
+        xfree(es);
+        systemenvn[i] = NULL;
+    }
+    xenvvars[xenvcount] = xwcsdup(L"PATH");
+    xenvvals[xenvcount] = posixpath;
+    xenvcount++;
+    xenvvars[xenvcount] = xwcsdup(L"TEMP");
+    xenvvals[xenvcount] = xmbstowcs(configvals[CCYGWIN_TEMP]);
+    xenvcount++;
+    xenvvars[xenvcount] = xwcsdup(L"TMP");
+    xenvvals[xenvcount] = xmbstowcs(configvals[CCYGWIN_TMP]);
+    xenvcount++;
+    xfree(systemenvn);
+    xfree(systemenvv);
+    return 0;
 }
 
 static int runprogram(int argc, wchar_t **argv)
@@ -1431,9 +1985,9 @@ static int runprogram(int argc, wchar_t **argv)
     int      m;
     size_t   n;
     DWORD    rc = 0;
-
     wchar_t *cmdblk = NULL;
     wchar_t *envblk = NULL;
+    wchar_t *cmdexe = NULL;
 
     PROCESS_INFORMATION cp;
     STARTUPINFOW si;
@@ -1442,24 +1996,49 @@ static int runprogram(int argc, wchar_t **argv)
         wchar_t *v;
         wchar_t *a = argv[i];
 
+        if (*a == L'\'') {
+            if (argv[0] != zerowcs)
+                continue;
+            n = xwcslen(a);
+            if (a[n - 1] == L'\'') {
+                v = xwmalloc(n - 2);
+                wmemcpy(v, a + 1, n - 2);
+                xfree(a);
+                argv[i] = v;
+            }
+            continue;
+        }
         v = cmdoptionval(a);
         if (v != NULL) {
+            /**
+             * In case the argv is [-|--]argument=["]value["]
+             * evaluate the value as environment variable.
+             */
             wchar_t  qc = 0;
             wchar_t *qp = NULL;
             if (v[0] == L'"') {
+                /* We have quoted value */
                 n = wcslen(v) - 1;
                 if ((n > 1) && (v[n] == v[0])) {
                     qc = v[0];
                     qp = v + n;
-                    *(qp)  = WNUL;
-                    *(v++) = WNUL;
+                    *(qp)  = 0;
+                    *(v++) = 0;
+                }
+                else {
+                    /**
+                     * Found unterminated quote
+                     * eg. -a="b
+                     * Skip argument
+                     */
+                    continue;
                 }
             }
             m = isanypath(1, v);
             if (m != 0) {
-                wchar_t *p = towinpaths(v, m);
+                wchar_t *p = pathstowin(v);
                 if (qp == NULL)
-                    v[0] = WNUL;
+                    v[0] = 0;
                 argv[i]  = xwcsconcat(a, p, qc);
                 xfree(a);
                 xfree(p);
@@ -1475,325 +2054,251 @@ static int runprogram(int argc, wchar_t **argv)
             argv[i] = pathtowin(a);
         }
     }
-    for (i = 0; i < xenvcount; i++) {
-        int x;
-        wchar_t *v = xenvvals[i];
-
-        if (xenvvars[i] == zerostr)
-            continue;
-        if (xrawenvs) {
-            for (x = 0; xrawenvs[x]; x++) {
-                if (xwcsmatch(1, xenvvars[i], xrawenvs[x]) == 0) {
-                    x = -1;
-                    break;
-                }
-            }
-            if (x < 0)
-                continue;
-        }
-        m = isanypath(1, v);
-        if (m != 0) {
-            xenvvals[i] = towinpaths(v, m);
-            xfree(v);
-        }
-    }
-    if (argv[0] == zerostr) {
+    if (argv[0] == zerowcs) {
         for (i = 1; i < argc; i++) {
-            wchar_t *a = argv[i];
+            char *u = xwcstombs(argv[i]);
             if (i > 1)
-                fputwc(L'\n', stdout);
-            if (*a == L'?') {
-                int x;
-                for (x = 0; x < xenvcount; x++) {
-                    if (xwcsicmp(xenvvars[x], a + 1) == 0) {
-                        fputws(xenvvals[x], stdout);
-                        break;
-                    }
-                }
-                if (x == xenvcount) {
-                    if (xshowerr)
-                        fprintf(stderr, "Cannot find environment variable: '%S'\n", a + 1);
-                    return ENOENT;
-                }
-            }
-            else {
-                fputws(a, stdout);
-            }
+                fputc('\n', stdout);
+            fputs(u, stdout);
+            xfree(u);
         }
         return 0;
     }
+    for (i = 0; i < xenvcount; i++) {
+        int j;
+        wchar_t *v = xenvvals[i];
+
+        if (xenvvars[i] == zerowcs)
+            continue;
+        for (j = 0; xskipenv[j]; j++) {
+            if (xwcsmatch(1, xenvvars[i], xskipenv[j]) == 0) {
+                j = -1;
+                break;
+            }
+        }
+        if (j < 0)
+            continue;
+        m = isanypath(1, v);
+        if (m != 0) {
+            xenvvals[i] = pathstowin(v);
+            xfree(v);
+        }
+    }
+    xchevent = CreateEventW(NULL, FALSE, FALSE, NULL);
+    if (xchevent == NULL)
+        return CYGWRUN_FAILED;
+    cmdexe  = xwcsdup(argv[0]);
     argv[0] = xquoteprg(argv[0]);
     for (i = 1; i < argc; i++)
         argv[i] = xquotearg(argv[i]);
-    cmdblk = xarrblk(argc, argv, L' ');
-    envblk = xenvblock();
+    cmdblk = xarraytomsz(argc, argv, L' ');
+    envblk = getenvblock();
 
     memset(&cp, 0, sizeof(PROCESS_INFORMATION));
     memset(&si, 0, sizeof(STARTUPINFOW));
     si.cb = (DWORD)sizeof(STARTUPINFOW);
 
     SetConsoleCtrlHandler(NULL, FALSE);
-    if (!CreateProcessW(argv[0],
+    if (!CreateProcessW(cmdexe,
                         cmdblk,
                         NULL, NULL, TRUE,
                         CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT,
-                        envblk, posixwork,
+                        envblk, NULL,
                        &si, &cp)) {
-        if (xshowerr)
-            fprintf(stderr, "The sytem failed to execute: '%S' with error: %lu\n",
-                    cmdblk, GetLastError());
         rc = CYGWRUN_FAILED;
     }
     else {
-        DWORD ws;
+        HANDLE wh[2];
+        DWORD  ws;
+
+        xprocess = cp.hProcess;
         SetConsoleCtrlHandler(consolehandler, TRUE);
         ResumeThread(cp.hThread);
         CloseHandle(cp.hThread);
+        wh[0] = xprocess;
+        wh[1] = xchevent;
         /**
          * Wait for child to finish
          */
         rc = STILL_ACTIVE;
-        ws = WaitForSingleObject(cp.hProcess, xtimeout);
-        if (ws == WAIT_TIMEOUT) {
+        ws = WaitForMultipleObjects(2, wh, FALSE, INFINITE);
+        if (ws != WAIT_OBJECT_0) {
             /**
-             * Process did not finish within xtimeout
+             * Process did not finish within timeout
+             * or the console event was signaled.
              * Rise CTRL+C signal
              */
             SetConsoleCtrlHandler(NULL, TRUE);
             GenerateConsoleCtrlEvent(0, CTRL_C_EVENT);
             SetConsoleCtrlHandler(NULL, FALSE);
-            ws = WaitForSingleObject(cp.hProcess, CYGWRUN_CRTL_C_WAIT);
+            ws = WaitForSingleObject(wh[0], CYGWRUN_CRTL_C_WAIT);
             if (ws == WAIT_OBJECT_0)
                 rc = CYGWRUN_SIGINT;
         }
-        if (rc == STILL_ACTIVE && GetExitCodeProcess(cp.hProcess, &rc)) {
+        if (rc == STILL_ACTIVE && GetExitCodeProcess(xprocess, &rc)) {
             if ((rc != STILL_ACTIVE) && (rc > CYGWRUN_ERRMAX))
                 rc = CYGWRUN_ERRMAX;
         }
         if (rc == STILL_ACTIVE) {
-            xkillchilds(cp.dwProcessId, CYGWRUN_KILL_DEPTH, CYGWRUN_KILL_TIMEOUT, SIGTERM);
-            TerminateProcess(cp.hProcess, SIGTERM);
+            killproctree(cp.dwProcessId);
+            TerminateProcess(xprocess, CYGWRUN_SIGTERM);
             rc = CYGWRUN_SIGTERM;
         }
-        CloseHandle(cp.hProcess);
         SetConsoleCtrlHandler(consolehandler, FALSE);
+        CloseHandle(xprocess);
     }
-#if PROJECT_ISDEV_VERSION
+    CloseHandle(xchevent);
+#if CYGWRUN_ISDEV_VERSION
+    xfree(cmdexe);
     xfree(envblk);
     xfree(cmdblk);
 #endif
     return rc;
 }
 
-int wmain(int argc, const wchar_t **argv)
+static int version(int verbose)
 {
-    int       i;
-    int       rv;
-    int       dupargc;
-    wchar_t **dupargv;
-    wchar_t  *exe;
-    wchar_t  *prg;
+    if (verbose) {
+        fputs(CYGWRUN_NAME " version " CYGWRUN_VERSION_ALL "\n\n", stdout);
+        fputs(CYGWRUN_LICENSE_SHORT "\n\n", stdout);
+        fputs("Visit " CYGWRUN_URL " for more details", stdout);
+    }
+    else {
+        fputs(CYGWRUN_NAME " version " CYGWRUN_VERSION_TXT, stdout);
+    }
+    return 0;
+}
 
-    wchar_t  *eparam;
-    wchar_t  *cwdir = NULL;
-    wchar_t  *wendp = NULL;
+#define __SYNC_ARGV()   --argc; ++argv; optarg = *argv
+int main(int argc, const char **argv, const char **envp)
+{
+    int         i;
+    int         rv;
+    wchar_t   **dupargv;
+    wchar_t    *wparam;
+    wchar_t    *eparam;
+    char       *sparam;
+    const char *optarg;
+    const char *scmdopt = NULL;
+    const char *ucmdopt = NULL;
 
-
-    /**
-     * Make sure child processes are kept quiet.
-     */
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX | SEM_NOGPFAULTERRORBOX);
-    if (argc == 0)
-        return ENOSYS;
-    if (argc == 1) {
-        fputs(PROJECT_NAME " version " PROJECT_VERSION_ALL, stdout);
-        return 0;
+#if CYGWRUN_ISDEV_VERSION
+    if (argc > CYGWRUN_ARGMAX) {
+        fprintf(stderr, "Really dude?\nThere's too many of those command line arguments\n");
+        return CYGWRUN_ENOSPC;
     }
-    xshowerr = !xngetenv(0, L"CYGWRUN_QUIET");
-    xhasmsys =  xngetenv(0, L"CYGWRUN_MSYSTEM");
-    xrmendps =  xngetenv(1, L"CYGWRUN_TRIM_PATHS");
-    --argc;
-    ++argv;
-    if (argc && *(argv[0]) == L'~') {
-        posixroot = getrealpathname(argv[0] + 1, 1);
-        if (posixroot == NULL) {
-            if (xshowerr)
-                fprintf(stderr, "\nThe system cannot find the CYGWRUN_ROOT directory: '%S'\n", argv[0] + 1);
-            return ENOENT;
-        }
-        --argc;
-        ++argv;
-    }
-    if (argc && *(argv[0]) == L'@') {
-        cwdir = xwcsdup(argv[0] + 1);
-        --argc;
-        ++argv;
-    }
-    if (argc && *(argv[0]) == L'^') {
-        rv = (int)wcstol(argv[0] + 1, &wendp, 10);
-        if ((*wendp != WNUL) || ((rv == 0) && (errno != 0))) {
-            if (xshowerr)
-                fputs("\nThe timeout parameter is invalid\n", stderr);
-            return EINVAL;
-        }
-        if (rv > 0) {
-            if ((rv < 2) || (rv > 2000000)) {
-                if (xshowerr)
-                    fputs("\nThe timeout parameter is outside valid range\n", stderr);
-                return ERANGE;
-            }
-            xtimeout = rv * 1000;
-        }
-        --argc;
-        ++argv;
-    }
-    else {
-        rv = xngetenv(0, L"CYGWRUN_TIMEOUT");
-        if (rv > 0) {
-            if ((rv < 2) || (rv > 2000000)) {
-                if (xshowerr)
-                    fputs("\nThe CYGWRUN_TIMEOUT is outside valid range\n", stderr);
-                return ERANGE;
-            }
-            xtimeout = rv * 1000;
-        }
-    }
-    eparam = xwgetenv(L"CYGWRUN_SKIP");
-    if (argc && *(argv[0]) == L'=') {
-        eparam = xwcsappend(eparam, argv[0] + 1, L',');
-        --argc;
-        ++argv;
-    }
-    eparam   = xwcsappend(eparam, sskipenv, L',');
-    xrawenvs = xsplitstr(eparam, L',');
-    xfree(eparam);
-    eparam = xwgetenv(L"CYGWRUN_UNSET");
-    if (argc && *(argv[0]) == L'-') {
-        eparam = xwcsappend(eparam, argv[0] + 1, L',');
-        --argc;
-        ++argv;
-    }
-    if (eparam) {
-        xdelenvs = xsplitstr(eparam, L',');
-        xfree(eparam);
-    }
-    if (argc < 1) {
-        if (xshowerr)
-            fputs("\nThe PROGRAM name was not specified\n", stderr);
-        return ENOENT;
-    }
-    if (posixroot == NULL) {
-        eparam = xwgetenv(L"CYGWRUN_ROOT");
-        if (eparam == NULL) {
-            if (xshowerr)
-                fputs("\nThe CYGWRUN_ROOT environment variable was not found\n", stderr);
-            return ENOENT;
-        }
-        posixroot = getrealpathname(eparam, 1);
-        if (posixroot == NULL) {
-            if (xshowerr)
-                fprintf(stderr, "\nThe system cannot find the CYGWRUN_ROOT directory: '%S'\n", eparam);
-            return CYGWRUN_NOEXEC;
-        }
-        xfree(eparam);
-    }
-    if (cwdir) {
-        cwdir = pathtowin(cwdir);
-        if (cwdir == NULL) {
-            if (xshowerr)
-                fputs("The working directory path is invalid\n", stderr);
-            return EBADF;
-        }
-        posixwork = getrealpathname(cwdir, 1);
-        if (posixwork == NULL) {
-            if (xshowerr)
-                fprintf(stderr, "\nThe system cannot find the work directory: '%S'\n", cwdir);
-            return ENOTDIR;
-        }
-        xfree(cwdir);
-    }
-    else {
-        posixwork = xgetpwd();
-        if (posixwork == NULL) {
-            if (xshowerr)
-                fputs("The system cannot find the current working directory\n", stderr);
-            return ENOENT;
-        }
-    }
-    eparam = xwgetenv(L"CYGWRUN_PATH");
-    if (eparam) {
-        posixpath = towinpaths(eparam, 0);
-        xfree(eparam);
-    }
-    if (posixpath == NULL) {
-        posixpath = xwgetenv(L"PATH");
-        posixpath = cleanpath(posixpath);
-    }
-    if (posixpath == NULL) {
-        if (xshowerr)
-            fputs("The PATH environment variable was not defined\n", stderr);
-        return ENOENT;
-    }
-    SetEnvironmentVariableW(L"PATH", posixpath);
-    SetEnvironmentVariableW(L"PWD",  posixwork);
-
-    rv = xinitenv();
-    if (rv) {
-        if (xshowerr)
-            fputs("The system was unable to init the environment\n", stderr);
+#endif
+    if (argc < 2)
+        return CYGWRUN_ENOEXEC;
+    __SYNC_ARGV();
+    if ((argc == 1) && (optarg[0] == '-') &&
+        ((optarg[1] == 'v') || (optarg[1] == 'V')) &&
+         (optarg[2] == '\0'))
+        return version(optarg[1] == 'V');
+    posixroot = getcygwinroot();
+    if (posixroot == NULL)
+        return CYGWRUN_ENOSYS;
+    rv = initenvironment(envp);
+    if (rv)
         return rv;
-    }
-    dupargc = 0;
-    dupargv = xwaalloc(argc);
-    if (xiswcschar(argv[0], L'.')) {
-        dupargv[dupargc++] = zerostr;
-        if (argc < 2) {
-            if (xshowerr)
-                fputs("\nThere are no options to evaluate\n", stderr);
-            return EINVAL;
+    if ((configvals[CCYGWIN_TEMP] == NULL) ||
+        (configvals[CCYGWIN_TMP]  == NULL))
+        return CYGWRUN_EBADPATH;
+
+    while (*optarg == '-') {
+        int opt = *++optarg;
+
+        if (!xisalpha(opt) || (*++optarg != '='))
+            return CYGWRUN_EPARAM;
+        ++optarg;
+        if (IS_EMPTY_STR(optarg))
+            return CYGWRUN_EPARAM;
+        switch (opt) {
+            case 's':
+                if (scmdopt)
+                    return CYGWRUN_EALREADY;
+                scmdopt = optarg;
+            break;
+            case 'u':
+                if (ucmdopt)
+                    return CYGWRUN_EALREADY;
+                ucmdopt = optarg;
+            break;
+            default:
+                return CYGWRUN_EINVAL;
+            break;
         }
+        __SYNC_ARGV();
+    }
+    if (argc < 1)
+        return CYGWRUN_ENOEXEC;
+    sparam   = xstrdup(configvals[CYGWRUN_SKIP]);
+    sparam   = xstrappend(sparam, scmdopt,  ',');
+    sparam   = xstrappend(sparam, sskipenv, ',');
+    wparam   = xstrtowcs(sparam);
+    xskipenv = xsplitwcs(wparam, L',');
+    xfree(wparam);
+    xfree(sparam);
+
+    sparam   = xstrdup(configvals[CYGWRUN_UNSET]);
+    sparam   = xstrappend(sparam, ucmdopt,  ',');
+    sparam   = xstrappend(sparam, unsetenv, ',');
+    adelenvv = xsplitstr(sparam, ',');
+    xfree(sparam);
+
+    eparam = xmbstowcs(configvals[CYGWRUN_PATH]);
+    if (eparam == NULL)
+        eparam = xmbstowcs(configvals[CCYGWIN_PATH]);
+    if (eparam == NULL)
+        return CYGWRUN_ENOENT;
+    posixpath = pathstowin(eparam);
+    if (posixpath== NULL)
+        return CYGWRUN_EBADPATH;
+    xfree(eparam);
+
+    SetEnvironmentVariableW(L"PATH", posixpath);
+    rv = setupenvironment();
+    if (rv)
+        return rv;
+    dupargv = xwaalloc(argc + 1);
+    if ((*optarg == '.') && (*(optarg + 1) == '\0')) {
+        dupargv[0] = zerowcs;
+        if (argc < 2)
+            return CYGWRUN_ENOEXEC;
     }
     else {
-        prg = pathtowin(xwcsdup(argv[0]));
-        if (prg == NULL) {
-            if (xshowerr)
-                fprintf(stderr, "The program path is invalid: '%S'\n", argv[0]);
-            return CYGWRUN_NOEXEC;
+        wparam = pathtowin(xmbstowcs(optarg));
+        if (wparam == NULL)
+            return CYGWRUN_ENOEXEC;
+        eparam = getrealpathname(wparam, 0);
+        if (eparam == NULL) {
+            SetSearchPathMode(BASE_SEARCH_PATH_DISABLE_SAFE_SEARCHMODE);
+            eparam = xsearchexe(NULL, wparam);
         }
-        exe = getrealpathname(prg, 0);
-        if (exe == NULL) {
-            exe = xsearchexe(posixwork, prg);
-            if (exe == NULL) {
-                /**
-                 * PROGRAM was not found in the work directory
-                 * Search inside PATH
-                 */
-                exe = xsearchexe(posixpath, prg);
-            }
-        }
-        if (exe == NULL) {
-            if (xshowerr)
-                fprintf(stderr, "The system cannot find the executable: '%S'\n", prg);
-            return CYGWRUN_NOEXEC;
-        }
-        xfree(prg);
-        dupargv[dupargc++] = exe;
+        if (eparam == NULL)
+            return CYGWRUN_ENOEXEC;
+        xfree(wparam);
+        dupargv[0] = eparam;
     }
     for (i = 1; i < argc; i++)
-        dupargv[dupargc++] = xwcsdup(argv[i]);
-
-    rv = runprogram(dupargc, dupargv);
-#if PROJECT_ISDEV_VERSION
-    xfree(posixpath);
-    xfree(posixroot);
-    xfree(posixwork);
+        dupargv[i] = xmbstowcs(argv[i]);
+    rv = runprogram(i, dupargv);
+#if CYGWRUN_ISDEV_VERSION
     xwaafree(xenvvals);
     xwaafree(xenvvars);
+    xwaafree(xskipenv);
     xwaafree(dupargv);
-    xwaafree(xrawenvs);
-    xwaafree(xdelenvs);
+    xsaafree(adelenvv);
+    xfree(posixroot);
+#if 0
+    fprintf(stdout, "\nAllocated: %llu\n", xzalloc);
+#endif
     if (xnalloc != xnmfree)
-        fprintf(stderr, "\nAllocated: %d\nFree     : %d\n", xnalloc, xnmfree);
+        fprintf(stderr, "\nAllocated: %llu"
+                        "\nalloc    : %d\n"
+                        "\nfree     : %d\n",
+                        xzalloc, xnalloc, xnmfree);
 #endif
     return rv;
 }

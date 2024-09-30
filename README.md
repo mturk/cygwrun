@@ -1,6 +1,6 @@
 # cygwrun
 
-Run windows applications under Posix environment
+Run windows applications under Cygwin environment
 
 ## Overview
 
@@ -34,12 +34,8 @@ and environment variables to windows format.
 
 ## Usage
 
-When running Cygwrun the first argument is expected to be
-`PROGRAM` name, followed by optional `ARGUMENTS`.
-
-In case the first arguments starts with `~` charater,
-the ramainder of the argument is considered to be the
-posix root directory.
+Cygwrun expects that the first argument is
+`PROGRAM` name to execute, followed by optional `ARGUMENTS`.
 
 In case the `PROGRAM` name is `.` character, the
 Cygwrun will print the evaluated arguments to the
@@ -52,13 +48,12 @@ cygwrun [OPTIONS]... PROGRAM [ARGUMENTS]...
 
 Options are:
 
- ~<DIR>  set the ROOT to <DIR> .
- @<DIR>  set the PROGRAM working directory to <DIR>.
- ^<SEC>	 set the PROGRAM timeout to <SEC>.
- =<ENV>  do not translate <ENV> variable(s)
-		 multiple variables are comma separated.
- -<ENV>  remove <ENV> variable(s) from the PROGRAM environment
-		 multiple variables are comma separated.
+ -s=<ENV>  do not translate <ENV> variable(s)
+		   multiple variables are comma separated.
+ -u=<ENV>  remove <ENV> variable(s) from the PROGRAM environment
+		   multiple variables are comma separated.
+ -v        print version information and exit.
+ -V        print detailed version information and exit.
 
 ```
 
@@ -71,24 +66,15 @@ environment variables or by using command line options.
 Here is the list of environment variables that
 Cygwrun uses for each instance:
 
-* **CYGWRUN_ROOT**
-
-  This variable sets the posix root directory.
-
 * **CYGWRUN_PATH**
 
   If set the value of this variable will be used
   as `PATH` environment variable.
 
-* **CYGWRUN_TIMEOUT**
-
-  This variable sets the time in seconds for how
-  long the `PROGRAM` is allowed to run.
-
 * **CYGWRUN_SKIP**
 
   This variable allows to set which environment variables
-  Cygwrun will not try to modify.
+  Cygwrun will not modify.
 
   The names of the environment variables are comma separated.
 
@@ -100,57 +86,16 @@ Cygwrun uses for each instance:
 
   The names of the environment variables are comma separated.
 
-* **CYGWRUN_QUIET**
-
-  If the value of this variable is set to `1`, Cygwrun will
-  not display error message in case of failure.
-
-* **CYGWRUN_MSYSTEM**
-
-  If the value of this variable is set to `1`, Cygwrun will
-  try to convert arguments and environment variables using
-  MSYSTEM path convention.
-
-  For example, the `/c/some/path` will be converted to
-  `C:\some\path`.
-
 
 ## Posix root
 
 Posix root is used to replace posix parts with posix environment root
 location inside Windows environment.
 
-Use `~<directory>` command line option to setup the install location
-of the current posix subsystem.
-
-In case the `~<directory>` was not specified, the program will
-check the `CYGWRUN_ROOT` environment variable.
+On startup cygwrun will try to locate the `cygwrun1.dll`
+library and use its parent directory as root.
 
 In case the root directory cannot be found, the program will fail.
-
-**Notice**
-
-Make sure that you provide a correct posix root since it will
-be used as prefix to `/usr, /bin, /tmp` constructing an actual
-Windows path.
-
-
-For example, if Cygwin is installed inside `C:\cygwin64` you
-can set either environment variable
-
-```sh
-    $ export CYGWRUN_ROOT=C:/cygwin64
-    ...
-    $ cygwrun ... --f1=/usr/local
-```
-
-... or declare it on command line
-
-```sh
-    $ cygwrun @C:/cygwin64 ... --f1=/usr/local
-```
-
-In both cases `--f1 parameter` will evaluate to `--f1=C:\cygwin64\usr\local`
 
 
 ## Environment variables
@@ -184,17 +129,18 @@ regardless if all other path elements can be translated.
 
 Note that some environment variables are always removed from the
 current environment variable list that is passed to child process
-such as `_`, `CYGWRUN_*`, and any variables listed inside
-`CYGWRUN_UNSET` environment variable.
+such as `_`, global configuration variables, and any variables
+listed inside `CYGWRUN_UNSET` environment variable.
+
 
 
 ## Command line arguments
 
 All arguments passed to `PROGRAM` are converted to windows format.
 
-If argument is not a path, or it starts with `--`, and then followed
-by valid variable name and equal `=` character, data after the
-equal character will be translated to windows path.
+If argument is not a path, or it starts with `-` or `--`, and
+then followed by valid variable name and equal `=` character,
+data after the equal character will be translated to windows path.
 If translation fails, the original argument will be preserved.
 
 

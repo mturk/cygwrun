@@ -31,108 +31,102 @@
 /**
  * Version info
  */
-#define PROJECT_MAJOR_VERSION   2
-#define PROJECT_MINOR_VERSION   0
-#define PROJECT_PATCH_VERSION   0
+#define CYGWRUN_MAJOR_VERSION   2
+#define CYGWRUN_MINOR_VERSION   0
+#define CYGWRUN_PATCH_VERSION   0
 #if defined(_BUILD_NUMBER)
-# define PROJECT_MICRO_VERSION  _BUILD_NUMBER
+# define CYGWRUN_MICRO_VERSION  _BUILD_NUMBER
 #else
-# define PROJECT_MICRO_VERSION  0
+# define CYGWRUN_MICRO_VERSION  0
 #endif
 /**
  * Set to zero for non dev versions
  */
-#define PROJECT_ISDEV_VERSION   1
+#define CYGWRUN_ISDEV_VERSION   1
 
 /**
  * Helper macros for properly quoting a value as a
  * string in the C preprocessor
  */
-#define CPP_TOSTR_HELPER(n)     #n
-#define CPP_TOSTR(n)            CPP_TOSTR_HELPER(n)
+#define CWR_TOSTR_HELPER(n)     #n
+#define CWR_TOSTR(n)            CWR_TOSTR_HELPER(n)
 
-#define IS_INVALID_HANDLE(_h)   (((_h) == NULL) || ((_h) == INVALID_HANDLE_VALUE))
-#define SAFE_CLOSE_HANDLE(_h)                                           \
-    if (((_h) != NULL) && ((_h) != INVALID_HANDLE_VALUE))               \
-        CloseHandle((_h));                                              \
-    (_h) = NULL
-
-#if defined(_VENDOR_SFX)
-# define PROJECT_VENDOR_SFX     CPP_TOSTR(_VENDOR_SFX)
+#if defined(_BUILD_VENDOR)
+# define CYGWRUN_VENDOR_SFX     CWR_TOSTR(_BUILD_VENDOR)
 #else
-# define PROJECT_VENDOR_SFX     ""
+# define CYGWRUN_VENDOR_SFX     ""
 #endif
 
-#if PROJECT_ISDEV_VERSION
-# define PROJECT_VERSION_DEV    " (dev)"
+#if CYGWRUN_ISDEV_VERSION
+# define CYGWRUN_VERSION_DEV    " (dev)"
 #else
-# define PROJECT_VERSION_DEV    ""
+# define CYGWRUN_VERSION_DEV    ""
 #endif
 
 /**
  * Construct build stamp
  */
 #if defined(_MSC_VER)
-# define PROJECT_BUILD_CC       "msc " CPP_TOSTR(_MSC_FULL_VER) "."     \
-                                CPP_TOSTR(_MSC_BUILD)
+# define CYGWRUN_BUILD_CC       "msc " CWR_TOSTR(_MSC_FULL_VER) "."     \
+                                CWR_TOSTR(_MSC_BUILD)
 #elif defined(__GNUC__)
-# define PROJECT_BUILD_CC       "gcc " CPP_TOSTR(__GNUC__) "."          \
-                                CPP_TOSTR(__GNUC_MINOR__) "."           \
-                                CPP_TOSTR(__GNUC_PATCHLEVEL__)
+# define CYGWRUN_BUILD_CC       "gcc " CWR_TOSTR(__GNUC__) "."          \
+                                CWR_TOSTR(__GNUC_MINOR__) "."           \
+                                CWR_TOSTR(__GNUC_PATCHLEVEL__)
 #else
-# define PROJECT_BUILD_CC       "unknown"
+# define CYGWRUN_BUILD_CC       "unknown"
 #endif
 #if defined(_BUILD_TIMESTAMP)
-#define PROJECT_BUILD_TSTAMP    "(" CPP_TOSTR(_BUILD_TIMESTAMP) " " PROJECT_BUILD_CC ")"
+#define CYGWRUN_BUILD_TSTAMP    "(" CWR_TOSTR(_BUILD_TIMESTAMP) " " CYGWRUN_BUILD_CC ")"
 #else
-#define PROJECT_BUILD_TSTAMP    "(" __DATE__ " " __TIME__ " " PROJECT_BUILD_CC ")"
+#define CYGWRUN_BUILD_TSTAMP    "(" __DATE__ " " __TIME__ " " CYGWRUN_BUILD_CC ")"
 #endif
 
 /**
  * Macro for .rc files using numeric csv representation
  */
-#define PROJECT_VERSION_CSV     PROJECT_MAJOR_VERSION,                  \
-                                PROJECT_MINOR_VERSION,                  \
-                                PROJECT_PATCH_VERSION,                  \
-                                PROJECT_MICRO_VERSION
+#define CYGWRUN_VERSION_CSV     CYGWRUN_MAJOR_VERSION,                  \
+                                CYGWRUN_MINOR_VERSION,                  \
+                                CYGWRUN_PATCH_VERSION,                  \
+                                CYGWRUN_MICRO_VERSION
 
-#define PROJECT_VERSION_MIN                                             \
-                                CPP_TOSTR(PROJECT_MAJOR_VERSION) "."    \
-                                CPP_TOSTR(PROJECT_MINOR_VERSION) "."    \
-                                CPP_TOSTR(PROJECT_PATCH_VERSION)        \
+#define CYGWRUN_VERSION_MIN                                             \
+                                CWR_TOSTR(CYGWRUN_MAJOR_VERSION) "."    \
+                                CWR_TOSTR(CYGWRUN_MINOR_VERSION) "."    \
+                                CWR_TOSTR(CYGWRUN_PATCH_VERSION)        \
 
-#define PROJECT_VERSION_STR                                             \
-                                CPP_TOSTR(PROJECT_MAJOR_VERSION) "."    \
-                                CPP_TOSTR(PROJECT_MINOR_VERSION) "."    \
-                                CPP_TOSTR(PROJECT_PATCH_VERSION) "."    \
-                                CPP_TOSTR(PROJECT_MICRO_VERSION)
+#define CYGWRUN_VERSION_STR                                             \
+                                CWR_TOSTR(CYGWRUN_MAJOR_VERSION) "."    \
+                                CWR_TOSTR(CYGWRUN_MINOR_VERSION) "."    \
+                                CWR_TOSTR(CYGWRUN_PATCH_VERSION) "."    \
+                                CWR_TOSTR(CYGWRUN_MICRO_VERSION)
 
-#define PROJECT_VERSION_TXT                                             \
-                                PROJECT_VERSION_MIN                     \
-                                PROJECT_VENDOR_SFX                      \
-                                PROJECT_VERSION_DEV
+#define CYGWRUN_VERSION_TXT                                             \
+                                CYGWRUN_VERSION_MIN                     \
+                                CYGWRUN_VENDOR_SFX                      \
+                                CYGWRUN_VERSION_DEV
 
-#define PROJECT_VERSION_ALL                                             \
-                                PROJECT_VERSION_TXT " "                 \
-                                PROJECT_BUILD_TSTAMP
+#define CYGWRUN_VERSION_ALL                                             \
+                                CYGWRUN_VERSION_TXT " "                 \
+                                CYGWRUN_BUILD_TSTAMP
 
-#define PROJECT_NAME            "cygwrun"
-#define PROJECT_COMPANY_NAME    "Acme Corporation"
+#define CYGWRUN_NAME            "cygwrun"
+#define CYGWRUN_COMPANY_NAME    "Acme Corporation"
 
-#define PROJECT_COPYRIGHT       \
+#define CYGWRUN_COPYRIGHT       \
     "Copyright (c) 1964-2024 The Acme Corporation or its "              \
     "licensors, as applicable."
 
-#define PROJECT_DESCRIPTION     \
+#define CYGWRUN_DESCRIPTION     \
     "Run windows applications under posix environment"
 
-#define PROJECT_URL             \
+#define CYGWRUN_URL             \
     "https://github.com/mturk/cygwrun"
 
-#define PROJECT_LICENSE_SHORT   \
+#define CYGWRUN_LICENSE_SHORT   \
     "Licensed under the Apache-2.0 License"
 
-#define PROJECT_LICENSE         \
+#define CYGWRUN_LICENSE         \
   "Licensed under the Apache License, Version 2.0 (the ""License"");\n"         \
   "you may not use this file except in compliance with the License.\n"          \
   "You may obtain a copy of the License at\n\n"                                 \

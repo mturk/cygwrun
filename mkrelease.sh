@@ -21,7 +21,7 @@
 #
 # Usage: mkrelease.sh version [make arguments]
 #    eg: mkrelease.sh 1.2.3
-#        mkrelease.sh 1.2.3_1 _VENDOR_SFX=_1.acme _BUILD_NUMBER=`date +%y%j`
+#        mkrelease.sh 1.2.3_1 _BUILD_VENDOR=_1.acme _BUILD_NUMBER=`date +%y%j`
 #
 
 eexit()
@@ -36,14 +36,11 @@ eexit()
 
 case "`uname -s`" in
   CYGWIN*)
-    BuildHost=cygwin
-  ;;
-  MINGW*)
-    BuildHost=mingw
+    BuildHost="cygwin"
   ;;
   *)
     echo "Unknown `uname`"
-    echo "This scrip can run only inside cygwin or mingw"
+    echo "This script can run only inside cygwin"
     exit 1
   ;;
 
@@ -52,7 +49,7 @@ esac
 ReleaseVersion=$1
 test "x$ReleaseVersion" = "x" && eexit 1 "Missing version argument"
 shift
-BuildDir=x64
+BuildDir=.build
 ProjectName=cygwrun
 ReleaseArch=win-x64
 ReleaseName=$ProjectName-$ReleaseVersion-$ReleaseArch
@@ -61,20 +58,19 @@ ReleaseLog=$ReleaseName.txt
 #
 MakefileFlags="_BUILD_TIMESTAMP=`date +%Y%m%d%H%M%S` $*"
 make clean
-test "x$BuildHost" = "xcygwin" && MakefileFlags="USE_MINGW_PACKAGE_PREFIX=1 $MakefileFlags"
 make $MakefileFlags
 #
 pushd $BuildDir >/dev/null
 echo "## Binary release v$ReleaseVersion" > $ReleaseLog
 echo >> $ReleaseLog
 echo '```no-highlight' >> $ReleaseLog
-echo "Compiled on $BuildHost host:" >> $ReleaseLog
+echo "Compiled on $BuildHost `uname -r`:" >> $ReleaseLog
 echo "make $MakefileFlags" >> $ReleaseLog
-echo "using: `gcc --version | head -1`" >> $ReleaseLog
+echo "using: `x86_64-w64-mingw32-gcc --version | head -1`" >> $ReleaseLog
 echo >> $ReleaseLog
 echo >> $ReleaseLog
 #
-7za a -bd $ReleaseName.zip $ProjectName.exe
+zip -q9 $ReleaseName.zip $ProjectName.exe
 echo "SHA256 hash of $ReleaseName.zip:" >> $ReleaseLog
 sha256sum $ReleaseName.zip | sed 's;\ .*;;' >> $ReleaseLog
 echo >> $ReleaseLog
