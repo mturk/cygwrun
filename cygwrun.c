@@ -150,7 +150,7 @@ static const wchar_t *rootpaths[]   = {
 static const char *sskipenv =
     "EXECIGNORE,HOMEPATH,LOGONSERVER,PATH,PATHEXT,PROCESSOR_*,PROMPT,PS1";
 
-static const char *unsetenv =
+static const char *ssclrenv =
     "ERRORLEVEL,HOME,INFOPATH,LANG,OLDPWD,ORIGINAL_PATH,PWD,SHELL,SHLVL,TERM";
 
 
@@ -256,7 +256,7 @@ static wchar_t *xwmalloc(size_t size)
     s = CYGWRUN_ALIGN((size + 2) * sizeof(wchar_t));
     p = (wchar_t *)calloc(1, s);
     if (p == NULL)
-        _exit(CYGWRUN_ENOMEM);
+        exit(CYGWRUN_ENOMEM);
 #if CYGWRUN_ISDEV_VERSION
     xzalloc += s;
     xnalloc++;
@@ -272,7 +272,7 @@ static char *xmalloc(size_t size)
     s = CYGWRUN_ALIGN(size + 2);
     p = (char *)calloc(1, s);
     if (p == NULL)
-        _exit(CYGWRUN_ENOMEM);
+        exit(CYGWRUN_ENOMEM);
 #if CYGWRUN_ISDEV_VERSION
     xzalloc += s;
     xnalloc++;
@@ -288,7 +288,7 @@ static void *xcalloc(size_t number, size_t size)
     s = CYGWRUN_ALIGN((number + 2) * size);
     p = calloc(1, s);
     if (p == NULL)
-        _exit(CYGWRUN_ENOMEM);
+        exit(CYGWRUN_ENOMEM);
 #if CYGWRUN_ISDEV_VERSION
     xzalloc += s;
     xnalloc++;
@@ -2160,7 +2160,7 @@ int main(int argc, const char **argv, const char **envp)
 
     sparam   = xstrdup(configvals[CYGWRUN_UNSET]);
     sparam   = xstrappend(sparam, ucmdopt,  ',');
-    sparam   = xstrappend(sparam, unsetenv, ',');
+    sparam   = xstrappend(sparam, ssclrenv, ',');
     adelenvv = xsplitstr(sparam, ',');
     xfree(sparam);
 
