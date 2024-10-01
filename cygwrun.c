@@ -1480,7 +1480,7 @@ static wchar_t *mergepath(const wchar_t **pp)
     wchar_t *p;
 
     for (i = 0, x = 0; pp[i] != NULL; i++, x++) {
-        n = wcslen(pp[i]);
+        n = xwcslen(pp[i]);
         if (x < 64)
             s[x] = n;
         len += (n + 1);
@@ -1490,7 +1490,7 @@ static wchar_t *mergepath(const wchar_t **pp)
         if (x < 64)
             n = s[x];
         else
-            n = wcslen(pp[i]);
+            n = xwcslen(pp[i]);
         if (n) {
             if (i > 0 && p > r)
                 *(p++) = L';';
@@ -1950,7 +1950,7 @@ static int runprogram(int argc, wchar_t **argv)
             wchar_t *qp = NULL;
             if (v[0] == L'"') {
                 /* We have quoted value */
-                n = wcslen(v) - 1;
+                n = xwcslen(v) - 1;
                 if ((n > 1) && (v[n] == v[0])) {
                     qc = v[0];
                     qp = v + n;
