@@ -8,5 +8,8 @@ For a full list of changes, see the [git commit log][log]
 
 ## v2.0.0
 
- * In development
+### This is major version upgrade incompatible with previous versions
+
+  * Although the concept is the same, most of the command options have been changed or removed
+
 
