@@ -118,7 +118,7 @@
     "licensors, as applicable."
 
 #define CYGWRUN_DESCRIPTION     \
-    "Run windows applications under posix environment"
+    "Run Windows applications under Cygwin environment"
 
 #define CYGWRUN_URL             \
     "https://github.com/mturk/cygwrun"
