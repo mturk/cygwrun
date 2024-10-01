@@ -165,11 +165,6 @@ static __inline int xisalnum(int c)
             (c >= 0x30 && c <= 0x39));
 }
 
-static __inline int xisblank(int c)
-{
-    return (c == 0x20 || c == 0x09);
-}
-
 static __inline int xisnonchar(int c)
 {
     return (c > 0 && c <= 0x20);
@@ -204,16 +199,6 @@ static __inline int xcharcmp(int i, int a, int b)
         return (xtoupper(a) == xtoupper(b));
     else
         return (a == b);
-}
-
-static __inline wchar_t *xskipblanks(const wchar_t *str)
-{
-    wchar_t *s = (wchar_t *)str;
-    if (s && *s) {
-        while (xisblank(*s))
-            s++;
-    }
-    return s;
 }
 
 static __inline wchar_t *xwcsupper(wchar_t *str)
