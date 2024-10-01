@@ -1849,8 +1849,6 @@ static int initenvironment(const char **envp)
         systemenvc++;
         envp++;
     }
-    systemenvn[systemenvc] = NULL;
-    systemenvv[systemenvc] = NULL;
     return 0;
 }
 
@@ -1867,20 +1865,17 @@ static int setupenvironment(void)
 
         for (j = 0; adelenvv[j]; j++) {
             if (xstrmatch(1, es, adelenvv[j]) == 0) {
+                xfree(es);
                 es = NULL;
                 break;
             }
         }
-        if (es == NULL) {
-            xfree(systemenvn[i]);
-            systemenvn[i] = NULL;
+        if (es == NULL)
             continue;
-        }
         xenvvars[xenvcount] = xstrtowcs(es);
         xenvvals[xenvcount] = xmbstowcs(systemenvv[i]);
         xenvcount++;
         xfree(es);
-        systemenvn[i] = NULL;
     }
     xenvvars[xenvcount] = xwcsdup(L"PATH");
     xenvvals[xenvcount] = posixpath;
