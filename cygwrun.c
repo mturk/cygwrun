@@ -1717,7 +1717,7 @@ static int getsubproctree(HANDLE sh, xprocinfo *pa, DWORD pid,
         if (p >= sz) {
             break;
         }
-        if ((e.th32ParentProcessID == pid) && xwcsicmp(e.szExeFile, L"CONHOST.EXE")) {
+        if ((e.th32ParentProcessID == pid) && (xwcsicmp(e.szExeFile, L"CONHOST.EXE") != 0)) {
             pa[p].h = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE,
                                   FALSE, e.th32ProcessID);
             if (pa[p].h) {
@@ -1759,7 +1759,7 @@ static void killproctree(DWORD pid)
     int n;
     xprocinfo *pa;
 
-    pa = xcalloc(CYGWRUN_KILL_SIZE, sizeof(pa));
+    pa = xcalloc(CYGWRUN_KILL_SIZE, sizeof(xprocinfo));
     n  = getproctree(pa, pid, CYGWRUN_KILL_DEPTH, CYGWRUN_KILL_SIZE);
     for (i = n - 1; i >= 0; i--) {
         DWORD s = 0;
