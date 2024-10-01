@@ -1732,7 +1732,7 @@ static int getsubproctree(HANDLE sh, xprocinfo *pa, DWORD pid,
         if (p >= sz) {
             break;
         }
-        if ((e.th32ParentProcessID == pid) && wcsicmp(e.szExeFile, L"conhost.exe")) {
+        if ((e.th32ParentProcessID == pid) && xwcsicmp(e.szExeFile, L"conhost.exe")) {
             pa[p].h = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE,
                                   FALSE, e.th32ProcessID);
             if (pa[p].h) {
