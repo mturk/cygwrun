@@ -137,8 +137,22 @@ static const wchar_t *rootpaths[]   = {
 static const char *sskipenv =
     "COMPUTERNAME,HOMEDRIVE,HOMEPATH,HOST,HOSTNAME,LOGONSERVER,PATH,PATHEXT,PROCESSOR_*,PROMPT,USER,USERNAME";
 
-static const char *ssclrenv =
-    "ERRORLEVEL,EXECIGNORE,INFOPATH,LANG,OLDPWD,ORIGINAL_PATH,PROFILEREAD,PS1,PWD,SHELL,SHLVL,TERM,TZ";
+static const char *unsetvars[] = {
+    "ERRORLEVEL",
+    "EXECIGNORE",
+    "INFOPATH",
+    "LANG",
+    "OLDPWD",
+    "ORIGINAL_PATH",
+    "PROFILEREAD",
+    "PS1",
+    "PWD",
+    "SHELL",
+    "SHLVL",
+    "TERM",
+    "TZ",
+    NULL
+};
 
 
 static __inline int xisalpha(int c)
@@ -1394,6 +1408,8 @@ static char **xsplitstr(const char *s, char sc)
     char    *es;
     char   **sa;
 
+    if (IS_EMPTY_STR(s))
+        return NULL;
     c =  xstrntok(s, sc);
     if (c == 0)
         return NULL;
@@ -1812,6 +1828,16 @@ static int initenvironment(const char **envp)
         ev = ep + n + 1;
         if (IS_EMPTY_STR(ev))
             return CYGWRUN_EEMPTY;
+        for (i = 0; unsetvars[i]; i++) {
+            if (xstrnicmp(ep, unsetvars[i], n) == 0) {
+                ev = NULL;
+                break;
+            }
+        }
+        if (ev == NULL) {
+            envp++;
+            continue;
+        }
         for (i = 0; configvars[i]; i++) {
             if (xstrnicmp(ep, configvars[i], n) == 0) {
                 if (configvals[i]) {
@@ -1850,11 +1876,13 @@ static int setupenvironment(void)
     for (i = 0; i < systemenvc; i++) {
         char *es = systemenvn[i];
 
-        for (j = 0; adelenvv[j]; j++) {
-            if (xstrmatch(1, es, adelenvv[j]) == 0) {
-                xfree(es);
-                es = NULL;
-                break;
+        if (adelenvv) {
+            for (j = 0; adelenvv[j]; j++) {
+                if (xstrmatch(1, es, adelenvv[j]) == 0) {
+                    xfree(es);
+                    es = NULL;
+                    break;
+                }
             }
         }
         if (es == NULL)
@@ -2127,7 +2155,6 @@ int main(int argc, const char **argv, const char **envp)
 
     sparam   = xstrdup(configvals[CYGWRUN_UNSET]);
     sparam   = xstrappend(sparam, ucmdopt,  ',');
-    sparam   = xstrappend(sparam, ssclrenv, ',');
     adelenvv = xsplitstr(sparam, ',');
     xfree(sparam);
 
