@@ -1344,14 +1344,14 @@ static wchar_t *wcleanpath(wchar_t *s)
             s[0] = L'\\';
             s[1] = L'\\';
             s[3] = L'\\';
-            s[4] = towupper(s[4]);
+            s[4] = xtoupper(s[4]);
             s[6] = L'\\';
             n    = 7;
         }
     }
     if ((n == 0) && (i > 2)) {
         if (xisalpha(s[0]) && (s[1] == L':') && IS_PSW(s[2])) {
-            s[0] = towupper(s[0]);
+            s[0] = xtoupper(s[0]);
             s[2] = L'\\';
             n    = 3;
         }
@@ -1522,7 +1522,7 @@ static wchar_t *posixtowin(wchar_t *pp, int m)
         /**
          * /cygdrive/x/... absolute path
          */
-        windrive[0] = towupper(pp[10]);
+        windrive[0] = xtoupper(pp[10]);
         rp = xwcsconcat(windrive, pp + 12, 0);
         wcleanpath(rp + 3);
     }
