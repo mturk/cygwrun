@@ -148,10 +148,10 @@ static const wchar_t *rootpaths[]   = {
 };
 
 static const char *sskipenv =
-    "EXECIGNORE,HOMEPATH,LOGONSERVER,PATH,PATHEXT,PROCESSOR_*,PROMPT,PS1";
+    "COMPUTERNAME,EXECIGNORE,HOMEPATH,HOSTNAME,LOGONSERVER,PATH,PATHEXT,PROCESSOR_*,PROMPT,PS1,USERNAME";
 
 static const char *ssclrenv =
-    "ERRORLEVEL,HOME,INFOPATH,LANG,OLDPWD,ORIGINAL_PATH,PWD,SHELL,SHLVL,TERM";
+    "ERRORLEVEL,HOME,INFOPATH,LANG,OLDPWD,ORIGINAL_PATH,PROFILEREAD,PWD,SHELL,SHLVL,TERM";
 
 
 static __inline int xisalpha(int c)
@@ -1826,7 +1826,7 @@ static int initenvironment(const char **envp)
 
     while (*envp) {
         ep = *envp;
-        if (ep[0] == '=') {
+        if ((ep[0] == '=') || (ep[0] == '!')) {
             envp++;
             continue;
         }
