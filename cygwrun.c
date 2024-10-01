@@ -127,20 +127,7 @@ static const wchar_t *rootpaths[]   = {
     L"/etc/",
     L"/home/",
     L"/lib/",
-#if 0
-    L"/lib64/",
-    L"/media/",
-    L"/mnt/",
-    L"/opt/",
-    L"/proc/",
-    L"/root/",
-    L"/run/",
-#endif
     L"/sbin/",
-#if 0
-    L"/shared/",
-    L"/sys/",
-#endif
     L"/tmp/",
     L"/usr/",
     L"/var/",
@@ -148,10 +135,10 @@ static const wchar_t *rootpaths[]   = {
 };
 
 static const char *sskipenv =
-    "COMPUTERNAME,EXECIGNORE,HOMEPATH,HOSTNAME,LOGONSERVER,PATH,PATHEXT,PROCESSOR_*,PROMPT,PS1,USERNAME";
+    "COMPUTERNAME,HOMEDRIVE,HOMEPATH,HOST,HOSTNAME,LOGONSERVER,PATH,PATHEXT,PROCESSOR_*,PROMPT,USER,USERNAME";
 
 static const char *ssclrenv =
-    "ERRORLEVEL,HOME,INFOPATH,LANG,OLDPWD,ORIGINAL_PATH,PROFILEREAD,PWD,SHELL,SHLVL,TERM";
+    "ERRORLEVEL,EXECIGNORE,INFOPATH,LANG,OLDPWD,ORIGINAL_PATH,PROFILEREAD,PS1,PWD,SHELL,SHLVL,TERM,TZ";
 
 
 static __inline int xisalpha(int c)
