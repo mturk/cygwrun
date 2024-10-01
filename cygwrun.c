@@ -2034,7 +2034,10 @@ static int runprogram(int argc, wchar_t **argv)
                        &si, &cp)) {
         rc = CYGWRUN_FAILED;
     }
-    else {
+    xfree(cmdexe);
+    xfree(envblk);
+    xfree(cmdblk);
+    if (rc == 0) {
         HANDLE wh[2];
         DWORD  ws;
 
@@ -2075,11 +2078,6 @@ static int runprogram(int argc, wchar_t **argv)
         CloseHandle(xprocess);
     }
     CloseHandle(xchevent);
-#if CYGWRUN_ISDEV_VERSION
-    xfree(cmdexe);
-    xfree(envblk);
-    xfree(cmdblk);
-#endif
     return rc;
 }
 
@@ -2203,7 +2201,7 @@ int main(int argc, const char **argv, const char **envp)
     xsaafree(adelenvv);
     xfree(posixroot);
     if (xnalloc != xnmfree)
-        fprintf(stderr, "\nAllocated: %llu"
+        fprintf(stderr, "\nAllocated: %llu\n"
                         "alloc    : %d\n"
                         "free     : %d\n",
                         xzalloc, xnalloc, xnmfree);
