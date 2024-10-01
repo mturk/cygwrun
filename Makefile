@@ -23,9 +23,15 @@
 # mingw64-x86_64-runtime
 #
 
+ifdef MINGW_PREFIX
+CC = gcc
+RC = windres
+RL = strip
+else
 CC = x86_64-w64-mingw32-gcc
 RC = x86_64-w64-mingw32-windres
 RL = x86_64-w64-mingw32-strip
+endif
 LN = $(CC)
 
 SRCDIR  = .

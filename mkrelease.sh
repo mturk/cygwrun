@@ -34,9 +34,14 @@ eexit()
     exit $e
 }
 
-case "`uname -s`" in
-  CYGWIN*)
+case "`uname -o`" in
+  Cygwin)
     BuildHost="cygwin"
+    BuildCC="`x86_64-w64-mingw32-gcc --version | head -1`"
+  ;;
+  Msys)
+    BuildHost="msys2"
+    BuildCC="`gcc --version | head -1`"
   ;;
   *)
     echo "Unknown `uname`"
@@ -66,7 +71,7 @@ echo >> $ReleaseLog
 echo '```no-highlight' >> $ReleaseLog
 echo "Compiled on $BuildHost `uname -r`" >> $ReleaseLog
 echo "make $MakefileFlags" >> $ReleaseLog
-echo "using: `x86_64-w64-mingw32-gcc --version | head -1`" >> $ReleaseLog
+echo "using: $BuildCC" >> $ReleaseLog
 echo >> $ReleaseLog
 echo >> $ReleaseLog
 #
