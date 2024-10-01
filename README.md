@@ -1,6 +1,6 @@
 # cygwrun
 
-Run windows applications under Cygwin environment
+Run Windows applications under Cygwin environment
 
 ## Overview
 
@@ -85,6 +85,10 @@ Cygwrun uses for each instance:
 
   The names of the environment variables are comma separated.
 
+  In case the **-u** command option was also defined, it's
+  argument(s) will be added to the list of variables that will
+  not be set for the `PROGRAM`.
+
 
 ## Posix root
 
@@ -157,9 +161,9 @@ By default Cygwrun will use the **PATH** environment
 variable passed by calling process and translate it
 to Windows convention.
 
-If setm the **CYGWRUN_PATH** environment variable will
-be used to find the PROGRAM if defined as relative path,
-and passed as PATH variable to the child process.
+If set, the **CYGWRUN_PATH** environment variable will
+be used to find the `PROGRAM` if defined as relative path,
+and passed as **PATH** variable to the child process.
 
 This is useful when Windows PATH contains the same
 program as Cygwin, like `python.exe`, `find.exe` etc.
