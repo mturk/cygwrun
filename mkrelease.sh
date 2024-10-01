@@ -64,7 +64,7 @@ pushd $BuildDir >/dev/null
 echo "## Binary release v$ReleaseVersion" > $ReleaseLog
 echo >> $ReleaseLog
 echo '```no-highlight' >> $ReleaseLog
-echo "Compiled on $BuildHost `uname -r`:" >> $ReleaseLog
+echo "Compiled on $BuildHost `uname -r`" >> $ReleaseLog
 echo "make $MakefileFlags" >> $ReleaseLog
 echo "using: `x86_64-w64-mingw32-gcc --version | head -1`" >> $ReleaseLog
 echo >> $ReleaseLog

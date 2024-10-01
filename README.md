@@ -53,7 +53,6 @@ Options are:
  -u=<ENV>  remove <ENV> variable(s) from the PROGRAM environment
 		   multiple variables are comma separated.
  -v        print version information and exit.
- -V        print detailed version information and exit.
 
 ```
 
@@ -158,17 +157,12 @@ By default Cygwrun will use the **PATH** environment
 variable passed by calling process and translate it
 to Windows convention.
 
-Since Cygwin modifies the original PATH, user
-can set the `CYGWRUN_PATH` to the ORIGINAL_PATH.
-The ORIGINAL_PATH is variable set by Cygwin which
-contains the PATH before Cygwin was started.
+If setm the **CYGWRUN_PATH** environment variable will
+be used to find the PROGRAM if defined as relative path,
+and passed as PATH variable to the child process.
 
 This is useful when Windows PATH contains the same
 program as Cygwin, like `python.exe`, `find.exe` etc.
-
-The `CYGWRUN_PATH` environment variable will be used to
-find the PROGRAM if defined as relative path,
-and will be passed as PATH variable to the child process.
 
 
 ## Program life cycle
@@ -176,39 +170,14 @@ and will be passed as PATH variable to the child process.
 By default Cygwrun will execute `PROGRAM` and wait
 until it finishes.
 
-To set the timeout Cygwrun will wait for program to finish,
-use the **^<timeout>** command option or set the
-**CYGWRUN_TIMEOUT** environment variable.
+In case `CTRL+C` signal is send to Cygwrun, it will
+wait for two seconds and then kill the entire process
+tree if the process did not terminate.
 
-
-```sh
-    $
-    $ cygwrun ^20 some_program.exe
-    $ ...
-    $ echo $?
-    $ 2
-```
-
-In case the `some_program.exe` does not finish within
-`20` seconds, cygwrun will first try to send `CTRL+C`
-signal to the `some_program.exe`. If the  program
-exits within one second the Cygwrun will
-return `128+SIGINT (130)` as exit code.
-
-In other case Cygwrun will terminate the `some_program.exe`
-and return `128+SIGTERM (143)` error.
-
-
-** Notice **
-
-The valid range for **timeout** value is between `2`
-and `2000000` seconds.
-
-If specified on the command line it is used instead
-global value defined by **CYGWRUN_TIMEOUT** environment
-variable.
-
-The **timeout** value zero disables timeout.
+In case `CTRL+BREAK` signal is send to Cygwrun, it will
+wait for three seconds for process to terminate, and then
+send `CTRL+C` signal to the process. If the process did
+not terminate within this interval it will be terminated.
 
 
 ## Return value
@@ -216,8 +185,17 @@ The **timeout** value zero disables timeout.
 When the `PROGRAM` finishes, the return value of the
 program is returned as Cygwrun exit code.
 
-In case the return value is larger then `125`,
-it will be truncated to `125`.
+In case the return value is larger then `110`,
+it will be truncated to `110`.
+
+Return values from `111` to `125` are generated
+by Cygwrun in case of failure.
+
+Return value `126` is returned in case the `PROGRAM`
+cannot be executed.
+
+Return value `127` is returned in case the `PROGRAM`
+cannot be found.
 
 
 ## License

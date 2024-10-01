@@ -26,8 +26,6 @@
 #include "cygwrun.h"
 
 #define CYGWRUN_BUFSIZ              512
-#define CYGWRUN_ARGMAX              512
-#define CYGWRUN_ENVMAX             1024
 
 #define CYGWRUN_ERRMAX              110
 #define CYGWRUN_FAILED              126
@@ -129,6 +127,7 @@ static const wchar_t *rootpaths[]   = {
     L"/etc/",
     L"/home/",
     L"/lib/",
+#if 0
     L"/lib64/",
     L"/media/",
     L"/mnt/",
@@ -136,9 +135,12 @@ static const wchar_t *rootpaths[]   = {
     L"/proc/",
     L"/root/",
     L"/run/",
+#endif
     L"/sbin/",
+#if 0
     L"/shared/",
     L"/sys/",
+#endif
     L"/tmp/",
     L"/usr/",
     L"/var/",
@@ -149,7 +151,7 @@ static const char *sskipenv =
     "EXECIGNORE,HOMEPATH,LOGONSERVER,PATH,PATHEXT,PROCESSOR_*,PROMPT,PS1";
 
 static const char *unsetenv =
-    "HOME,INFOPATH,LANG,OLDPWD,ORIGINAL_PATH,PWD,SHELL,SHLVL,TERM";
+    "ERRORLEVEL,HOME,INFOPATH,LANG,OLDPWD,ORIGINAL_PATH,PWD,SHELL,SHLVL,TERM";
 
 
 static __inline int xisalpha(int c)
@@ -224,23 +226,6 @@ static __inline wchar_t *xwcsupper(wchar_t *str)
     return str;
 }
 
-#if 0
-static __inline size_t xwcslen(const wchar_t *s)
-{
-    if (IS_EMPTY_WCS(s))
-        return 0;
-    else
-        return wcslen(s);
-}
-
-static __inline size_t xstrlen(const char *s)
-{
-    if (IS_EMPTY_STR(s))
-        return 0;
-    else
-        return strlen(s);
-}
-#else
 static size_t xstrlen(const char *src)
 {
     const char *s = src;
@@ -262,7 +247,6 @@ static size_t xwcslen(const wchar_t *src)
         s++;
     return (size_t)(s - src);
 }
-#endif
 
 static wchar_t *xwmalloc(size_t size)
 {
@@ -700,25 +684,12 @@ static int xwcsicmp(const wchar_t *s1, const wchar_t *s2)
 {
     int c1;
     int c2;
-#if 1
+
     while ((c1 = xtoupper(*s1++)) == (c2 = xtoupper(*s2++))) {
         if (c1 == 0)
             return 0;
     }
     return (c1 - c2);
-#else
-    while (*s1) {
-        c1 = xtoupper(*s1);
-        c2 = xtoupper(*s2);
-        if (c1 != c2)
-            return (c1 - c2);
-        if (c1 == 0)
-            break;
-        s1++;
-        s2++;
-    }
-    return 0;
-#endif
 }
 
 static int xstricmp(const char *s1, const char *s2)
@@ -1154,18 +1125,6 @@ static int ispathlist(const wchar_t *str)
             pathss = 1;
         if (pathss && ccolon && (*s == L':'))
             hcolon = L':';
-#if 0
-        if (hascolon) {
-            if (*s == L':') {
-                if (!xisalpha(s[-1]))
-                    return L':';
-                if (((s == (str + 1)) || IS_PSW(s[-2])))
-                    i = 1;
-                else
-                    return L':';
-            }
-        }
-#endif
 
         s++;
     }
@@ -1636,12 +1595,8 @@ static wchar_t *pathstowin(const wchar_t *ps)
             for (i = 0; pa[i] != NULL; i++) {
                 m = isposixpath(pa[i]);
                 if (m == 0) {
-#if 0
-                    pa[i] = posixtowin(pa[i], 400);
-#else
                     xwaafree(pa);
                     return xwcsdup(ps);
-#endif
                 }
                 else {
                     pa[i] = posixtowin(pa[i], m);
@@ -1907,12 +1862,6 @@ static int initenvironment(const char **envp)
         systemenvn[systemenvc] = ed;
         systemenvv[systemenvc] = ed + n + 1;
         systemenvc++;
-#if (CYGWRUN_ISDEV_VERSION)
-        if (systemenvc >= CYGWRUN_ENVMAX) {
-            fprintf(stderr, "Really dude?\nThere's too much of those 'environment variable' stuff\n");
-            return CYGWRUN_ENOSPC;
-        }
-#endif
         envp++;
     }
     systemenvn[systemenvc] = NULL;
@@ -1942,23 +1891,6 @@ static int setupenvironment(void)
             systemenvn[i] = NULL;
             continue;
         }
-#if 0
-        /**
-         * Check for duplicate envvars
-         */
-        for (j = 0; j < systemenvc; j++) {
-            if (j != i && systemenvn[j]) {
-                if (xstricmp(systemenvn[j], en) == 0) {
-                    /**
-                     * Found variable with duplicate name
-                     */
-                    fprintf(stderr, "\nThe '%s' variable was already defined as '%s'.\n",
-                            systemenvn[j], en);
-                    return CYGWRUN_EBADENV;
-                }
-            }
-        }
-#endif
         xenvvars[xenvcount] = xstrtowcs(es);
         xenvvals[xenvcount] = xmbstowcs(systemenvv[i]);
         xenvcount++;
@@ -2156,16 +2088,9 @@ static int runprogram(int argc, wchar_t **argv)
     return rc;
 }
 
-static int version(int verbose)
+static int version(void)
 {
-    if (verbose) {
-        fputs(CYGWRUN_NAME " version " CYGWRUN_VERSION_ALL "\n\n", stdout);
-        fputs(CYGWRUN_LICENSE_SHORT "\n\n", stdout);
-        fputs("Visit " CYGWRUN_URL " for more details", stdout);
-    }
-    else {
-        fputs(CYGWRUN_NAME " version " CYGWRUN_VERSION_TXT, stdout);
-    }
+    fputs(CYGWRUN_NAME " version " CYGWRUN_VERSION_ALL, stdout);
     return 0;
 }
 
@@ -2183,19 +2108,11 @@ int main(int argc, const char **argv, const char **envp)
     const char *ucmdopt = NULL;
 
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX | SEM_NOGPFAULTERRORBOX);
-#if CYGWRUN_ISDEV_VERSION
-    if (argc > CYGWRUN_ARGMAX) {
-        fprintf(stderr, "Really dude?\nThere's too many of those command line arguments\n");
-        return CYGWRUN_ENOSPC;
-    }
-#endif
     if (argc < 2)
         return CYGWRUN_ENOEXEC;
     __SYNC_ARGV();
-    if ((argc == 1) && (optarg[0] == '-') &&
-        ((optarg[1] == 'v') || (optarg[1] == 'V')) &&
-         (optarg[2] == '\0'))
-        return version(optarg[1] == 'V');
+    if ((argc == 1) && (optarg[0] == '-') && (optarg[1] == 'v') && (optarg[2] == '\0'))
+        return version();
     posixroot = getcygwinroot();
     if (posixroot == NULL)
         return CYGWRUN_ENOSYS;
@@ -2291,13 +2208,10 @@ int main(int argc, const char **argv, const char **envp)
     xwaafree(dupargv);
     xsaafree(adelenvv);
     xfree(posixroot);
-#if 0
-    fprintf(stdout, "\nAllocated: %llu\n", xzalloc);
-#endif
     if (xnalloc != xnmfree)
         fprintf(stderr, "\nAllocated: %llu"
-                        "\nalloc    : %d\n"
-                        "\nfree     : %d\n",
+                        "alloc    : %d\n"
+                        "free     : %d\n",
                         xzalloc, xnalloc, xnmfree);
 #endif
     return rv;
