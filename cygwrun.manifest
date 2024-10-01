@@ -25,6 +25,11 @@
       <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/>
     </application>
   </compatibility>
+  <assemblyIdentity type="win32"
+                    version="2.0.0.0"
+                    processorArchitecture="amd64"
+                    name="Acme.Tools.cygwrun" />
+  <description>Run Windows applications under Cygwin environment</description>
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
     <security>
       <!--Run at the same permission level as the calling process-->
