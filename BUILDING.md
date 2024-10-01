@@ -74,12 +74,8 @@ eg **v0.9.1-dev**, **v1.0.37.alpha.1** or similar.
 Check [Semantic Versioning 2.0](https://semver.org/spec/v2.0.0.html)
 for more guidelines.
 
-To create a .zip distribution archive download
-and extract the 7-zip standalone console version from
-[7-Zip Extra](https://www.7-zip.org/a/7z2107-extra.7z)
-and put **7za.exe** somewhere in the PATH.
-
-Run the [mkrelease.bat](../mkrelease.bat) or [mkrelease.sh](../mkrelease.sh) script file
+To create a .zip distribution archive run the
+[mkrelease.sh](../mkrelease.sh) script file
 to compile and create required metadata and release assets.
 
 Edit **cygwrun-x.y.z-win-x64.txt** and put it's content
