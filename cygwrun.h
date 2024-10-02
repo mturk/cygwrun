@@ -18,16 +18,6 @@
 #ifndef _CYGWRUN_H_INCLUDED_
 #define _CYGWRUN_H_INCLUDED_
 
-#if defined(_MSC_VER)
-/**
- * Disable or reduce the frequency of...
- *   C4100: unreferenced formal parameter
- *   C4244: int to char/short - precision loss
- *   C4702: unreachable code
- */
-# pragma warning(disable: 4100 4244 4702)
-#endif
-
 /**
  * Version info
  */

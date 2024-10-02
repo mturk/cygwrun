@@ -213,7 +213,7 @@ static __inline wchar_t *xwcsupper(wchar_t *str)
     wchar_t *s;
     if (str) {
         for(s = str; *s; s++)
-            *s = xtoupper(*s);
+            *s = (wchar_t)xtoupper(*s);
     }
     return str;
 }
@@ -1260,14 +1260,14 @@ static wchar_t *wcleanpath(wchar_t *s)
             s[0] = L'\\';
             s[1] = L'\\';
             s[3] = L'\\';
-            s[4] = xtoupper(s[4]);
+            s[4] = (wchar_t)xtoupper(s[4]);
             s[6] = L'\\';
             n    = 7;
         }
     }
     if ((n == 0) && (i > 2)) {
         if (xisalpha(s[0]) && (s[1] == L':') && IS_PSW(s[2])) {
-            s[0] = xtoupper(s[0]);
+            s[0] = (wchar_t)xtoupper(s[0]);
             s[2] = L'\\';
             n    = 3;
         }
@@ -1440,7 +1440,7 @@ static wchar_t *posixtowin(wchar_t *pp, int m)
         /**
          * /cygdrive/x/... absolute path
          */
-        windrive[0] = xtoupper(pp[10]);
+        windrive[0] = (wchar_t)xtoupper(pp[10]);
         rp = xwcsconcat(windrive, pp + 12, 0);
         wcleanpath(rp + 3);
     }
@@ -1478,11 +1478,11 @@ static wchar_t *pathstowin(const wchar_t *ps)
 {
     int i;
     int m;
-    int sc = 0;
+    wchar_t   sc = 0;
     wchar_t **pa;
     wchar_t  *wp = NULL;
 
-    sc = ispathlist(ps);
+    sc = (wchar_t)ispathlist(ps);
     if (sc == 0) {
         /* Not a path list */
         wp = xwcsdup(ps);
