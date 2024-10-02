@@ -677,14 +677,16 @@ static int xstricmp(const char *s1, const char *s2)
 }
 
 /**
+ * Match string to expression.
  * Match = 0, NoMatch = 1, Abort = -1
  * Based loosely on sections of wildmat.c by Rich Salz
+ *
+ * '*' matches any char
+ * '?' character must be alphabetic
+ * '+' character must be not be control or space
  */
-static int xwcsmatch(int ic, const wchar_t *wstr, const wchar_t *wexp)
+static int xwcsimatch(const wchar_t *wstr, const wchar_t *wexp)
 {
-    int match;
-    int mflag;
-
     for ( ; *wexp != 0; wstr++, wexp++) {
         if (*wstr == 0 && *wexp != L'*')
             return -1;
@@ -696,9 +698,9 @@ static int xwcsmatch(int ic, const wchar_t *wstr, const wchar_t *wexp)
                 if (*wexp == 0)
                     return 0;
                 while (*wstr != 0) {
-                    int rv = xwcsmatch(ic, wstr++, wexp);
-                    if (rv != 1)
-                        return rv;
+                    int m = xwcsimatch(wstr++, wexp);
+                    if (m != 1)
+                        return m;
                 }
                 return -1;
             break;
@@ -710,29 +712,8 @@ static int xwcsmatch(int ic, const wchar_t *wstr, const wchar_t *wexp)
                 if (xisnonchar(*wstr))
                     return -1;
             break;
-            case L'[':
-                match = 0;
-                mflag = 0;
-                if (*(++wexp) == L'!') {
-                    /**
-                     * Negate range
-                     */
-                    wexp++;
-                    if (*wexp != L']')
-                        mflag = 1;
-                }
-                while (*wexp != L']') {
-                    if ((*wexp == 0) || (*wexp == L'['))
-                        return -1;
-                    if (xcharcmp(ic, *wexp, *wstr))
-                        match = 1;
-                    wexp++;
-                }
-                if (match == mflag)
-                    return -1;
-            break;
             default:
-                if (!xcharcmp(ic, *wexp, *wstr))
+                if (xtoupper(*wexp) != xtoupper(*wstr))
                     return 1;
             break;
         }
@@ -740,11 +721,8 @@ static int xwcsmatch(int ic, const wchar_t *wstr, const wchar_t *wexp)
     return (*wstr != 0);
 }
 
-static int xstrmatch(int ic, const char *str, const char *exp)
+static int xstrimatch(const char *str, const char *exp)
 {
-    int match;
-    int mflag;
-
     for ( ; *exp; str++, exp++) {
         if (*str == 0 && *exp != '*')
             return -1;
@@ -756,9 +734,9 @@ static int xstrmatch(int ic, const char *str, const char *exp)
                 if (*exp == 0)
                     return 0;
                 while (*str) {
-                    int rv = xstrmatch(ic, str++, exp);
-                    if (rv != 1)
-                        return rv;
+                    int m = xstrimatch(str++, exp);
+                    if (m != 1)
+                        return m;
                 }
                 return -1;
             break;
@@ -770,29 +748,8 @@ static int xstrmatch(int ic, const char *str, const char *exp)
                 if (xisnonchar(*str))
                     return -1;
             break;
-            case '[':
-                match = 0;
-                mflag = 0;
-                if (*(++exp) == '!') {
-                    /**
-                     * Negate range
-                     */
-                    exp++;
-                    if (*exp != ']')
-                        mflag = 1;
-                }
-                while (*exp != ']') {
-                    if ((*exp == 0) || (*exp == '['))
-                        return -1;
-                    if (xcharcmp(ic, *exp, *str))
-                        match = 1;
-                    exp++;
-                }
-                if (match == mflag)
-                    return -1;
-            break;
             default:
-                if (!xcharcmp(ic, *exp, *str))
+                if (xtoupper(*exp) != xtoupper(*str))
                     return 1;
             break;
         }
@@ -1864,7 +1821,7 @@ static int setupenvironment(void)
 
         if (adelenvv) {
             for (j = 0; adelenvv[j]; j++) {
-                if (xstrmatch(1, es, adelenvv[j]) == 0) {
+                if (xstrimatch(es, adelenvv[j]) == 0) {
                     xfree(es);
                     es = NULL;
                     break;
@@ -1984,7 +1941,7 @@ static int runprogram(int argc, wchar_t **argv)
         if (xenvvars[i] == zerowcs)
             continue;
         for (j = 0; askipenv[j]; j++) {
-            if (xwcsmatch(1, xenvvars[i], askipenv[j]) == 0) {
+            if (xwcsimatch(xenvvars[i], askipenv[j]) == 0) {
                 j = -1;
                 break;
             }
