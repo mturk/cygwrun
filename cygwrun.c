@@ -77,8 +77,8 @@
  */
 #define CYGWRUN_ALIGN(_S)       (((_S) + 0x0000000F) & 0xFFFFFFF0)
 
-static HANDLE      xchevent     = NULL;
-static HANDLE      xprocess     = NULL;
+static HANDLE      conevent     = NULL;
+static HANDLE      cprocess     = NULL;
 static int         xrmendps     = L'\\';
 static int         xenvcount    = 0;
 #if CYGWRUN_ISDEV_VERSION
@@ -91,14 +91,14 @@ static wchar_t    *posixpath    = NULL;
 
 static wchar_t   **xenvvars     = NULL;
 static wchar_t   **xenvvals     = NULL;
-static wchar_t   **xskipenv     = NULL;
+static wchar_t   **askipenv     = NULL;
 static char      **adelenvv     = NULL;
 
 static char      **systemenvn   = NULL;
 static char      **systemenvv   = NULL;
 static int         systemenvc   = 0;
 
-static const char *configvals[16]   = { NULL };
+static const char *configvals[8]    = { NULL };
 static wchar_t     zerowcs[8]       = { 0 };
 
 typedef enum {
@@ -135,7 +135,8 @@ static const wchar_t *rootpaths[]   = {
 };
 
 static const char *sskipenv =
-    "COMPUTERNAME,HOMEDRIVE,HOMEPATH,HOST,HOSTNAME,LOGONSERVER,PATH,PATHEXT,PROCESSOR_*,PROMPT,USER,USERNAME";
+    "COMPUTERNAME,HOMEDRIVE,HOMEPATH,HOST," \
+    "HOSTNAME,LOGONSERVER,PATH,PATHEXT,PROCESSOR_*,PROMPT,USER,USERNAME";
 
 static const char *unsetvars[] = {
     "ERRORLEVEL",
@@ -435,7 +436,7 @@ static char *xwcstombs(const wchar_t *wcs)
     if (IS_EMPTY_WCS(wcs))
         return NULL;
     wcl = (int)xwcslen(wcs);
-    mbl = (wcl * 4);
+    mbl = (wcl * 3);
     mbs = xmalloc(mbl);
     if (WideCharToMultiByte(CP_UTF8, 0, wcs, wcl, mbs, mbl + 1, NULL, NULL) == 0) {
         xfree(mbs);
@@ -1185,7 +1186,7 @@ static int xmszcount(const wchar_t *src)
     return c;
 }
 
-static wchar_t *xarraytomsz(int cnt, const wchar_t **arr, wchar_t sep)
+static wchar_t *warraytomsz(int cnt, const wchar_t **arr, wchar_t sep)
 {
     int      i;
     size_t   n;
@@ -1283,7 +1284,7 @@ static wchar_t *getenvblock(void)
         while (*bp)
             bp++;
     }
-    bp = xarraytomsz(c, ea, 0);
+    bp = warraytomsz(c, ea, 0);
     xfree(eb);
     xfree(ea);
 
@@ -1369,7 +1370,7 @@ static wchar_t *wcleanpath(wchar_t *s)
     return s;
 }
 
-static wchar_t **xsplitwcs(const wchar_t *s, wchar_t sc)
+static wchar_t **wcstoarray(const wchar_t *s, wchar_t sc)
 {
     int      c;
     int      x = 0;
@@ -1399,7 +1400,7 @@ static wchar_t **xsplitwcs(const wchar_t *s, wchar_t sc)
     return sa;
 }
 
-static char **xsplitstr(const char *s, char sc)
+static char **strtoarray(const char *s, char sc)
 {
     int      c;
     int      x = 0;
@@ -1680,15 +1681,15 @@ static BOOL WINAPI consolehandler(DWORD ctrl)
         break;
         case CTRL_C_EVENT:
         case CTRL_BREAK_EVENT:
-            if (xprocess) {
-                if (WaitForSingleObject(xprocess, CYGWRUN_CRTL_C_WAIT) == WAIT_OBJECT_0)
+            if (cprocess) {
+                if (WaitForSingleObject(cprocess, CYGWRUN_CRTL_C_WAIT) == WAIT_OBJECT_0)
                     break;
             }
             /* fall through */
         case CTRL_CLOSE_EVENT:
         case CTRL_SHUTDOWN_EVENT:
-            if (xchevent && xprocess)
-                SignalObjectAndWait(xchevent, xprocess, CYGWRUN_CRTL_S_WAIT, FALSE);
+            if (conevent && cprocess)
+                SignalObjectAndWait(conevent, cprocess, CYGWRUN_CRTL_S_WAIT, FALSE);
         break;
         default:
             return FALSE;
@@ -1871,8 +1872,8 @@ static int setupenvironment(void)
     int j;
 
     xenvcount = 0;
-    xenvvars  = xwaalloc(systemenvc + 1);
-    xenvvals  = xwaalloc(systemenvc + 1);
+    xenvvars  = xwaalloc(systemenvc + 3);
+    xenvvals  = xwaalloc(systemenvc + 3);
     for (i = 0; i < systemenvc; i++) {
         char *es = systemenvn[i];
 
@@ -1997,8 +1998,8 @@ static int runprogram(int argc, wchar_t **argv)
 
         if (xenvvars[i] == zerowcs)
             continue;
-        for (j = 0; xskipenv[j]; j++) {
-            if (xwcsmatch(1, xenvvars[i], xskipenv[j]) == 0) {
+        for (j = 0; askipenv[j]; j++) {
+            if (xwcsmatch(1, xenvvars[i], askipenv[j]) == 0) {
                 j = -1;
                 break;
             }
@@ -2011,14 +2012,14 @@ static int runprogram(int argc, wchar_t **argv)
             xfree(v);
         }
     }
-    xchevent = CreateEventW(NULL, FALSE, FALSE, NULL);
-    if (xchevent == NULL)
+    conevent = CreateEventW(NULL, FALSE, FALSE, NULL);
+    if (conevent == NULL)
         return CYGWRUN_FAILED;
     cmdexe  = xwcsdup(argv[0]);
     argv[0] = xquoteprg(argv[0]);
     for (i = 1; i < argc; i++)
         argv[i] = xquotearg(argv[i]);
-    cmdblk = xarraytomsz(argc, argv, L' ');
+    cmdblk = warraytomsz(argc, argv, L' ');
     envblk = getenvblock();
 
     memset(&cp, 0, sizeof(PROCESS_INFORMATION));
@@ -2041,12 +2042,12 @@ static int runprogram(int argc, wchar_t **argv)
         HANDLE wh[2];
         DWORD  ws;
 
-        xprocess = cp.hProcess;
+        cprocess = cp.hProcess;
         SetConsoleCtrlHandler(consolehandler, TRUE);
         ResumeThread(cp.hThread);
         CloseHandle(cp.hThread);
-        wh[0] = xprocess;
-        wh[1] = xchevent;
+        wh[0] = cprocess;
+        wh[1] = conevent;
         /**
          * Wait for child to finish
          */
@@ -2065,19 +2066,19 @@ static int runprogram(int argc, wchar_t **argv)
             if (ws == WAIT_OBJECT_0)
                 rc = CYGWRUN_SIGINT;
         }
-        if (rc == STILL_ACTIVE && GetExitCodeProcess(xprocess, &rc)) {
+        if (rc == STILL_ACTIVE && GetExitCodeProcess(cprocess, &rc)) {
             if ((rc != STILL_ACTIVE) && (rc > CYGWRUN_ERRMAX))
                 rc = CYGWRUN_ERRMAX;
         }
         if (rc == STILL_ACTIVE) {
             killproctree(cp.dwProcessId);
-            TerminateProcess(xprocess, CYGWRUN_SIGTERM);
+            TerminateProcess(cprocess, CYGWRUN_SIGTERM);
             rc = CYGWRUN_SIGTERM;
         }
         SetConsoleCtrlHandler(consolehandler, FALSE);
-        CloseHandle(xprocess);
+        CloseHandle(cprocess);
     }
-    CloseHandle(xchevent);
+    CloseHandle(conevent);
     return rc;
 }
 
@@ -2087,7 +2088,7 @@ static int version(void)
     return 0;
 }
 
-#define __SYNC_ARGV()   --argc; ++argv; optarg = *argv
+#define __NEXT_ARG()   --argc; ++argv; optarg = *argv
 int main(int argc, const char **argv, const char **envp)
 {
     int         i;
@@ -2103,7 +2104,7 @@ int main(int argc, const char **argv, const char **envp)
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX | SEM_NOGPFAULTERRORBOX);
     if (argc < 2)
         return CYGWRUN_ENOEXEC;
-    __SYNC_ARGV();
+    __NEXT_ARG();
     if ((argc == 1) && (optarg[0] == '-') && (optarg[1] == 'v') && (optarg[2] == '\0'))
         return version();
     posixroot = getcygwinroot();
@@ -2139,7 +2140,7 @@ int main(int argc, const char **argv, const char **envp)
                 return CYGWRUN_EINVAL;
             break;
         }
-        __SYNC_ARGV();
+        __NEXT_ARG();
     }
     if (argc < 1)
         return CYGWRUN_ENOEXEC;
@@ -2147,13 +2148,13 @@ int main(int argc, const char **argv, const char **envp)
     sparam   = xstrappend(sparam, scmdopt,  ',');
     sparam   = xstrappend(sparam, sskipenv, ',');
     wparam   = xstrtowcs(sparam);
-    xskipenv = xsplitwcs(wparam, L',');
+    askipenv = wcstoarray(wparam, L',');
     xfree(wparam);
     xfree(sparam);
 
     sparam   = xstrdup(configvals[CYGWRUN_UNSET]);
     sparam   = xstrappend(sparam, ucmdopt,  ',');
-    adelenvv = xsplitstr(sparam, ',');
+    adelenvv = strtoarray(sparam, ',');
     xfree(sparam);
 
     eparam = xmbstowcs(configvals[CYGWRUN_PATH]);
@@ -2196,8 +2197,8 @@ int main(int argc, const char **argv, const char **envp)
 #if CYGWRUN_ISDEV_VERSION
     xwaafree(xenvvals);
     xwaafree(xenvvars);
-    xwaafree(xskipenv);
     xwaafree(dupargv);
+    xwaafree(askipenv);
     xsaafree(adelenvv);
     xfree(posixroot);
     if (xnalloc != xnmfree)
