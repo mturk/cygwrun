@@ -192,32 +192,6 @@ static __inline int xtoupper(int c)
     return (c >= 0x61 && c <= 0x7A) ? c ^ 0x20 : c;
 }
 
-static __inline int xwcsischar(const wchar_t *s, wchar_t c)
-{
-    if (s && (s[0] == c) && (s[1] == 0))
-        return 1;
-    else
-        return 0;
-}
-
-static __inline int xcharcmp(int i, int a, int b)
-{
-    if (i)
-        return (xtoupper(a) == xtoupper(b));
-    else
-        return (a == b);
-}
-
-static __inline wchar_t *xwcsupper(wchar_t *str)
-{
-    wchar_t *s;
-    if (str) {
-        for(s = str; *s; s++)
-            *s = (wchar_t)xtoupper(*s);
-    }
-    return str;
-}
-
 static size_t xstrlen(const char *src)
 {
     const char *s = src;
@@ -303,25 +277,14 @@ static wchar_t **xwaalloc(size_t size)
     return (wchar_t **)xcalloc(size, sizeof(wchar_t *));
 }
 
-static char **xaalloc(size_t size)
+static char **xsaalloc(size_t size)
 {
     return (char **)xcalloc(size, sizeof(char *));
 }
 
-static void xwaafree(wchar_t **array)
+static void xafree(void **array)
 {
-    wchar_t **ptr = array;
-
-    if (array == NULL)
-        return;
-    while (*ptr != NULL)
-        xfree(*(ptr++));
-    xfree(array);
-}
-
-static void xsaafree(char **array)
-{
-    char **ptr = array;
+    void **ptr = array;
 
     if (array == NULL)
         return;
@@ -1231,7 +1194,7 @@ static wchar_t *cmdoptionval(wchar_t *s)
     if (IS_EMPTY_WCS(s))
         return NULL;
     while (*s != 0) {
-        int c = *(s++);
+        wchar_t c = *(s++);
         if (n > 0) {
             if (c == L'=')
                 return s;
@@ -1323,7 +1286,7 @@ static wchar_t **wcstoarray(const wchar_t *s, wchar_t sc)
     xfree(ws);
     sa[x] = NULL;
     if (x == 0) {
-        xwaafree(sa);
+        xafree(sa);
         sa = NULL;
     }
     return sa;
@@ -1344,7 +1307,7 @@ static char **strtoarray(const char *s, char sc)
     if (c == 0)
         return NULL;
     ws = xstrdup(s);
-    sa = xaalloc(c);
+    sa = xsaalloc(c);
     es = xstrctok(ws, sc, &cx);
     while (es != NULL) {
         es = xstrtrim(es);
@@ -1355,7 +1318,7 @@ static char **strtoarray(const char *s, char sc)
     xfree(ws);
     sa[x] = NULL;
     if (x == 0) {
-        xsaafree(sa);
+        xafree(sa);
         sa = NULL;
     }
     return sa;
@@ -1513,7 +1476,7 @@ static wchar_t *pathstowin(const wchar_t *ps)
             for (i = 0; pa[i] != NULL; i++) {
                 m = isposixpath(pa[i]);
                 if (m == 0) {
-                    xwaafree(pa);
+                    xafree(pa);
                     return xwcsdup(ps);
                 }
                 else {
@@ -1524,7 +1487,7 @@ static wchar_t *pathstowin(const wchar_t *ps)
     }
     if (pa != NULL) {
         wp = mergepath(pa);
-        xwaafree(pa);
+        xafree(pa);
     }
     if (wp == NULL)
         wp = xwcsdup(ps);
@@ -1739,8 +1702,8 @@ static int initenvironment(const char **envp)
         a++;
     }
     systemenvc = 0;
-    systemenvn = xaalloc(n + 1);
-    systemenvv = xaalloc(n + 1);
+    systemenvn = xsaalloc(n + 1);
+    systemenvv = xsaalloc(n + 1);
 
     while (*envp) {
         ep = *envp;
@@ -2124,11 +2087,11 @@ int main(int argc, const char **argv, const char **envp)
         dupargv[i] = xmbstowcs(argv[i]);
     rv = runprogram(i, dupargv);
 #if CYGWRUN_ISDEV_VERSION
-    xwaafree(xenvvals);
-    xwaafree(xenvvars);
-    xwaafree(dupargv);
-    xwaafree(askipenv);
-    xsaafree(adelenvv);
+    xafree(xenvvals);
+    xafree(xenvvars);
+    xafree(dupargv);
+    xafree(askipenv);
+    xafree(adelenvv);
     xfree(posixroot);
     if (xnalloc != xnmfree)
         fprintf(stderr, "\nAllocated: %llu\n"
