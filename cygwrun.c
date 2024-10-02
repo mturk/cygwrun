@@ -1730,7 +1730,7 @@ static int getsubproctree(HANDLE sh, xprocinfo *pa, DWORD pid,
                 n++;
             }
         }
-    } while (Process32Next(sh, &e));
+    } while (Process32NextW(sh, &e));
     if (rc < kd) {
         for (i = 0; i < n; i++) {
             pa[pp + i].n = getsubproctree(sh, pa, pa[pp + i].i, p, rc + 1, kd, sz);
@@ -1855,7 +1855,7 @@ static int initenvironment(const char **envp)
             envp++;
             continue;
         }
-        ed    = xwcsdup(ep);
+        ed    = xstrdup(ep);
         ed[n] = '\0';
         systemenvn[systemenvc] = ed;
         systemenvv[systemenvc] = ed + n + 1;
