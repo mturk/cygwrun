@@ -396,21 +396,6 @@ static size_t xstrchrn(const char *str, char ch)
     return 0;
 }
 
-static wchar_t *xstrtowcs(const char *str)
-{
-    wchar_t *wcs;
-    int      len;
-    int      i;
-
-    if (IS_EMPTY_STR(str))
-        return NULL;
-    len = (int)xstrlen(str);
-    wcs = xwmalloc(len);
-    for (i = 0; i < len; i++)
-        wcs[i] = (wchar_t)(str[i]);
-    return wcs;
-}
-
 static wchar_t *xmbstowcs(const char *mbs)
 {
     wchar_t *wcs;
@@ -1888,7 +1873,7 @@ static int setupenvironment(void)
         }
         if (es == NULL)
             continue;
-        xenvvars[xenvcount] = xstrtowcs(es);
+        xenvvars[xenvcount] = xmbstowcs(es);
         xenvvals[xenvcount] = xmbstowcs(systemenvv[i]);
         xenvcount++;
         xfree(es);
@@ -2147,7 +2132,7 @@ int main(int argc, const char **argv, const char **envp)
     sparam   = xstrdup(configvals[CYGWRUN_SKIP]);
     sparam   = xstrappend(sparam, scmdopt,  ',');
     sparam   = xstrappend(sparam, sskipenv, ',');
-    wparam   = xstrtowcs(sparam);
+    wparam   = xmbstowcs(sparam);
     askipenv = wcstoarray(wparam, L',');
     xfree(wparam);
     xfree(sparam);
