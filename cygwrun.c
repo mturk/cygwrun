@@ -21,11 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
-#include <errno.h>
-#include <signal.h>
 #include "cygwrun.h"
-
-#define CYGWRUN_BUFSIZ              512
 
 #define CYGWRUN_ERRMAX              110
 #define CYGWRUN_FAILED              126
@@ -49,14 +45,15 @@
  */
 
 
-#define CYGWRUN_KILL_DEPTH        10
+#define CYGWRUN_PATH_MAX        4096
+#define CYGWRUN_KILL_DEPTH         4
 #define CYGWRUN_KILL_SIZE        256
 #define CYGWRUN_KILL_TIMEOUT     500
 #define CYGWRUN_CRTL_C_WAIT     2000
 #define CYGWRUN_CRTL_S_WAIT     3000
 
-#define CYGWRUN_SIGINT          (CYGWRUN_SIGBASE + SIGINT)
-#define CYGWRUN_SIGTERM         (CYGWRUN_SIGBASE + SIGTERM)
+#define CYGWRUN_SIGINT          (CYGWRUN_SIGBASE +  2)
+#define CYGWRUN_SIGTERM         (CYGWRUN_SIGBASE + 15)
 
 #define IS_PSW(_c)              (((_c) == L'/') || ((_c)  == L'\\'))
 #define IS_EMPTY_WCS(_s)        (((_s) == NULL) || (*(_s) == 0))
@@ -1541,29 +1538,16 @@ static wchar_t *getrealpathname(const wchar_t *path, int isdir)
     return buf;
 }
 
-static wchar_t *xsearchexe(const wchar_t *paths, const wchar_t *name)
+static wchar_t *xsearchexe(const wchar_t *name)
 {
-    wchar_t  *sp = NULL;
-    wchar_t  *rp = NULL;
-    DWORD     ln = 0;
-    DWORD     sz = MAX_PATH;
+    DWORD     n;
+    wchar_t   b[CYGWRUN_PATH_MAX];
+    wchar_t  *r = NULL;
 
-    while (sp == NULL) {
-        sp = xwmalloc(sz);
-        ln = SearchPathW(paths, name, L".exe", sz, sp, NULL);
-        if (ln == 0) {
-            xfree(sp);
-            return NULL;
-        }
-        if (ln > sz) {
-            xfree(sp);
-            sp = NULL;
-            sz = ln;
-        }
-    }
-    rp = getrealpathname(sp, 0);
-    xfree(sp);
-    return rp;
+    n = SearchPathW(NULL, name, L".exe", CYGWRUN_PATH_MAX, b, NULL);
+    if ((n > 8) && (n < CYGWRUN_PATH_MAX))
+        r = getrealpathname(b, 0);
+    return r;
 }
 
 static BOOL WINAPI consolehandler(DWORD ctrl)
@@ -1675,11 +1659,11 @@ static void killproctree(DWORD pid)
 static wchar_t *getcygwinroot(void)
 {
     DWORD    n;
-    wchar_t  b[CYGWRUN_BUFSIZ];
+    wchar_t  b[CYGWRUN_PATH_MAX];
     wchar_t *r = NULL;
 
-    n = SearchPathW(NULL, L"cygwin1.dll", NULL, CYGWRUN_BUFSIZ, b, NULL);
-    if ((n > 20) && (n < CYGWRUN_BUFSIZ)) {
+    n = SearchPathW(NULL, L"cygwin1.dll", NULL, CYGWRUN_PATH_MAX, b, NULL);
+    if ((n > 20) && (n < CYGWRUN_PATH_MAX)) {
         b[n - 16] = 0;
         r = xwcsdup(b);
         r = wcleanpath(r);
@@ -2076,7 +2060,7 @@ int main(int argc, const char **argv, const char **envp)
         eparam = getrealpathname(wparam, 0);
         if (eparam == NULL) {
             SetSearchPathMode(BASE_SEARCH_PATH_DISABLE_SAFE_SEARCHMODE);
-            eparam = xsearchexe(NULL, wparam);
+            eparam = xsearchexe(wparam);
         }
         if (eparam == NULL)
             return CYGWRUN_ENOEXEC;
