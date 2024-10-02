@@ -23,7 +23,7 @@
 #else
 #define CYGWRUN_PRERELEASE  0
 #endif
-#if defined(_VENDOR_SFX)
+#if defined(_BUILD_VENDOR)
 #define CYGWRUN_PATCHED     VS_FF_PATCHED
 #else
 #define CYGWRUN_PATCHED     0
