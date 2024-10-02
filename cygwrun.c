@@ -172,6 +172,11 @@ static __inline int xisnonchar(int c)
     return (c > 0 && c <= 0x20);
 }
 
+static __inline int xisspace(int c)
+{
+    return ((c >= 0x09 && c <= 0x0D) || (c == 0x20));
+}
+
 static __inline int xisvarchar(int c)
 {
     return (xisalnum(c) || c == 0x2D || c == 0x5F);
@@ -868,23 +873,23 @@ static char *xstrctok(char *s, char d, char **c)
 
 static int xneedsquote(const wchar_t *s)
 {
-    while (*s) {
-        if ((*s == 0x20) || (*s == 0x09) || (*s == 0x22))
-            return 1;
-        s++;
+    if (IS_VALID_WCS(s)) {
+        while (*s) {
+            if (xisspace(*s) || (*s == 0x22))
+                return 1;
+            s++;
+        }
     }
     return 0;
 }
 
-static wchar_t *xquoteprg(wchar_t *s)
+static wchar_t *xwcsquote(wchar_t *s)
 {
     size_t   n;
     wchar_t *d;
     wchar_t *e;
 
-    if (IS_EMPTY_WCS(s))
-        return s;
-    if (xneedsquote(s) == 0)
+    if (!xneedsquote(s))
         return s;
     n = xwcslen(s);
     e = xwmalloc(n + 2);
@@ -912,20 +917,8 @@ static wchar_t *xquotearg(wchar_t *s)
     wchar_t *d;
 
     /* Perform quoting only if necessary. */
-    if (IS_EMPTY_WCS(s))
+    if (!xneedsquote(s))
         return s;
-    if (*s == L'\'') {
-        n = xwcslen(s);
-        if (s[n - 1] != '\'')
-            return s;
-        d = xwmalloc(n - 2);
-        wmemcpy(d, s + 1, n - 2);
-        xfree(s);
-        return d;
-    }
-    if (xneedsquote(s) == 0)
-        return s;
-
     for (c = s; ; c++) {
         size_t b = 0;
 
@@ -935,24 +928,18 @@ static wchar_t *xquotearg(wchar_t *s)
         }
 
         if (*c == 0) {
-            /* Escape backslashes. */
             n += b * 2;
             break;
         }
         else if (*c == L'"') {
-            /* Escape backslashes. */
             n += b * 2 + 1;
-            /* Double quote char. */
             n += 1;
         }
         else {
-            /* Unescaped backslashes. */
             n += b;
-            /* Original character. */
             n += 1;
         }
     }
-    /* For quotes */
     n += 2;
     e = xwmalloc(n);
     d = e;
@@ -1958,7 +1945,7 @@ static int runprogram(int argc, wchar_t **argv)
     if (conevent == NULL)
         return CYGWRUN_FAILED;
     cmdexe  = xwcsdup(argv[0]);
-    argv[0] = xquoteprg(argv[0]);
+    argv[0] = xwcsquote(argv[0]);
     for (i = 1; i < argc; i++)
         argv[i] = xquotearg(argv[i]);
     cmdblk = warraytomsz(argc, argv, L' ');
