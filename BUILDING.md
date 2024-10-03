@@ -75,7 +75,7 @@ Check [Semantic Versioning 2.0](https://semver.org/spec/v2.0.0.html)
 for more guidelines.
 
 To create a .zip distribution archive run the
-[mkrelease.sh](../mkrelease.sh) script file
+[mkrelease.sh](./mkrelease.sh) script file
 to compile and create required metadata and release assets.
 
 Edit **cygwrun-x.y.z-win-x64.txt** and put it's content
