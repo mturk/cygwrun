@@ -54,25 +54,6 @@
 #endif
 
 /**
- * Construct build stamp
- */
-#if defined(_MSC_VER)
-# define CYGWRUN_BUILD_CC       "msc " CWR_TOSTR(_MSC_FULL_VER) "."     \
-                                CWR_TOSTR(_MSC_BUILD)
-#elif defined(__GNUC__)
-# define CYGWRUN_BUILD_CC       "gcc " CWR_TOSTR(__GNUC__) "."          \
-                                CWR_TOSTR(__GNUC_MINOR__) "."           \
-                                CWR_TOSTR(__GNUC_PATCHLEVEL__)
-#else
-# define CYGWRUN_BUILD_CC       "unknown"
-#endif
-#if defined(_BUILD_TIMESTAMP)
-#define CYGWRUN_BUILD_TSTAMP    "(" CWR_TOSTR(_BUILD_TIMESTAMP) " " CYGWRUN_BUILD_CC ")"
-#else
-#define CYGWRUN_BUILD_TSTAMP    "(" __DATE__ " " __TIME__ " " CYGWRUN_BUILD_CC ")"
-#endif
-
-/**
  * Macro for .rc files using numeric csv representation
  */
 #define CYGWRUN_VERSION_CSV     CYGWRUN_MAJOR_VERSION,                  \
@@ -95,10 +76,6 @@
                                 CYGWRUN_VERSION_MIN                     \
                                 CYGWRUN_VENDOR_SFX                      \
                                 CYGWRUN_VERSION_DEV
-
-#define CYGWRUN_VERSION_ALL                                             \
-                                CYGWRUN_VERSION_TXT " "                 \
-                                CYGWRUN_BUILD_TSTAMP
 
 #define CYGWRUN_NAME            "cygwrun"
 #define CYGWRUN_COMPANY_NAME    "Acme Corporation"

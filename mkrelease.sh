@@ -21,7 +21,7 @@
 #
 # Usage: mkrelease.sh version [make arguments]
 #    eg: mkrelease.sh 1.2.3
-#        mkrelease.sh 1.2.3_1 _BUILD_VENDOR=_1.acme _BUILD_NUMBER=`date +%y%j`
+#        mkrelease.sh 1.2.3_1 _BUILD_VENDOR=_1.acme
 #
 
 eexit()
@@ -61,7 +61,7 @@ ReleaseName=$ProjectName-$ReleaseVersion-$ReleaseArch
 ReleaseLog=$ReleaseName.txt
 #
 #
-MakefileFlags="_BUILD_TIMESTAMP=`date +%Y%m%d%H%M%S` $*"
+MakefileFlags="_BUILD_NUMBER=`date +%y%j` $*"
 make clean
 make $MakefileFlags
 #
