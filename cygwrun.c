@@ -1971,7 +1971,11 @@ static int runprogram(int argc, wchar_t **argv)
 
 static int version(void)
 {
-    fputs(CYGWRUN_NAME " version " CYGWRUN_VERSION_TXT, stdout);
+#if CYGWRUN_ISDEV_VERSION
+    fputs(CYGWRUN_NAME " version " CYGWRUN_VERSION_ALL " (dev)", stdout);
+#else
+    fputs(CYGWRUN_NAME " version " CYGWRUN_VERSION_STR, stdout);
+#endif
     return 0;
 }
 

@@ -47,12 +47,12 @@ BEGIN
             VALUE "Comments",         CYGWRUN_URL
             VALUE "CompanyName",      CYGWRUN_COMPANY_NAME
             VALUE "FileDescription",  CYGWRUN_DESCRIPTION
-            VALUE "FileVersion",      CYGWRUN_VERSION_STR CYGWRUN_VENDOR_SFX
+            VALUE "FileVersion",      CYGWRUN_VERSION_ALL
             VALUE "InternalName",     CYGWRUN_NAME
             VALUE "LegalCopyright",   CYGWRUN_COPYRIGHT
             VALUE "OriginalFilename", CYGWRUN_NAME ".exe"
             VALUE "ProductName",      CYGWRUN_NAME
-            VALUE "ProductVersion",   CYGWRUN_VERSION_MIN
+            VALUE "ProductVersion",   CYGWRUN_VERSION_STR
         END
     END
     BLOCK "VarFileInfo"

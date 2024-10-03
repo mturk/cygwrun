@@ -47,12 +47,6 @@
 # define CYGWRUN_VENDOR_SFX     ""
 #endif
 
-#if CYGWRUN_ISDEV_VERSION
-# define CYGWRUN_VERSION_DEV    " (dev)"
-#else
-# define CYGWRUN_VERSION_DEV    ""
-#endif
-
 /**
  * Macro for .rc files using numeric csv representation
  */
@@ -61,21 +55,17 @@
                                 CYGWRUN_PATCH_VERSION,                  \
                                 CYGWRUN_MICRO_VERSION
 
-#define CYGWRUN_VERSION_MIN                                             \
+#define CYGWRUN_VERSION_STR                                             \
                                 CWR_TOSTR(CYGWRUN_MAJOR_VERSION) "."    \
                                 CWR_TOSTR(CYGWRUN_MINOR_VERSION) "."    \
                                 CWR_TOSTR(CYGWRUN_PATCH_VERSION)        \
 
-#define CYGWRUN_VERSION_STR                                             \
+#define CYGWRUN_VERSION_ALL                                             \
                                 CWR_TOSTR(CYGWRUN_MAJOR_VERSION) "."    \
                                 CWR_TOSTR(CYGWRUN_MINOR_VERSION) "."    \
                                 CWR_TOSTR(CYGWRUN_PATCH_VERSION) "."    \
-                                CWR_TOSTR(CYGWRUN_MICRO_VERSION)
-
-#define CYGWRUN_VERSION_TXT                                             \
-                                CYGWRUN_VERSION_MIN                     \
-                                CYGWRUN_VENDOR_SFX                      \
-                                CYGWRUN_VERSION_DEV
+                                CWR_TOSTR(CYGWRUN_MICRO_VERSION)        \
+                                CYGWRUN_VENDOR_SFX
 
 #define CYGWRUN_NAME            "cygwrun"
 #define CYGWRUN_COMPANY_NAME    "Acme Corporation"
