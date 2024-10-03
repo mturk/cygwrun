@@ -23,6 +23,17 @@
 #include <wchar.h>
 #include "cygwrun.h"
 
+/**
+ * Use Win32 heapapi instead malloc/free
+ */
+#define CYGWRUN_USE_HEAPAPI         1
+#define CYGWRUN_USE_PRIVATE_HEAP    0
+/**
+ * Call HeapFree/free
+ * Set this value to 1 for dev versions
+ */
+#define CYGWRUN_USE_MEMFREE         0
+
 #define CYGWRUN_ERRMAX            110
 #define CYGWRUN_FAILED            126
 #define CYGWRUN_ENOEXEC           127
@@ -63,11 +74,18 @@
  */
 #define CYGWRUN_ALIGN(_S)       (((_S) + 0x0000000F) & 0xFFFFFFF0)
 
+#if CYGWRUN_USE_HEAPAPI
+static HANDLE      memheap      = NULL;
+#if CYGWRUN_USE_MEMFREE && CYGWRUN_ISDEV_VERSION
+static size_t      xzmfree      = 0;
+#endif
+#endif
+
 static HANDLE      conevent     = NULL;
 static HANDLE      cprocess     = NULL;
 static int         xrmendps     = L'\\';
 static int         xenvcount    = 0;
-#if CYGWRUN_ISDEV_VERSION
+#if CYGWRUN_USE_MEMFREE && CYGWRUN_ISDEV_VERSION
 static size_t      xzalloc      = 0;
 static int         xnalloc      = 0;
 static int         xnmfree      = 0;
@@ -208,10 +226,14 @@ static void *xalloc(size_t size)
     s = CYGWRUN_ALIGN(size);
     if (s > CYGWRUN_MAX_ALLOC)
         exit(CYGWRUN_ERANGE);
+#if CYGWRUN_USE_HEAPAPI
+    p = HeapAlloc(memheap, HEAP_ZERO_MEMORY, s);
+#else
     p = calloc(1, s);
+#endif
     if (p == NULL)
         exit(CYGWRUN_ENOMEM);
-#if CYGWRUN_ISDEV_VERSION
+#if CYGWRUN_USE_MEMFREE && CYGWRUN_ISDEV_VERSION
     xzalloc += s;
     xnalloc++;
 #endif
@@ -233,16 +255,6 @@ static void *xcalloc(size_t number, size_t size)
     return xalloc((number + 2) * size);
 }
 
-static void xfree(void *m)
-{
-    if (m != NULL && m != zerowcs) {
-        free(m);
-#if CYGWRUN_ISDEV_VERSION
-        xnmfree++;
-#endif
-    }
-}
-
 static wchar_t **xwaalloc(size_t size)
 {
     return (wchar_t **)xcalloc(size, sizeof(wchar_t *));
@@ -253,6 +265,24 @@ static char **xsaalloc(size_t size)
     return (char **)xcalloc(size, sizeof(char *));
 }
 
+#if CYGWRUN_USE_MEMFREE
+static void xmfree(void *m)
+{
+    if (m != NULL && m != zerowcs) {
+#if CYGWRUN_USE_HEAPAPI
+#if CYGWRUN_ISDEV_VERSION
+        xzmfree += HeapSize(memheap, 0, m);
+#endif
+        HeapFree(memheap, 0, m);
+#else
+        free(m);
+#endif
+#if CYGWRUN_ISDEV_VERSION
+        xnmfree++;
+#endif
+    }
+}
+
 static void xafree(void **array)
 {
     void **ptr = array;
@@ -260,9 +290,14 @@ static void xafree(void **array)
     if (array == NULL)
         return;
     while (*ptr != NULL)
-        xfree(*(ptr++));
-    xfree(array);
+        xmfree(*(ptr++));
+    xmfree(array);
 }
+#else
+#define xmfree(_m)      (void)0
+#define xafree(_m)      (void)0
+#endif
+
 
 static wchar_t *xwcsdup(const wchar_t *s)
 {
@@ -345,7 +380,7 @@ static wchar_t *xmbstowcs(const char *mbs)
         return NULL;
     wcs = xwalloc(mbl);
     if (MultiByteToWideChar(CP_UTF8, 0, mbs, mbl, wcs, mbl + 1) == 0) {
-        xfree(wcs);
+        xmfree(wcs);
         wcs = NULL;
     }
     return wcs;
@@ -363,7 +398,7 @@ static char *xwcstombs(const wchar_t *wcs)
     mbl = (wcl * 3);
     mbs = xmalloc(mbl);
     if (WideCharToMultiByte(CP_UTF8, 0, wcs, wcl, mbs, mbl + 1, NULL, NULL) == 0) {
-        xfree(mbs);
+        xmfree(mbs);
         mbs = NULL;
     }
     return mbs;
@@ -427,7 +462,7 @@ static wchar_t *xwcsappend(wchar_t *s, const wchar_t *a, wchar_t sc)
         e += z;
     }
     *e = 0;
-    xfree(s);
+    xmfree(s);
     return p;
 }
 
@@ -454,7 +489,7 @@ static char *xstrappend(char *s, const char *a, char sc)
         e += z;
     }
     *e = 0;
-    xfree(s);
+    xmfree(s);
     return p;
 }
 
@@ -831,7 +866,7 @@ static wchar_t *xwcsquote(wchar_t *s)
     *(d++) = L'"';
     wmemcpy(d, s, n);
     d += n;
-    xfree(s);
+    xmfree(s);
     *(d++) = L'"';
     *(d)   = 0;
 
@@ -903,7 +938,7 @@ static wchar_t *xquotearg(wchar_t *s)
             *(d++) = *c;
         }
     }
-    xfree(s);
+    xmfree(s);
     *(d++) = L'"';
     *(d)   = 0;
 
@@ -1073,7 +1108,7 @@ static wchar_t *warraytomsz(int cnt, const wchar_t **arr, wchar_t sep)
         wmemcpy(ep, arr[i], sz[i]);
         ep += sz[i];
     }
-    xfree(sz);
+    xmfree(sz);
     ep[0] = 0;
     ep[1] = 0;
 
@@ -1148,8 +1183,8 @@ static wchar_t *getenvblock(void)
             bp++;
     }
     bp = warraytomsz(c, ea, 0);
-    xfree(eb);
-    xfree(ea);
+    xmfree(eb);
+    xmfree(ea);
 
     return bp;
 }
@@ -1254,7 +1289,7 @@ static wchar_t **wcstoarray(const wchar_t *s, wchar_t sc)
             sa[x++] = xwcsdup(es);
         es = xwcsctok(NULL, sc, &cx);
     }
-    xfree(ws);
+    xmfree(ws);
     sa[x] = NULL;
     if (x == 0) {
         xafree(sa);
@@ -1286,7 +1321,7 @@ static char **strtoarray(const char *s, char sc)
             sa[x++] = xstrdup(es);
         es = xstrctok(NULL, sc, &cx);
     }
-    xfree(ws);
+    xmfree(ws);
     sa[x] = NULL;
     if (x == 0) {
         xafree(sa);
@@ -1317,7 +1352,7 @@ static wchar_t **splitpath(const wchar_t *s, wchar_t ps)
             sa[x++] = xwcsdup(es);
         es = xwcsctok(NULL, ps, &cx);
     }
-    xfree(ws);
+    xmfree(ws);
     return sa;
 }
 
@@ -1393,7 +1428,7 @@ static wchar_t *posixtowin(wchar_t *pp, int m)
             return pp;
         rp = xwcsconcat(posixroot, pp, 0);
     }
-    xfree(pp);
+    xmfree(pp);
     return rp;
 }
 
@@ -1486,11 +1521,11 @@ static wchar_t *getrealpathname(const wchar_t *path, int isdir)
         len = GetFinalPathNameByHandleW(fh, buf, siz, VOLUME_NAME_DOS);
         if (len == 0) {
             CloseHandle(fh);
-            xfree(buf);
+            xmfree(buf);
             return NULL;
         }
         if (len > siz) {
-            xfree(buf);
+            xmfree(buf);
             buf = NULL;
             siz = len;
         }
@@ -1627,7 +1662,7 @@ static void killproctree(DWORD pid)
 
         CloseHandle(pa[i].h);
     }
-    xfree(pa);
+    xmfree(pa);
 }
 
 static wchar_t *getcygwinroot(void)
@@ -1730,7 +1765,7 @@ static int setupenvironment(void)
         if (adelenvv) {
             for (j = 0; adelenvv[j]; j++) {
                 if (xstrimatch(es, adelenvv[j]) == 0) {
-                    xfree(es);
+                    xmfree(es);
                     es = NULL;
                     break;
                 }
@@ -1741,7 +1776,7 @@ static int setupenvironment(void)
         xenvvars[xenvcount] = xmbstowcs(es);
         xenvvals[xenvcount] = xmbstowcs(systemenvv[i]);
         xenvcount++;
-        xfree(es);
+        xmfree(es);
     }
     xenvvars[xenvcount] = xwcsdup(L"PATH");
     xenvvals[xenvcount] = posixpath;
@@ -1752,8 +1787,8 @@ static int setupenvironment(void)
     xenvvars[xenvcount] = xwcsdup(L"TMP");
     xenvvals[xenvcount] = xmbstowcs(configvals[CCYGWIN_TMP]);
     xenvcount++;
-    xfree(systemenvn);
-    xfree(systemenvv);
+    xmfree(systemenvn);
+    xmfree(systemenvv);
     return 0;
 }
 
@@ -1781,7 +1816,7 @@ static int runprogram(int argc, wchar_t **argv)
             if (a[n - 1] == L'\'') {
                 v = xwalloc(n - 2);
                 wmemcpy(v, a + 1, n - 2);
-                xfree(a);
+                xmfree(a);
                 argv[i] = v;
             }
             continue;
@@ -1818,8 +1853,8 @@ static int runprogram(int argc, wchar_t **argv)
                 if (qp == NULL)
                     v[0] = 0;
                 argv[i]  = xwcsconcat(a, p, qc);
-                xfree(a);
-                xfree(p);
+                xmfree(a);
+                xmfree(p);
             }
             else {
                 if (qp != NULL) {
@@ -1838,7 +1873,7 @@ static int runprogram(int argc, wchar_t **argv)
             if (i > 1)
                 fputc('\n', stdout);
             fputs(u, stdout);
-            xfree(u);
+            xmfree(u);
         }
         return 0;
     }
@@ -1859,7 +1894,7 @@ static int runprogram(int argc, wchar_t **argv)
         m = isanypath(1, v);
         if (m != 0) {
             xenvvals[i] = pathstowin(v);
-            xfree(v);
+            xmfree(v);
         }
     }
     conevent = CreateEventW(NULL, FALSE, FALSE, NULL);
@@ -1885,9 +1920,11 @@ static int runprogram(int argc, wchar_t **argv)
                        &si, &cp)) {
         rc = CYGWRUN_FAILED;
     }
-    xfree(cmdexe);
-    xfree(envblk);
-    xfree(cmdblk);
+#if CYGWRUN_USE_MEMFREE
+    xmfree(cmdexe);
+    xmfree(envblk);
+    xmfree(cmdblk);
+#endif
     if (rc == 0) {
         HANDLE wh[2];
         DWORD  ws;
@@ -1957,6 +1994,15 @@ int main(int argc, const char **argv, const char **envp)
     __NEXT_ARG();
     if ((argc == 1) && (optarg[0] == '-') && (optarg[1] == 'v') && (optarg[2] == '\0'))
         return version();
+#if CYGWRUN_USE_HEAPAPI
+#if CYGWRUN_USE_PRIVATE_HEAP
+    memheap = HeapCreate(0, 0, 0);
+#else
+    memheap = GetProcessHeap();
+#endif
+    if (memheap == NULL)
+        return CYGWRUN_ENOMEM;
+#endif
     posixroot = getcygwinroot();
     if (posixroot == NULL)
         return CYGWRUN_ENOSYS;
@@ -1999,14 +2045,16 @@ int main(int argc, const char **argv, const char **envp)
     sparam   = xstrappend(sparam, sskipenv, ',');
     wparam   = xmbstowcs(sparam);
     askipenv = wcstoarray(wparam, L',');
-    xfree(wparam);
-    xfree(sparam);
-
+#if CYGWRUN_USE_MEMFREE
+    xmfree(wparam);
+    xmfree(sparam);
+#endif
     sparam   = xstrdup(configvals[CYGWRUN_UNSET]);
     sparam   = xstrappend(sparam, ucmdopt,  ',');
     adelenvv = strtoarray(sparam, ',');
-    xfree(sparam);
-
+#if CYGWRUN_USE_MEMFREE
+    xmfree(sparam);
+#endif
     eparam = xmbstowcs(configvals[CYGWRUN_PATH]);
     if (eparam == NULL)
         eparam = xmbstowcs(configvals[CCYGWIN_PATH]);
@@ -2015,8 +2063,9 @@ int main(int argc, const char **argv, const char **envp)
     posixpath = pathstowin(eparam);
     if (posixpath== NULL)
         return CYGWRUN_EBADPATH;
-    xfree(eparam);
-
+#if CYGWRUN_USE_MEMFREE
+    xmfree(eparam);
+#endif
     SetEnvironmentVariableW(L"PATH", posixpath);
     rv = setupenvironment();
     if (rv)
@@ -2038,24 +2087,35 @@ int main(int argc, const char **argv, const char **envp)
         }
         if (eparam == NULL)
             return CYGWRUN_ENOEXEC;
-        xfree(wparam);
+        xmfree(wparam);
         dupargv[0] = eparam;
     }
     for (i = 1; i < argc; i++)
         dupargv[i] = xmbstowcs(argv[i]);
     rv = runprogram(i, dupargv);
-#if CYGWRUN_ISDEV_VERSION
+#if CYGWRUN_USE_MEMFREE && CYGWRUN_ISDEV_VERSION
     xafree(xenvvals);
     xafree(xenvvars);
     xafree(dupargv);
     xafree(askipenv);
     xafree(adelenvv);
-    xfree(posixroot);
+    xmfree(posixroot);
     if (xnalloc != xnmfree)
         fprintf(stderr, "\nAllocated: %llu\n"
                         "alloc    : %d\n"
                         "free     : %d\n",
                         xzalloc, xnalloc, xnmfree);
+#endif
+#if CYGWRUN_USE_HEAPAPI
+#if CYGWRUN_USE_MEMFREE && CYGWRUN_ISDEV_VERSION
+    if (xzalloc != xzmfree)
+        fprintf(stderr, "\nAllocated: %llu\n"
+                        "Free     : %llu\n",
+                        xzalloc, xzmfree);
+#endif
+#if CYGWRUN_USE_PRIVATE_HEAP
+    HeapDestroy(memheap);
+#endif
 #endif
     return rv;
 }
