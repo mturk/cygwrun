@@ -23,34 +23,32 @@
 #include <wchar.h>
 #include "cygwrun.h"
 
-#define CYGWRUN_ERRMAX              110
-#define CYGWRUN_FAILED              126
-#define CYGWRUN_ENOEXEC             127
-#define CYGWRUN_SIGBASE             128
+#define CYGWRUN_ERRMAX            110
+#define CYGWRUN_FAILED            126
+#define CYGWRUN_ENOEXEC           127
+#define CYGWRUN_SIGBASE           128
 
-#define CYGWRUN_ENOSYS              111     /** Cannot find cygwin root */
-#define CYGWRUN_EINVAL              112
-#define CYGWRUN_EPARAM              113
-#define CYGWRUN_EALREADY            114
-#define CYGWRUN_ENOENT              115
-#define CYGWRUN_EEMPTY              116
-#define CYGWRUN_EBADPATH            117
+#define CYGWRUN_ENOSYS            111   /** Cannot find cygwin root     */
+#define CYGWRUN_EINVAL            112
+#define CYGWRUN_EPARAM            113
+#define CYGWRUN_EALREADY          114
+#define CYGWRUN_ENOENT            115
+#define CYGWRUN_EEMPTY            116
+#define CYGWRUN_EBADPATH          117
 
-#define CYGWRUN_ENOSPC              118
-#define CYGWRUN_ENOENV              119
-#define CYGWRUN_EBADENV             120
-#define CYGWRUN_ENOMEM              121
-/**
- * Errors from 122 ... 125 are reserved for future use
- */
+#define CYGWRUN_ENOSPC            118
+#define CYGWRUN_ENOENV            119
+#define CYGWRUN_EBADENV           120
+#define CYGWRUN_ENOMEM            121
+#define CYGWRUN_ERANGE            122
 
-
-#define CYGWRUN_PATH_MAX        4096
-#define CYGWRUN_KILL_DEPTH         4
-#define CYGWRUN_KILL_SIZE        256
-#define CYGWRUN_KILL_TIMEOUT     500
-#define CYGWRUN_CRTL_C_WAIT     2000
-#define CYGWRUN_CRTL_S_WAIT     3000
+#define CYGWRUN_MAX_ALLOC      131072   /** Limit single alloc to 128K  */
+#define CYGWRUN_PATH_MAX         4096
+#define CYGWRUN_KILL_DEPTH          4
+#define CYGWRUN_KILL_SIZE         256
+#define CYGWRUN_KILL_TIMEOUT      500
+#define CYGWRUN_CRTL_C_WAIT      2000
+#define CYGWRUN_CRTL_S_WAIT      3000
 
 #define CYGWRUN_SIGINT          (CYGWRUN_SIGBASE +  2)
 #define CYGWRUN_SIGTERM         (CYGWRUN_SIGBASE + 15)
@@ -211,44 +209,14 @@ static size_t xwcslen(const wchar_t *src)
     return (size_t)(s - src);
 }
 
-static wchar_t *xwmalloc(size_t size)
+static void *xalloc(size_t size)
 {
-    size_t   s;
-    wchar_t *p;
+    size_t s;
+    void  *p;
 
-    s = CYGWRUN_ALIGN((size + 2) * sizeof(wchar_t));
-    p = (wchar_t *)calloc(1, s);
-    if (p == NULL)
-        exit(CYGWRUN_ENOMEM);
-#if CYGWRUN_ISDEV_VERSION
-    xzalloc += s;
-    xnalloc++;
-#endif
-    return p;
-}
-
-static char *xmalloc(size_t size)
-{
-    size_t   s;
-    char    *p;
-
-    s = CYGWRUN_ALIGN(size + 2);
-    p = (char *)calloc(1, s);
-    if (p == NULL)
-        exit(CYGWRUN_ENOMEM);
-#if CYGWRUN_ISDEV_VERSION
-    xzalloc += s;
-    xnalloc++;
-#endif
-    return p;
-}
-
-static void *xcalloc(size_t number, size_t size)
-{
-    size_t  s;
-    void   *p;
-
-    s = CYGWRUN_ALIGN((number + 2) * size);
+    s = CYGWRUN_ALIGN(size);
+    if (s > CYGWRUN_MAX_ALLOC)
+        exit(CYGWRUN_ERANGE);
     p = calloc(1, s);
     if (p == NULL)
         exit(CYGWRUN_ENOMEM);
@@ -257,6 +225,21 @@ static void *xcalloc(size_t number, size_t size)
     xnalloc++;
 #endif
     return p;
+}
+
+static wchar_t *xwalloc(size_t size)
+{
+    return (wchar_t *)xalloc((size + 2) * sizeof(wchar_t));
+}
+
+static char *xmalloc(size_t size)
+{
+    return (char *)xalloc(size + 2);
+}
+
+static void *xcalloc(size_t number, size_t size)
+{
+    return xalloc((number + 2) * size);
 }
 
 static void xfree(void *m)
@@ -295,10 +278,10 @@ static wchar_t *xwcsdup(const wchar_t *s)
     wchar_t *p;
     size_t   n;
 
-    if (IS_EMPTY_WCS(s))
-        return NULL;
     n = xwcslen(s);
-    p = xwmalloc(n);
+    if (n == 0)
+        return NULL;
+    p = xwalloc(n);
     return wmemcpy(p, s, n);
 }
 
@@ -307,9 +290,9 @@ static char *xstrdup(const char *s)
     char    *p;
     size_t   n;
 
-    if (IS_EMPTY_STR(s))
-        return NULL;
     n = xstrlen(s);
+    if (n == 0)
+        return NULL;
     p = xmalloc(n);
     return memcpy(p, s, n);
 }
@@ -366,10 +349,10 @@ static wchar_t *xmbstowcs(const char *mbs)
     wchar_t *wcs;
     int      mbl;
 
-    if (IS_EMPTY_STR(mbs))
-        return NULL;
     mbl = (int)xstrlen(mbs);
-    wcs = xwmalloc(mbl);
+    if (mbl < 1)
+        return NULL;
+    wcs = xwalloc(mbl);
     if (MultiByteToWideChar(CP_UTF8, 0, mbs, mbl, wcs, mbl + 1) == 0) {
         xfree(wcs);
         wcs = NULL;
@@ -383,9 +366,9 @@ static char *xwcstombs(const wchar_t *wcs)
     int      wcl;
     int      mbl;
 
-    if (IS_EMPTY_WCS(wcs))
-        return NULL;
     wcl = (int)xwcslen(wcs);
+    if (wcl < 1)
+        return NULL;
     mbl = (wcl * 3);
     mbs = xmalloc(mbl);
     if (WideCharToMultiByte(CP_UTF8, 0, wcs, wcl, mbs, mbl + 1, NULL, NULL) == 0) {
@@ -411,7 +394,7 @@ static wchar_t *xwcsconcat(const wchar_t *s1, const wchar_t *s2, wchar_t qc)
         return NULL;
     if (qc)
        sz += 2;
-    rs = xwmalloc(sz);
+    rs = xwalloc(sz);
     rp = rs;
     if (qc && !l2)
         *(rp++) = qc;
@@ -439,7 +422,7 @@ static wchar_t *xwcsappend(wchar_t *s, const wchar_t *a, wchar_t sc)
     size_t   n = xwcslen(s);
     size_t   z = xwcslen(a);
 
-    p = xwmalloc(n + z + 1);
+    p = xwalloc(n + z + 1);
     e = p;
 
     if (n > 0) {
@@ -852,7 +835,7 @@ static wchar_t *xwcsquote(wchar_t *s)
     if (!xneedsquote(s))
         return s;
     n = xwcslen(s);
-    e = xwmalloc(n + 2);
+    e = xwalloc(n + 2);
     d = e;
     *(d++) = L'"';
     wmemcpy(d, s, n);
@@ -901,7 +884,7 @@ static wchar_t *xquotearg(wchar_t *s)
         }
     }
     n += 2;
-    e = xwmalloc(n);
+    e = xwalloc(n);
     d = e;
 
     *(d++) = L'"';
@@ -1091,7 +1074,7 @@ static wchar_t *warraytomsz(int cnt, const wchar_t **arr, wchar_t sep)
         len  += n;
     }
 
-    bp = xwmalloc(len + 2);
+    bp = xwalloc(len + 2);
     ep = bp;
     for (i = 0; i < cnt; i++) {
         if (i > 0)
@@ -1143,7 +1126,7 @@ static wchar_t *getenvblock(void)
     if (c == 0)
         return NULL;
     ea = xwaalloc(c + 1);
-    eb = xwmalloc(z + 1);
+    eb = xwalloc(z + 1);
     ep = xenvvars;
     ev = xenvvals;
     z  = 0;
@@ -1363,7 +1346,7 @@ static wchar_t *mergepath(const wchar_t **pp)
             s[x] = n;
         len += (n + 1);
     }
-    r = p = xwmalloc(len + 2);
+    r = p = xwalloc(len + 2);
     for (i = 0, x = 0; pp[i] != NULL; i++, x++) {
         if (x < 64)
             n = s[x];
@@ -1508,7 +1491,7 @@ static wchar_t *getrealpathname(const wchar_t *path, int isdir)
         return NULL;
 
     while (buf == NULL) {
-        buf = xwmalloc(siz);
+        buf = xwalloc(siz);
         len = GetFinalPathNameByHandleW(fh, buf, siz, VOLUME_NAME_DOS);
         if (len == 0) {
             CloseHandle(fh);
@@ -1805,7 +1788,7 @@ static int runprogram(int argc, wchar_t **argv)
                 continue;
             n = xwcslen(a);
             if (a[n - 1] == L'\'') {
-                v = xwmalloc(n - 2);
+                v = xwalloc(n - 2);
                 wmemcpy(v, a + 1, n - 2);
                 xfree(a);
                 argv[i] = v;
