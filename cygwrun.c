@@ -55,16 +55,7 @@
 
 #define IS_PSW(_c)              (((_c) == L'/') || ((_c)  == L'\\'))
 #define IS_EMPTY_WCS(_s)        (((_s) == NULL) || (*(_s) == 0))
-#define IS_VALID_WCS(_s)        (((_s) != NULL) && (*(_s) != 0))
-
-#define IS_PSC(_c)              (((_c) == '/')  || ((_c)  == '\\'))
 #define IS_EMPTY_STR(_s)        (((_s) == NULL) || (*(_s) == 0))
-#define IS_VALID_STR(_s)        (((_s) != NULL) && (*(_s) != 0))
-#define IS_INVALID_HANDLE(_h)   (((_h) == NULL) || ((_h) == INVALID_HANDLE_VALUE))
-#define SAFE_CLOSE_HANDLE(_h)                                           \
-    if (((_h) != NULL) && ((_h) != INVALID_HANDLE_VALUE))               \
-        CloseHandle((_h));                                              \
-    (_h) = NULL
 
 
 /**
@@ -816,7 +807,7 @@ static char *xstrctok(char *s, char d, char **c)
 
 static int xneedsquote(const wchar_t *s)
 {
-    if (IS_VALID_WCS(s)) {
+    if (s && *s) {
         while (*s) {
             if (xisspace(*s) || (*s == 0x22))
                 return 1;
@@ -1487,7 +1478,7 @@ static wchar_t *getrealpathname(const wchar_t *path, int isdir)
         return NULL;
     fh = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
                      OPEN_EXISTING, fa, NULL);
-    if (IS_INVALID_HANDLE(fh))
+    if (fh == INVALID_HANDLE_VALUE)
         return NULL;
 
     while (buf == NULL) {
