@@ -140,7 +140,7 @@ static const wchar_t *rootpaths[]   = {
 
 static const char *sskipenv =
     "COMPUTERNAME,HOMEDRIVE,HOMEPATH,HOST," \
-    "HOSTNAME,LOGONSERVER,PATH,PATHEXT,PROCESSOR_*,PROMPT,USER,USERNAME";
+    "HOSTNAME,LOGONSERVER,PATH,PATHEXT,PROCESSOR_@*,PROMPT,USER,USERNAME";
 
 static const char *unsetvars[] = {
     "ERRORLEVEL",
@@ -656,7 +656,7 @@ static int xstricmp(const char *s1, const char *s2)
  * Based loosely on sections of wildmat.c by Rich Salz
  *
  * '*' matches any char
- * '?' character must be alphabetic
+ * '@' character must be alphabetic
  * '+' character must be not be control or space
  */
 static int xwcsimatch(const wchar_t *wstr, const wchar_t *wexp)
@@ -678,7 +678,7 @@ static int xwcsimatch(const wchar_t *wstr, const wchar_t *wexp)
                 }
                 return -1;
             break;
-            case L'?':
+            case L'@':
                 if (!xisalpha(*wstr))
                     return -1;
             break;
@@ -714,7 +714,7 @@ static int xstrimatch(const char *str, const char *exp)
                 }
                 return -1;
             break;
-            case '?':
+            case '@':
                 if (!xisalpha(*str))
                     return -1;
             break;
@@ -1028,7 +1028,7 @@ static int isposixpath(const wchar_t *str)
         return iswinpath(str);
     if (xwcschr(str + 1, L":;", L'/')) {
         if (xwcsbegins(str, L"/cygdrive/") &&
-            xisalpha(str[10]) && (str[11] == L'/') && (str[12]))
+            xisalpha(str[10]) && (str[11] == L'/') && !xisnonchar(str[12]))
             return 100;
         while (rootpaths[i] != NULL) {
             if (xwcsbegins(str, rootpaths[i]))
