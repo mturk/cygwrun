@@ -116,9 +116,10 @@ rv="`$_cygwrun $_dumpenvp FOO`"
 test "x$rv" = "xFOO=$tmpdir;$vardir;..\\d" || xbexit 1 "Failed #6.2: \`$rv'"
 export FOO="c*"
 export CYGWRUN_SKIP=BAR
-rv="`$_cygwrun -u=FOO $_dumpenvp BAR`"
+rv="`$_cygwrun $_dumpenvp BAR`"
 test "x$rv" = "xBAR=/tmp/bin" || xbexit 1 "Failed #6.3: \`$rv'"
-rv="`$_cygwrun -s=FOO $_dumpenvp FOO`"
+export CYGWRUN_SKIP=FOO,BAR
+rv="`$_cygwrun $_dumpenvp FOO`"
 test "x$rv" = "xFOO=c*" || xbexit 1 "Failed #6.4: \`$rv'"
 
 echo "All tests passed!"

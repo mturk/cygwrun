@@ -41,7 +41,11 @@ In case the `PROGRAM` name is `.` character, the
 Cygwrun will print the evaluated arguments to the
 stdout.
 
-The command line usage is as follows:
+In case the first argument is **-v**, Cygwrun will
+print version information and exit.
+
+In case the Cygwrun was compiled with command options
+enabled, the command line usage is as follows:
 
 ```
 cygwrun [OPTIONS]... PROGRAM [ARGUMENTS]...
@@ -55,6 +59,10 @@ Options are:
  -v        print version information and exit.
 
 ```
+
+The command options can be enabled by setting
+`#define CYGWRUN_HAVE_CMDOPTS 1` inside
+[cygwrun.c](./cygwrun.c) file.
 
 
 ## Global configuration
@@ -77,17 +85,12 @@ Cygwrun uses for each instance:
 
   The names of the environment variables are comma separated.
 
-
 * **CYGWRUN_UNSET**
 
   This variable allows to set which environment variables
   Cygwrun will not pass to the `PROGRAM`.
 
   The names of the environment variables are comma separated.
-
-  In case the **-u** command option was also defined, it's
-  argument(s) will be added to the list of variables that will
-  not be set for the `PROGRAM`.
 
 
 ## Posix root
@@ -197,7 +200,6 @@ by Cygwrun in case of failure.
 
 Return value `126` is returned in case the `PROGRAM`
 cannot be executed.
-
 Return value `127` is returned in case the `PROGRAM`
 cannot be found.
 

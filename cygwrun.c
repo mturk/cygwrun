@@ -33,6 +33,10 @@
  * Set this value to 1 for dev versions
  */
 #define CYGWRUN_USE_MEMFREE         0
+/**
+ * Use -s and -u command options
+ */
+#define CYGWRUN_HAVE_CMDOPTS        0
 
 #define CYGWRUN_ERRMAX            110
 #define CYGWRUN_FAILED            126
@@ -1989,9 +1993,10 @@ int main(int argc, const char **argv, const char **envp)
     wchar_t    *eparam;
     char       *sparam;
     const char *optarg;
+#if CYGWRUN_HAVE_CMDOPTS
     const char *scmdopt = NULL;
     const char *ucmdopt = NULL;
-
+#endif
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX | SEM_NOGPFAULTERRORBOX);
     if (argc < 2)
         return CYGWRUN_ENOEXEC;
@@ -2016,7 +2021,7 @@ int main(int argc, const char **argv, const char **envp)
     if ((configvals[CCYGWIN_TEMP] == NULL) ||
         (configvals[CCYGWIN_TMP]  == NULL))
         return CYGWRUN_EBADPATH;
-
+#if CYGWRUN_HAVE_CMDOPTS
     while (*optarg == '-') {
         int opt = *++optarg;
 
@@ -2042,10 +2047,13 @@ int main(int argc, const char **argv, const char **envp)
         }
         __NEXT_ARG();
     }
+#endif
     if (argc < 1)
         return CYGWRUN_ENOEXEC;
     sparam   = xstrdup(configvals[CYGWRUN_SKIP]);
+#if CYGWRUN_HAVE_CMDOPTS
     sparam   = xstrappend(sparam, scmdopt,  ',');
+#endif
     sparam   = xstrappend(sparam, sskipenv, ',');
     wparam   = xmbstowcs(sparam);
     askipenv = wcstoarray(wparam, L',');
@@ -2054,7 +2062,9 @@ int main(int argc, const char **argv, const char **envp)
     xmfree(sparam);
 #endif
     sparam   = xstrdup(configvals[CYGWRUN_UNSET]);
+#if CYGWRUN_HAVE_CMDOPTS
     sparam   = xstrappend(sparam, ucmdopt,  ',');
+#endif
     adelenvv = strtoarray(sparam, ',');
 #if CYGWRUN_USE_MEMFREE
     xmfree(sparam);
