@@ -19,6 +19,7 @@
 CC = cl.exe
 LN = link.exe
 RC = rc.exe
+MT = mt.exe
 
 MACHINE = x64
 SRCDIR  = .
@@ -84,9 +85,11 @@ $(OUTPUT): $(WORKDIR) $(OBJECTS)
 
 $(TESTDA): $(WORKDIR) $(TESTDA_OBJECTS)
 	$(LN) $(LFLAGS) $(TESTDA_OBJECTS) $(LDLIBS) -out:$@
+	$(MT) -manifest $(SRCDIR)\cygwrun.manifest -outputresource:$@;#1
 
 $(TESTDE): $(WORKDIR) $(TESTDE_OBJECTS)
 	$(LN) $(LFLAGS) $(TESTDE_OBJECTS) $(LDLIBS) -out:$@
+	$(MT) -manifest $(SRCDIR)\cygwrun.manifest -outputresource:$@;#1
 
 test: all $(TESTDA) $(TESTDE)
 
