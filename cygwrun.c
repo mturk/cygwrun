@@ -1672,14 +1672,26 @@ static void killproctree(DWORD pid)
 static wchar_t *getcygwinroot(void)
 {
     DWORD    n;
-    wchar_t  b[CYGWRUN_PATH_MAX];
+    wchar_t  b[MAX_PATH];
     wchar_t *r = NULL;
 
-    n = SearchPathW(NULL, L"cygwin1.dll", NULL, CYGWRUN_PATH_MAX, b, NULL);
-    if ((n > 20) && (n < CYGWRUN_PATH_MAX)) {
+    n = SearchPathW(NULL, L"cygwin1.dll", NULL, MAX_PATH, b, NULL);
+    if ((n > 20) && (n < MAX_PATH)) {
         b[n - 16] = 0;
         r = xwcsdup(b);
         r = wcleanpath(r);
+    }
+    else {
+        n = MAX_PATH * 2;
+        if (RegGetValueW(HKEY_LOCAL_MACHINE,
+                         L"Software\\Cygwin\\setup",
+                         L"rootdir",
+                         RRF_RT_REG_SZ,
+                         NULL,
+                         b, &n) == ERROR_SUCCESS) {
+            r = xwcsdup(b);
+            r = wcleanpath(r);
+        }
     }
     return r;
 }
